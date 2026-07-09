@@ -2,6 +2,13 @@ import os, re, json, logging
 from typing import Dict, List, Optional, Set
 from collections import defaultdict
 
+_HAS_NETWORKX = False
+try:
+    import networkx as nx
+    _HAS_NETWORKX = True
+except ImportError:
+    pass
+
 logger = logging.getLogger(__name__)
 
 IMPORT_RE = re.compile(r'import\s+[\"\'"]+([^\"\'"]+)[\"\'"]+')
@@ -98,6 +105,32 @@ class AgenticAuditor:
         for deps in self.graph.values():
             imported.update(deps)
         return [f for f in self.files if f not in imported]
+
+    def build_call_graph(self) -> Optional[object]:
+        if not _HAS_NETWORKX:
+            return None
+        G = nx.DiGraph()
+        for f in self.files:
+            G.add_node(f, size=len(self.files[f]))
+        for src, deps in self.graph.items():
+            for dst in deps:
+                G.add_edge(src, dst)
+        return G
+
+    def get_subgraph(self, target_function: str, depth: int = 2) -> Dict[str, str]:
+        G = self.build_call_graph()
+        if G is None:
+            return self.files
+        nodes = {f for f in self.files if target_function in self.files[f]}
+        for _ in range(depth):
+            neighbors = set()
+            for n in nodes:
+                for pred in G.predecessors(n):
+                    neighbors.add(pred)
+                for succ in G.successors(n):
+                    neighbors.add(succ)
+            nodes |= neighbors
+        return {f: self.files[f] for f in nodes if f in self.files}
 
     def prioritized_files(self, limit: int = 5) -> List[str]:
         entry = self.get_entry_points()

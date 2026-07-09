@@ -1,4 +1,5 @@
-"""Chain Monitor - monitor on-chain contracts with notifications on update."""
+"""Chain Monitor - monitor on-chain contracts with notifications on update.
+Supports Proxy Upgrade detection by comparing bytecode hash."""
 import os
 import json
 import time
@@ -104,6 +105,41 @@ class ChainMonitor:
             except Exception as e:
                 logger.warning(f"Check failed for {mc.address}: {e}")
         self._save()
+
+    def fetch_bytecode_hash(self, contract: MonitoredContract) -> Optional[str]:
+        import requests
+        explorer = {"ethereum": "api.etherscan.io", "bsc": "api.bscscan.com",
+                    "polygon": "api.polygonscan.com", "arbitrum": "api.arbiscan.io"}
+        domain = explorer.get(contract.chain, "api.etherscan.io")
+        url = f"https://{domain}/api?module=proxy&action=eth_getCode&address={contract.address}&apikey={contract.api_key}"
+        try:
+            resp = requests.get(url, timeout=15)
+            data = resp.json()
+            bytecode = data.get("result", "")
+            if not bytecode or bytecode == "0x":
+                return None
+            return hashlib.sha256(bytecode.encode()).hexdigest()[:16]
+        except Exception as e:
+            logger.debug(f"Bytecode fetch failed for {contract.address}: {e}")
+            return None
+
+    def check_for_upgrade(self, contract: MonitoredContract) -> Optional[str]:
+        current_hash = self.fetch_bytecode_hash(contract)
+        if current_hash is None:
+            return None
+        if contract.last_hash and contract.last_hash != current_hash:
+            old_hash = contract.last_hash
+            contract.last_hash = current_hash
+            contract.last_seen = time.time()
+            self._save()
+            return (f"⚠️ *Proxy Upgrade Detected*\n"
+                    f"Contract: `{contract.address}` ({contract.label})\n"
+                    f"Bytecode hash: `{old_hash[:8]} → {current_hash[:8]}`\n"
+                    f"Chain: {contract.chain}\nTriggering re-audit...")
+        if not contract.last_hash:
+            contract.last_hash = current_hash
+        contract.last_seen = time.time()
+        return None
 
     def start(self, interval: int = 60):
         """Start periodic monitoring in background."""

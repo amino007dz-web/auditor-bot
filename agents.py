@@ -1,11 +1,25 @@
+import asyncio
 import hashlib
 import logging
+import os
 import re
 import sqlite3
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional
+
+_HAS_REDIS = False
+try:
+    import redis as _redis_module
+    _REDIS_CLIENT = _redis_module.Redis.from_url(
+        os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
+        socket_connect_timeout=2, socket_timeout=2, decode_responses=True,
+    )
+    _REDIS_CLIENT.ping()
+    _HAS_REDIS = True
+except Exception:
+    _REDIS_CLIENT = None
 
 import requests
 
@@ -159,8 +173,16 @@ def _init_cache():
 def _cache_get(model_id: str, prompt: str) -> Optional[str]:
     if not CACHE_ENABLED:
         return None
+    h = hashlib.sha256(prompt.encode()).hexdigest()
     try:
-        h = hashlib.sha256(prompt.encode()).hexdigest()
+        if _HAS_REDIS:
+            val = _REDIS_CLIENT.get(f"cache:{model_id}:{h}")
+            if val is not None:
+                console.log(f"[dim]💾 Redis Cache: {model_id} — hit[/]")
+                return val
+    except Exception:
+        pass
+    try:
         with _cache_lock:
             conn = sqlite3.connect(CACHE_DB_PATH, timeout=30)
             row = conn.execute(
@@ -181,8 +203,13 @@ def _cache_get(model_id: str, prompt: str) -> Optional[str]:
 def _cache_set(model_id: str, prompt: str, response: str):
     if not CACHE_ENABLED:
         return
+    h = hashlib.sha256(prompt.encode()).hexdigest()
     try:
-        h = hashlib.sha256(prompt.encode()).hexdigest()
+        if _HAS_REDIS:
+            _REDIS_CLIENT.setex(f"cache:{model_id}:{h}", 86400, response)
+    except Exception:
+        pass
+    try:
         with _cache_lock:
             conn = sqlite3.connect(CACHE_DB_PATH, timeout=30)
             conn.execute(
@@ -392,6 +419,53 @@ def run_parallel(work_items: List[Dict]) -> List[tuple]:
             except Exception as e:
                 results.append((label, None, str(e)))
     return results
+
+
+async def async_call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
+    import aiohttp
+    if API_PROVIDER == "ollama":
+        raise NotImplementedError("Async not supported for Ollama")
+    cached = _cache_get(model_id, prompt)
+    if cached is not None:
+        return cached
+    timeout = timeout or TIMEOUT
+    info = FREE_MODELS.get(model_id, {})
+    masked_key = OPENROUTER_API_KEY[:8] + "..." if OPENROUTER_API_KEY else "missing"
+    last_err = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{OPENROUTER_BASE_URL}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": model_id,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": TEMPERATURE,
+                    },
+                    timeout=aiohttp.ClientTimeout(total=timeout),
+                ) as resp:
+                    if resp.status == 429:
+                        backoff = INITIAL_BACKOFF * (2 ** (attempt - 1))
+                        console.log(f"[yellow]⏳ Async rate limit (attempt {attempt}/{MAX_RETRIES}) — waiting {backoff:.0f}s...[/]")
+                        await asyncio.sleep(backoff)
+                        continue
+                    elif resp.status == 402:
+                        raise aiohttp.ClientResponseError(resp.request_info, resp.history, status=402, message=f"402 Payment Required (key: {masked_key})")
+                    resp.raise_for_status()
+                    data = await resp.json()
+                    result = data["choices"][0]["message"]["content"]
+                    _cache_set(model_id, prompt, result)
+                    return result
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            backoff = INITIAL_BACKOFF * (2 ** (attempt - 1))
+            logger.warning(f"Async connection error (attempt {attempt}/{MAX_RETRIES}) — waiting {backoff:.0f}s...")
+            await asyncio.sleep(backoff)
+            last_err = str(e)
+    raise Exception(f"Async call failed after {MAX_RETRIES} attempts. Key: {masked_key}. Last: {last_err}")
 
 def analyze_code(code: str, lang: str = "english", model_key: str = "") -> str:
     code = truncate_code(code, model_key)
