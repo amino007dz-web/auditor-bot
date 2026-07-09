@@ -1,0 +1,42 @@
+{
+  "name": "smart-contract-auditor",
+  "displayName": "Smart Contract Auditor",
+  "description": "Live audit of Solidity/Vyper/Move code using the Smart Contract Auditor API",
+  "version": "0.1.0",
+  "publisher": "amino007dz",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Linters", "Security"],
+  "activationEvents": ["onLanguage:solidity", "onLanguage:vyper"],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "sca.auditFile",
+        "title": "Smart Contract Auditor: Audit current file"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "sca.auditFile",
+        "key": "ctrl+shift+a",
+        "mac": "cmd+shift+a"
+      }
+    ],
+    "configuration": {
+      "title": "Smart Contract Auditor",
+      "properties": {
+        "sca.apiUrl": {
+          "type": "string",
+          "default": "https://auditor-bot.onrender.com",
+          "description": "Auditor API base URL"
+        },
+        "sca.lang": {
+          "type": "string",
+          "enum": ["english", "arabic"],
+          "default": "english",
+          "description": "Report language"
+        }
+      }
+    }
+  }
+}
