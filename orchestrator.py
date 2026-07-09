@@ -72,9 +72,6 @@ def dispatch_analysis(
         initial = analyze_code(code, lang)
         critique = self_critique(initial, code, lang)
         return validate_with_poc_silent(critique, code)
-        initial = analyze_code(code, lang)
-        critique = self_critique(initial, code, lang)
-        return validate_with_poc_silent(critique, code)
 
     if analysis_type == "multi":
         return multi_audit(code, lang, team)

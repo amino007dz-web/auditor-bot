@@ -15,7 +15,7 @@ GITCOIN_CHECKS = [
 
 def gitcoin_audit(code: str) -> List[Dict]:
     findings = []
-    for name, pattern, risk in GITCIN_CHECKS:
+    for name, pattern, risk in GITCOIN_CHECKS:
         if not re.search(pattern, code, re.IGNORECASE):
             findings.append({
                 "check": name,
