@@ -109,6 +109,7 @@ class TelegramBot:
         return {
             "inline_keyboard": [
                 [{"text": "🔍 Code Audit", "callback_data": "audit_help"}],
+                [{"text": "🔬 Auto-PoC Audit", "callback_data": "poc_help"}],
                 [{"text": "⛽ Gas Analysis", "callback_data": "gas_help"}],
                 [{"text": "📊 Status", "callback_data": "status"}],
                 [{"text": "📄 PDF Report", "callback_data": "pdf_help"}],
@@ -288,7 +289,8 @@ class TelegramBot:
                 "🤖 *Smart Contract Auditor Bot*\n\n"
                 "📝 Send smart contract code for auditing, a GitHub link, or upload a file.\n"
                 "Quick commands:\n"
-                "`/audit <code>` — Audit\n"
+                "`/audit <code>` — Standard Audit\n"
+                "`/poc <code>` — Auto-PoC Audit (validates Critical findings)\n"
                 "`/gas <code>` — Gas Analysis\n"
                 "`/pdf <code>` — PDF Report\n"
                 "`/lang` — Change report language\n"
@@ -322,6 +324,14 @@ class TelegramBot:
                 self._send(chat_id, "Send the code after /audit:\n`/audit pragma solidity ^0.8.0; ...`")
                 return
             self._dispatch(self._run_audit, chat_id, code)
+            return
+
+        if cmd == "/poc":
+            code = text[4:].strip()
+            if len(code) < 20:
+                self._send(chat_id, "Send the code after /poc:\n`/poc pragma solidity ^0.8.0; ...`")
+                return
+            self._dispatch(self._run_poc, chat_id, code)
             return
 
         if cmd == "/gas":
@@ -391,11 +401,20 @@ class TelegramBot:
         elif data == "stats":
             self._answer_callback(cb_id, "Loading statistics")
             self._dispatch(self._cmd_stats, chat_id)
+        elif data == "poc_help":
+            self._answer_callback(cb_id, "Auto-PoC Audit")
+            self._send(chat_id,
+                "🔬 *Auto-PoC Audit:*\n\n"
+                "Analyzes code + validates Critical findings with Foundry test generation.\n\n"
+                "Send code directly, or use:\n`/poc <code>`\n\n"
+                "📎 Or upload a `.sol` file",
+                keyboard=self._main_keyboard())
         elif data == "help":
             self._answer_callback(cb_id, "Help menu")
             self._send(chat_id,
                 "🤖 *Commands:*\n\n"
                 "`/audit <code>` — Code Audit\n"
+                "`/poc <code>` — Auto-PoC Audit\n"
                 "`/gas <code>` — Gas Analysis\n"
                 "`/pdf <code>` — PDF Report\n"
                 "`/lang` — Change Language\n"
@@ -539,6 +558,25 @@ class TelegramBot:
             result = analyze_code(code[:3000], self._user_langs.get(chat_id, "english"))
             self._send(chat_id, f"*🔍 Audit Result:*\n\n{result[:3500]}")
             self._track(chat_id, "audit")
+        finally:
+            stop.set()
+
+    def _run_poc(self, chat_id: int, code: str):
+        from orchestrator import dispatch_analysis
+        dots = ["🔬 Auto-PoC Audit", "🔬 Auto-PoC Audit.", "🔬 Auto-PoC Audit..", "🔬 Auto-PoC Audit..."]
+        stop = threading.Event()
+        spinner = itertools.cycle(dots)
+        def progress():
+            while not stop.is_set():
+                self._send_action(chat_id)
+                stop.wait(4)
+        p = threading.Thread(target=progress, daemon=True)
+        p.start()
+        try:
+            lang = self._user_langs.get(chat_id, "english")
+            result = dispatch_analysis(code[:4000], analysis_type="autopoc", lang=lang)
+            self._send(chat_id, f"*🔬 Auto-PoC Audit Result:*\n\n{result[:3500]}")
+            self._track(chat_id, "autopoc")
         finally:
             stop.set()
 
