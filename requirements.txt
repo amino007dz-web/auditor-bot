@@ -10,5 +10,9 @@ flask>=3.0.0
 arabic-reshaper>=3.0.0
 python-bidi>=0.4.2
 
+# Semantic search for RAG
+sentence-transformers>=3.0.0
+numpy>=1.24.0
+
 # واجهة CLI متقدمة — ألوان، جداول، Progress Bar
 rich>=13.0.0
