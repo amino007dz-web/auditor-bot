@@ -54,7 +54,7 @@ class HierarchicalAuditor:
     """Reusable hierarchical auditor with configurable agents."""
 
     def __init__(self, layer1_agents: List[dict], layer2_agents: List[dict],
-                 default_model: str = "gemma-4-31b", protocol_name: str = "Protocol"):
+                 default_model: str = "llama-3.3-70b", protocol_name: str = "Protocol"):
         self.layer1_agents = layer1_agents
         self.layer2_agents = layer2_agents
         self.default_model = default_model

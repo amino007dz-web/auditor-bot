@@ -12,7 +12,7 @@ from config import (
 class TestConfig:
     def test_free_models_exist(self):
         assert len(FREE_MODELS) >= 5
-        assert "deepseek-v4-flash" in FREE_MODELS
+        assert "deepseek-chat" in FREE_MODELS
         assert "openrouter-free" in FREE_MODELS
 
     def test_fallback_chain_not_empty(self):

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 LAYER1_AGENTS = [
     {
         "key": "security", "name": "Security Expert",
-        "model": "gemma-4-31b",
+        "model": "llama-3.3-70b",
         "prompt": """You are a smart contract security expert specializing in vulnerability discovery.
 Your tasks:
 1. Analyze the code line by line for security vulnerabilities
@@ -38,7 +38,7 @@ Output format:
     },
     {
         "key": "logic", "name": "Logic & Design Expert",
-        "model": "gemma-4-31b",
+        "model": "llama-3.3-70b",
         "prompt": """You are an expert in business logic and decentralized protocol design.
 Your tasks:
 1. Analyze contract design and business logic
@@ -57,7 +57,7 @@ Output format:
     },
     {
         "key": "economics", "name": "Economics & Gas Expert",
-        "model": "gemma-4-31b",
+        "model": "llama-3.3-70b",
         "prompt": """You are an expert in protocol economics and gas optimization.
 Your tasks:
 1. Analyze the economic model
@@ -77,7 +77,7 @@ Output format:
 LAYER2_AGENTS = [
     {
         "key": "investigator", "name": "Investigator",
-        "model": "gemma-4-31b",
+        "model": "llama-3.3-70b",
         "prompt": """You are an investigator specialized in root cause analysis of smart contract vulnerabilities.
 Your role: After Layer 1 analysis from 3 angles (security, logic, economics):
 1. Study all Layer 1 analyses
@@ -95,7 +95,7 @@ Output:
     },
     {
         "key": "skeptic", "name": "Skeptic",
-        "model": "gemma-4-31b",
+        "model": "llama-3.3-70b",
         "prompt": """You are a skeptic specialized in debunking false vulnerabilities.
 Your role: Review the investigator's report and Layer 1 analyses:
 1. Impractical vulnerabilities?
@@ -110,7 +110,7 @@ Output:
     },
     {
         "key": "critic", "name": "Critic",
-        "model": "gemma-4-31b",
+        "model": "llama-3.3-70b",
         "prompt": """You are a lead critic specialized in Bug Bounty reports.
 Your role: After Layer 1, investigator, and skeptic:
 1. Filter remaining findings
@@ -209,7 +209,7 @@ def hierarchical_audit(code: str, protocol_name: str = "Protocol", repo_url: str
     if ext_text:
         extra_ctx += f"\n{ext_text}\n"
     auditor = HierarchicalAuditor(LAYER1_AGENTS, LAYER2_AGENTS,
-                                   default_model="gemma-4-31b",
+                                   default_model="llama-3.3-70b",
                                    protocol_name=protocol_name)
     layer1, layer2, final = auditor.run(code, lang, extra_context=extra_ctx)
 

@@ -42,7 +42,7 @@ DEFAULT_CONFIG = {
     "active_model": "openrouter-free",
     "model_fallback_chain": [
         "openrouter-free", "qwen3-coder",
-        "llama-3.3-70b", "gemma-4-31b", "hermes-3-405b",
+        "llama-3.3-70b", "hermes-3-405b",
         "deepseek-r1", "nemotron-3-ultra",
     ],
 }
@@ -64,12 +64,10 @@ FREE_MODELS: Dict[str, Dict] = {
     "openrouter-free":   {"id": "openrouter/free",                              "context": 200_000},
     "qwen3-coder":       {"id": "qwen/qwen3-coder:free",                         "context": 1_048_576},
     "llama-3.3-70b":     {"id": "meta-llama/llama-3.3-70b-instruct:free",        "context": 131_072},
-    "gemma-4-31b":       {"id": "google/gemma-4-31b-it:free",                    "context": 262_144},
     "gemma-4-26b":       {"id": "google/gemma-4-26b-a4b-it:free",                "context": 262_144},
     "hermes-3-405b":     {"id": "nousresearch/hermes-3-llama-3.1-405b:free",     "context": 131_072},
     "nemotron-3-ultra":  {"id": "nvidia/nemotron-3-ultra-550b-a55b:free",        "context": 1_000_000},
     "nemotron-3-nano":   {"id": "nvidia/nemotron-3-nano-30b-a3b:free",            "context": 256_000},
-    "deepseek-v4-flash":  {"id": "deepseek/deepseek-v4-flash",                     "context": 1_000_000},
     "deepseek-r1":       {"id": "deepseek/deepseek-r1:free",                       "context": 1_000_000},
     "deepseek-chat":     {"id": "deepseek/deepseek-chat:free",                    "context": 1_000_000},
     "deepseek-r1-llama": {"id": "deepseek/deepseek-r1-distill-llama-70b:free",    "context": 131_072},

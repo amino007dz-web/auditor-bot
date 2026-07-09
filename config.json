@@ -12,7 +12,7 @@
   "model_fallback_chain": [
     "openrouter-free",
     "qwen3-coder",
-    "gemma-4-31b",
+    "llama-3.3-70b",
     "llama-3.3-70b",
     "hermes-3-405b",
     "nemotron-3-ultra",

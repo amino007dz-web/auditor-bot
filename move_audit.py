@@ -26,7 +26,7 @@ LAYER1_AGENTS = [
     {
         "key": "security_move",
         "name": "Move/Sui Security Expert",
-        "model": "deepseek-v4-flash",
+        "model": "deepseek-chat",
         "prompt": """You are a smart contract security expert specialized in **Move** on Sui blockchain.
 
 Your tasks:
@@ -48,7 +48,7 @@ Output:
     {
         "key": "logic_move",
         "name": "Sui Logic Expert",
-        "model": "deepseek-v4-flash",
+        "model": "deepseek-chat",
         "prompt": """You are an expert in business logic and protocol design on Sui blockchain in Move.
 
 Your tasks:
@@ -69,7 +69,7 @@ Output:
     {
         "key": "economics_move",
         "name": "Sui Economics Expert",
-        "model": "deepseek-v4-flash",
+        "model": "deepseek-chat",
         "prompt": """You are an expert in protocol economics on Sui blockchain.
 
 Your tasks:
@@ -93,7 +93,7 @@ LAYER2_AGENTS = [
     {
         "key": "investigator_move",
         "name": "Investigator",
-        "model": "deepseek-v4-flash",
+        "model": "deepseek-chat",
         "prompt": """You are an investigator specialized in root cause analysis of Move/Sui vulnerabilities.
 
 Your role: After Layer 1 analyzed the code from 3 angles (security, logic, economics):
@@ -117,7 +117,7 @@ Output:
     {
         "key": "skeptic_move",
         "name": "Skeptic",
-        "model": "deepseek-v4-flash",
+        "model": "deepseek-chat",
         "prompt": """You are a skeptic specialized in debunking false vulnerabilities in Move/Sui contracts.
 
 Your role: Review the investigator and Layer 1 analyses:
@@ -134,7 +134,7 @@ Explain why. Be harsh. Your goal: filter false positives only.
     {
         "key": "critic_move",
         "name": "Critic",
-        "model": "deepseek-v4-flash",
+        "model": "deepseek-chat",
         "prompt": """You are a lead critic producing professional Bug Bounty reports for HackenProof.
 
 Your role: After Layer 1 + investigator + skeptic:
@@ -178,14 +178,14 @@ Final report format (HackenProof-ready):
 def move_hierarchical_audit(code: str, lang: str = "english") -> str:
     """Run hierarchical analysis on Move/Sui code."""
     auditor = HierarchicalAuditor(LAYER1_AGENTS, LAYER2_AGENTS,
-                                   default_model="deepseek-v4-flash",
+                                   default_model="deepseek-chat",
                                    protocol_name="NAVI Astros (DVault)")
 
     # Override _run_agent for Move-specific fallback
     def move_run_agent(model_key: str, prompt: str, agent_name: str) -> Optional[str]:
         if model_key not in FREE_MODELS:
-            logger.warning(f"Model {model_key} not found, using deepseek-v4-flash")
-            model_key = "deepseek-v4-flash"
+            logger.warning(f"Model {model_key} not found, using deepseek-chat")
+            model_key = "deepseek-chat"
         model_id = FREE_MODELS[model_key]["id"]
         logger.info(f"Running {agent_name} ({model_key})...")
         try:
@@ -193,7 +193,7 @@ def move_hierarchical_audit(code: str, lang: str = "english") -> str:
         except Exception as e:
             logger.error(f"{agent_name} failed: {e}")
             try:
-                fallback_id = FREE_MODELS["deepseek-v4-flash"]["id"]
+                fallback_id = FREE_MODELS["deepseek-chat"]["id"]
                 logger.info(f"Trying fallback for {agent_name}...")
                 return call_model(fallback_id, prompt, timeout=900)
             except Exception as e2:
