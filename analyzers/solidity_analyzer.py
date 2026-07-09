@@ -32,6 +32,8 @@ class SolidityAnalyzer(LanguageAnalyzer):
         self.add_agent(Agent("Selfdestruct", "Critical", "Access Control", self._check_selfdestruct))
         self.add_agent(Agent("Uninitialized Proxy", "Critical", "Access Control", self._check_uninitialized_proxy))
         self.add_agent(Agent("Arbitrary External Call", "Critical", "Reentrancy", self._check_arbitrary_call))
+        self.add_agent(Agent("MEV: Sandwich Attack Vector", "Critical", "MEV", self._check_mev_sandwich))
+        self.add_agent(Agent("MEV: JIT Liquidity Attack", "Critical", "MEV", self._check_jit_liquidity))
 
         # ─── High ───
         self.add_agent(Agent("DELEGATECALL Usage (AST)", "High", "Access Control", self._check_delegatecall))
@@ -321,3 +323,26 @@ class SolidityAnalyzer(LanguageAnalyzer):
                     fname, "", "pragma with ^ — may cause compatibility issues", "", 0,
                     "Use a fixed pragma solidity 0.8.xx")]
         return []
+
+    def _check_mev_sandwich(self, fname, code):
+        findings = []
+        has_swap = has_pattern(code, r"\bswap\b")
+        has_reserve = has_pattern(code, r"reserve|getReserves")
+        has_skim = has_pattern(code, r"\bskim\b")
+        has_sync = has_pattern(code, r"\bsync\b")
+        has_update_pool = has_pattern(code, r"update\w*Pool|_update|mint\s*\(|burn\s*\(")
+        if has_swap and (has_reserve or has_skim or has_sync or has_update_pool):
+            if has_skim or has_sync:
+                risk = "High — skim/sync pool manipulation possible"
+            else:
+                risk = "detected — check front-running protection"
+            findings.append(Finding("MEV: Sandwich Attack Vector", "Critical", "MEV",
+                            fname, "", f"DEX swap function with pool state updates — {risk}", "", 0,
+                            "Add slippage protection (minOut) and deadline"))
+        return findings
+
+    def _check_jit_liquidity(self, fname, code):
+        if has_pattern(code, r"\bswap\b") and has_pattern(code, r"\baddLiquidity\b|\bmint\b.*\blp\b"):
+            return [Finding("MEV: JIT Liquidity Attack", "Critical", "MEV",
+                    fname, "", "swap + addLiquidity in same contract — JIT liquidity sandwich vector", "", 0,
+                    "Use a commit-reveal scheme or TWAP oracle")]
