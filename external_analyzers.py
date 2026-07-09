@@ -49,30 +49,60 @@ def _run_slither_on_code(code: str, tmp_dir: str) -> List[ExternalFinding]:
         if r.returncode != 0:
             logger.warning(f"Slither stderr: {r.stderr[:500]}")
         raw = r.stdout
-        if not raw.strip():
-            return findings
-        data = json.loads(raw)
-        for detector in data.get("results", {}).get("detectors", []):
-            sev_map = {"high": "Critical", "medium": "High", "low": "Medium", "informational": "Info"}
-            for ele in detector.get("elements", []):
-                findings.append(ExternalFinding(
-                    tool="slither",
-                    check=detector.get("check", "unknown"),
-                    severity=sev_map.get(detector.get("impact", "").lower(), "Medium"),
-                    description=detector.get("description", ""),
-                    file=ele.get("source_mapping", {}).get("filename_relative", ""),
-                    line=ele.get("source_mapping", {}).get("lines", [0])[0],
-                    code_snippet=str(ele.get("source_mapping", {}).get("content", ""))[:300],
-                    extra={"id": detector.get("id", "")},
-                ))
+        if raw.strip():
+            data = json.loads(raw)
+            for detector in data.get("results", {}).get("detectors", []):
+                sev_map = {"high": "Critical", "medium": "High", "low": "Medium", "informational": "Info"}
+                for ele in detector.get("elements", []):
+                    findings.append(ExternalFinding(
+                        tool="slither",
+                        check=detector.get("check", "unknown"),
+                        severity=sev_map.get(detector.get("impact", "").lower(), "Medium"),
+                        description=detector.get("description", ""),
+                        file=ele.get("source_mapping", {}).get("filename_relative", ""),
+                        line=ele.get("source_mapping", {}).get("lines", [0])[0],
+                        code_snippet=str(ele.get("source_mapping", {}).get("content", ""))[:300],
+                        extra={"id": detector.get("id", "")},
+                    ))
     except FileNotFoundError:
-        logger.info("Slither not installed — skipping")
+        logger.info("Slither not installed — skipping detectors")
     except json.JSONDecodeError:
         logger.warning("Slither: JSON parse failed")
     except subprocess.TimeoutExpired:
         logger.warning("Slither: timeout expired")
     except Exception as e:
         logger.warning(f"Slither: {e}")
+
+    try:
+        r2 = subprocess.run(
+            ["slither", src_path, "--print", "human-summary"],
+            capture_output=True, text=True, timeout=60,
+        )
+        if r2.stdout.strip():
+            findings.append(ExternalFinding(
+                tool="slither",
+                check="human-summary",
+                severity="Info",
+                description=r2.stdout[:1000],
+                file="",
+                extra={"print": "human-summary"},
+            ))
+        r3 = subprocess.run(
+            ["slither", src_path, "--print", "inheritance-graph"],
+            capture_output=True, text=True, timeout=60,
+        )
+        if r3.stdout.strip():
+            findings.append(ExternalFinding(
+                tool="slither",
+                check="inheritance-graph",
+                severity="Info",
+                description=r3.stdout[:800],
+                file="",
+                extra={"print": "inheritance-graph"},
+            ))
+    except Exception:
+        pass
+
     return findings
 
 

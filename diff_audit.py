@@ -1,5 +1,6 @@
 """
 Diff Audit — compare two versions of a contract and verify fixes.
+Generates a visual HTML diff with green/red lines + AI analysis.
 """
 import difflib
 import logging
@@ -116,3 +117,60 @@ Output the result in the following format:
 
     report = call_model_with_fallback(prompt, timeout=300)
     return report or "Diff analysis failed"
+
+
+def generate_diff_html(v1: str, v2: str, ai_report: str = "") -> str:
+    """Generate a visual HTML diff with green (added) and red (removed) lines."""
+    lines1 = v1.splitlines()
+    lines2 = v2.splitlines()
+    differ = difflib.unified_diff(lines1, lines2, fromfile="v1", tofile="v2", lineterm="")
+    diff_lines = list(differ)
+
+    rows = []
+    for line in diff_lines:
+        css = ""
+        if line.startswith("+"):
+            css = 'style="background:#1a3a1a;color:#3fb950;"'
+        elif line.startswith("-"):
+            css = 'style="background:#3a1a1a;color:#f85149;"'
+        elif line.startswith("@@"):
+            css = 'style="background:#1c2128;color:#58a6ff;"'
+        rows.append(f"<tr><td><pre {css}>{_escape(line)}</pre></td></tr>")
+
+    ai_section = f"""
+    <div class="ai-report">
+      <h2>AI Analysis</h2>
+      <pre>{_escape(ai_report)}</pre>
+    </div>""" if ai_report else ""
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Diff Audit Report</title>
+<style>
+* {{ margin:0; padding:0; box-sizing:border-box; }}
+body {{ font-family:'Courier New',monospace; background:#0d1117; color:#c9d1d9; padding:2rem; }}
+h1 {{ color:#58a6ff; margin-bottom:1rem; }}
+table {{ width:100%; border-collapse:collapse; }}
+td {{ padding:0.25rem 1rem; border-bottom:1px solid #30363d; }}
+.summary {{ background:#161b22; padding:1rem; border-radius:8px; margin-bottom:1rem; }}
+.ai-report {{ background:#161b22; padding:1rem; border-radius:8px; margin-top:1rem; }}
+.ai-report h2 {{ color:#58a6ff; margin-bottom:0.5rem; }}
+</style></head>
+<body>
+<h1>Visual Diff Audit</h1>
+<div class="summary">
+  <p>Added: <span style="color:#3fb950;">{len([l for l in diff_lines if l.startswith('+') and not l.startswith('+++')])}</span>
+  | Removed: <span style="color:#f85149;">{len([l for l in diff_lines if l.startswith('-') and not l.startswith('---')])}</span>
+  | Total changes: {len(diff_lines)}</p>
+</div>
+<table>{"".join(rows)}</table>
+{ai_section}
+</body></html>"""
+    return html
+
+
+def _escape(text: str) -> str:
+    if not text:
+        return ""
+    return (str(text).replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace('"', "&quot;"))

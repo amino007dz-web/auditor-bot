@@ -719,6 +719,7 @@ class CLIApp:
         parser.add_argument("--parallel-workers", type=int, default=3, help="Parallel workers")
         parser.add_argument("--sarif", action="store_true", help="Export results as SARIF format for GitHub/VSCode")
         parser.add_argument("--autopoc", action="store_true", help="Auto-PoC: validate Critical findings with Foundry tests")
+        parser.add_argument("--grant-audit", action="store_true", help="Gitcoin/Allo protocol compliance check")
         parser.add_argument("--bytecode", type=str, help="Bytecode hex string, address, or file path for bytecode analysis")
         parser.add_argument("--agentic", type=str, help="Project directory for agentic architecture analysis")
         parser.add_argument("--webhook", type=str, help="Discord/Slack webhook URL to send audit report")
