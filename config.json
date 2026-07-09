@@ -1,0 +1,26 @@
+{
+  "temperature": 0.3,
+  "timeout": 300,
+  "max_retries": 3,
+  "initial_backoff": 2.0,
+  "max_code_chars": 500000,
+  "cache_enabled": true,
+  "cache_db": "cache.db",
+  "parallel": true,
+  "parallel_max_workers": 4,
+  "active_model": "openrouter-free",
+  "model_fallback_chain": [
+    "openrouter-free",
+    "qwen3-coder",
+    "gemma-4-31b",
+    "llama-3.3-70b",
+    "hermes-3-405b",
+    "nemotron-3-ultra",
+    "nemotron-3-nano"
+  ],
+  "kb_enabled": true,
+  "kb_db": "knowledge.db",
+  "kb_rag_enabled": true,
+  "kb_max_context": 2000,
+  "kb_auto_learn": true
+}

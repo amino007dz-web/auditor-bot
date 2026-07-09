@@ -1,0 +1,90 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smart-contract-auditor"
+version = "2.1.0"
+description = "Multi-language smart contract security auditor with AI-powered analysis"
+readme = "README.md"
+authors = [
+    {name = "DefiAudit", email = "salahkeven2@gmail.com"},
+]
+license = {text = "MIT"}
+keywords = ["blockchain", "security", "audit", "solidity", "vyper", "chialisp", "move"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "requests>=2.28.0",
+    "PyGithub>=2.0.0",
+    "flask>=3.0.0",
+    "rich>=13.0.0",
+]
+[project.optional-dependencies]
+solcast = ["solcast>=0.1.0", "solcx>=0.6.0"]
+pdf = ["fpdf2>=2.7.0", "arabic-reshaper>=3.0.0", "python-bidi>=0.4.0"]
+telegram = ["requests>=2.28.0"]
+ollama = ["ollama>=0.4.0"]
+all = [
+    "solcast>=0.1.0", "solcx>=0.6.0",
+    "fpdf2>=2.7.0", "arabic-reshaper>=3.0.0", "python-bidi>=0.4.0",
+    "ollama>=0.4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/amino007dz-web/auditor-bot"
+Repository = "https://github.com/amino007dz-web/auditor-bot"
+
+[project.scripts]
+smart-auditor = "main:main"
+unified-audit = "unified_audit:main"
+verify-findings = "verify_findings:main"
+
+[tool.setuptools.packages.find]
+include = ["smart_contract_auditor*", "analyzers*", "static_analysis*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.md", "*.toml", "*.json", "templates/*"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+indent-width = 4
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["S101"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

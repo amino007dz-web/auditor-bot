@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة التحكم - Smart Contract Auditor</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+header { text-align: center; padding: 2rem 0; border-bottom: 1px solid #30363d; margin-bottom: 2rem; }
+header h1 { color: #58a6ff; }
+.nav-links { display: flex; gap: 1rem; justify-content: center; margin-top: 1rem; }
+.nav-links a { color: #58a6ff; text-decoration: none; }
+.nav-links a:hover { text-decoration: underline; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.5rem; text-align: center; }
+.card .num { font-size: 2.5rem; font-weight: 700; color: #58a6ff; }
+.card .label { font-size: 0.85rem; color: #8b949e; margin-top: 0.25rem; }
+.card .sub { font-size: 0.75rem; color: #8b949e; margin-top: 0.5rem; }
+.section { margin-bottom: 2rem; }
+.section h2 { color: #58a6ff; margin-bottom: 1rem; font-size: 1.2rem; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: right; padding: 0.75rem 0.5rem; border-bottom: 2px solid #30363d; color: #58a6ff; font-size: 0.85rem; }
+td { padding: 0.75rem 0.5rem; border-bottom: 1px solid #30363d; font-size: 0.85rem; }
+tr:hover td { background: rgba(88, 166, 255, 0.03); }
+.bar { display: inline-block; height: 18px; border-radius: 4px; margin-left: 0.5rem; vertical-align: middle; }
+.bar-critical { background: #da3633; }
+.bar-high { background: #d29922; }
+.bar-medium { background: #58a6ff; }
+.bar-low { background: #8b949e; }
+.bar-info { background: #238636; }
+.empty { text-align: center; padding: 2rem; color: #8b949e; }
+footer { text-align: center; padding: 2rem; color: #8b949e; border-top: 1px solid #30363d; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>لوحة التحكم</h1>
+<div class="nav-links">
+<a href="/">الرئيسية</a>
+<a href="/report/list">التقارير</a>
+<a href="/dashboard">لوحة التحكم</a>
+</div>
+</header>
+
+<div class="grid">
+<div class="card"><div class="num">{{ stats.reports }}</div><div class="label">التقارير</div></div>
+<div class="card"><div class="num">{{ stats.patterns }}</div><div class="label">أنماط الثغرات</div></div>
+<div class="card"><div class="num">{{ stats.sessions }}</div><div class="label">جلسات التدقيق</div></div>
+<div class="card"><div class="num">{{ stats.false_positives }}</div><div class="label">False Positives</div></div>
+</div>
+
+<div class="section">
+<h2>أكثر الثغرات شيوعاً</h2>
+{% if stats.top_patterns %}
+<table><thead><tr><th>النمط</th><th>الدرجة</th></tr></thead>
+<tbody>
+{% for p in stats.top_patterns %}
+<tr><td>{{ p.name }}</td><td>{{ p.score }}</td></tr>
+{% endfor %}
+</tbody></table>
+{% else %}
+<div class="empty">لا توجد أنماط مسجلة بعد</div>
+{% endif %}
+</div>
+
+<div class="section">
+<h2>ترتيب النماذج (حسب الدقة)</h2>
+{% if stats.rankings %}
+<table><thead><tr><th>النموذج</th><th>الدقة</th><th>TP</th><th>FP</th></tr></thead>
+<tbody>
+{% for r in stats.rankings %}
+<tr>
+<td>{{ r.model_name }}</td>
+<td>{{ "%.0f"|format(r.avg_accuracy * 100) }}%</td>
+<td>{{ r.total_tp }}</td>
+<td>{{ r.total_fp }}</td>
+</tr>
+{% endfor %}
+</tbody></table>
+{% else %}
+<div class="empty">لا توجد بيانات أداء للنماذج بعد</div>
+{% endif %}
+</div>
+
+<div class="section">
+<h2>حالة النظام</h2>
+<table><thead><tr><th>المكون</th><th>الحالة</th></tr></thead>
+<tbody>
+<tr><td>Slither</td><td>{{ "مثبت" if stats.slither else "غير مثبت" }}</td></tr>
+<tr><td>Mythril</td><td>{{ "مثبت" if stats.mythril else "غير مثبت" }}</td></tr>
+<tr><td>قاعدة المعرفة (KB)</td><td>{{ "مفعلة" if stats.kb_enabled else "معطلة" }}</td></tr>
+<tr><td>ذاكرة التخزين (Cache)</td><td>{{ "مفعلة" if stats.cache_enabled else "معطلة" }}</td></tr>
+</tbody></table>
+</div>
+
+<footer>Smart Contract Auditor — لوحة التحكم والإحصائيات</footer>
+</div>
+</body>
+</html>

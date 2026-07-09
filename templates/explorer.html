@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>جلب من المستكشف - Smart Contract Auditor</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
+.container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+header { text-align: center; padding: 2rem 0; border-bottom: 1px solid #30363d; margin-bottom: 2rem; }
+header h1 { color: #58a6ff; }
+.nav-links { display: flex; gap: 1rem; justify-content: center; margin-top: 1rem; }
+.nav-links a { color: #58a6ff; text-decoration: none; }
+.nav-links a:hover { text-decoration: underline; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+.card h2 { color: #58a6ff; margin-bottom: 1rem; }
+input, select { width: 100%; padding: 0.75rem; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-size: 0.9rem; margin-bottom: 1rem; }
+.btn { display: inline-block; padding: 0.75rem 1.5rem; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; }
+.btn-primary { background: #238636; color: #fff; }
+.btn-primary:hover { background: #2ea043; }
+.btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
+.btn-secondary:hover { background: #30363d; }
+pre { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 1rem; font-size: 0.8rem; max-height: 400px; overflow-y: auto; direction: ltr; text-align: left; }
+.meta { color: #8b949e; font-size: 0.85rem; margin-bottom: 0.5rem; }
+.success { color: #3fb950; }
+.error { color: #f85149; }
+.flex { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.hidden { display: none; }
+#loading { text-align: center; padding: 2rem; }
+.spinner { border: 3px solid #30363d; border-top: 3px solid #58a6ff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+@keyframes spin { to { transform: rotate(360deg); } }
+footer { text-align: center; padding: 2rem; color: #8b949e; border-top: 1px solid #30363d; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>جلب العقد من مستكشف السلسلة</h1>
+<div class="nav-links">
+<a href="/">الرئيسية</a>
+<a href="/report/list">التقارير</a>
+<a href="/dashboard">لوحة التحكم</a>
+<a href="/explorer">المستكشف</a>
+</div>
+</header>
+
+<div class="card">
+<h2>إدخال عنوان العقد</h2>
+<form method="POST">
+<input type="text" name="address" placeholder="0x..." required>
+<select name="chain">
+<option value="ethereum">Ethereum (Etherscan)</option>
+<option value="bsc">BSC (BscScan)</option>
+<option value="polygon">Polygon (PolygonScan)</option>
+<option value="arbitrum">Arbitrum (ArbiScan)</option>
+<option value="optimism">Optimism (OptimisticScan)</option>
+<option value="base">Base (BaseScan)</option>
+<option value="avalanche">Avalanche (SnowTrace)</option>
+</select>
+<input type="text" name="api_key" placeholder="API Key (اختياري — الافتراضي: YourApiKeyToken)">
+<button type="submit" class="btn btn-primary">جلب العقد</button>
+</form>
+<p class="meta">السلاسل المدعومة: {{ chains }}</p>
+</div>
+
+{% if result %}
+<div class="card">
+<h2 class="{% if result.error %}error{% else %}success{% endif %}">
+{% if result.error %}خطأ{% else %}تم الجلب بنجاح{% endif %}
+</h2>
+{% if result.error %}
+<p>{{ result.error }}</p>
+{% else %}
+<p class="meta"><strong>الاسم:</strong> {{ result.name }}</p>
+<p class="meta"><strong>السلسلة:</strong> {{ result.chain }} ({{ result.explorer }})</p>
+<p class="meta"><strong>العنوان:</strong> {{ result.address }}</p>
+<p class="meta"><strong>المترجم:</strong> {{ result.compiler }}</p>
+<p class="meta"><strong>حجم الكود:</strong> {{ result.code|length }} حرف</p>
+
+<div class="flex" style="margin: 1rem 0;">
+<button class="btn btn-primary" onclick="analyzeChain('audit')">تحليل كامل</button>
+<button class="btn btn-secondary" onclick="analyzeChain('chunked')">تحليل مجزأ</button>
+<button class="btn btn-secondary" onclick="analyzeChain('opcodes')">Opcodes</button>
+</div>
+
+<div id="loading" class="hidden"><div class="spinner"></div><p>جاري التحليل...</p></div>
+<div id="chainResults" class="hidden">
+<h3>نتائج التحليل</h3>
+<pre id="chainReport"></pre>
+<div id="chainLinks" class="flex" style="margin-top: 1rem;"></div>
+</div>
+
+<details>
+<summary style="cursor:pointer;color:#58a6ff;">عرض الكود المصدري</summary>
+<pre>{{ result.code[:3000] }}{% if result.code|length > 3000 %}...{% endif %}</pre>
+</details>
+{% endif %}
+</div>
+{% endif %}
+
+<footer>Smart Contract Auditor — جلب من مستكشفات السلاسل</footer>
+</div>
+
+<script>
+const CONTRACT_ADDRESS = "{{ result.address if result and not result.error else '' }}";
+async function analyzeChain(type) {
+  document.getElementById('loading').classList.remove('hidden');
+  document.getElementById('chainResults').classList.add('hidden');
+  try {
+    const resp = await fetch('/analyze_chain', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({address: CONTRACT_ADDRESS, analysis_type: type, chain: '{{ result.chain if result else "ethereum" }}'})
+    });
+    const data = await resp.json();
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('chainReport').textContent = data.report;
+    document.getElementById('chainResults').classList.remove('hidden');
+    const links = document.getElementById('chainLinks');
+    links.innerHTML = '<a href="/download/' + data.filename + '" class="btn btn-secondary">تحميل TXT</a>';
+  } catch(e) {
+    document.getElementById('loading').innerHTML = '<p class="error">خطأ: ' + e.message + '</p>';
+  }
+}
+</script>
+</body>
+</html>

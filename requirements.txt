@@ -1,0 +1,14 @@
+groq>=1.0.0
+python-dotenv>=1.0.0
+PyGithub>=2.0.0
+requests>=2.28.0
+pytest>=7.0.0
+tqdm>=4.60.0
+flask>=3.0.0
+
+# دعم التقارير العربية في PDF
+arabic-reshaper>=3.0.0
+python-bidi>=0.4.2
+
+# واجهة CLI متقدمة — ألوان، جداول، Progress Bar
+rich>=13.0.0

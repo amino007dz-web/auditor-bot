@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Generator - Smart Contract Auditor</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#0d1117; color:#c9d1d9; padding:2rem; max-width:1000px; margin:0 auto; }
+h1 { color:#58a6ff; }
+a { color:#58a6ff; }
+.card { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:1.5rem; margin:1rem 0; }
+textarea { width:100%; padding:0.75rem; border:1px solid #30363d; border-radius:6px; background:#0d1117; color:#c9d1d9; margin-bottom:1rem; font-family:monospace; min-height:120px; }
+select,input { width:100%; padding:0.75rem; border:1px solid #30363d; border-radius:6px; background:#0d1117; color:#c9d1d9; margin-bottom:1rem; }
+.btn { padding:0.75rem 1.5rem; border:none; border-radius:6px; cursor:pointer; background:#238636; color:#fff; }
+.copy-btn { background:#21262d; border:1px solid #30363d; margin-right:0.5rem; }
+pre { background:#0d1117; border:1px solid #30363d; border-radius:6px; padding:1rem; max-height:600px; overflow:auto; direction:ltr; text-align:left; font-size:0.8rem; }
+.flex { display:flex; gap:0.5rem; }
+</style></head>
+<body>
+<h1>🧪 Test Generator</h1>
+<p><a href="/">الرئيسية</a></p>
+<div class="card">
+<form method="POST">
+<textarea name="code" placeholder="كود العقد (Solidity)..." required></textarea>
+<textarea name="report" placeholder="تقرير التدقيق (لتحليل الثغرات)..." required></textarea>
+<input type="text" name="name" placeholder="اسم العقد (مثل: MyContract)" value="Contract">
+<select name="framework"><option value="foundry">Foundry (Solidity)</option><option value="hardhat">Hardhat (JavaScript)</option></select>
+<button type="submit" class="btn">توليد الاختبارات</button>
+</form>
+</div>
+{% if tests %}
+<div class="card">
+<div class="flex"><button class="btn copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('testCode').textContent)">📋 نسخ</button></div>
+<pre id="testCode">{{ tests }}</pre>
+</div>
+{% endif %}
+</body></html>

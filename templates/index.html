@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Contract Auditor</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+header { text-align: center; padding: 2rem 0; border-bottom: 1px solid #30363d; margin-bottom: 2rem; }
+header h1 { color: #58a6ff; font-size: 2rem; margin-bottom: 0.5rem; }
+header p { color: #8b949e; font-size: 0.9rem; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+.card h2 { color: #58a6ff; margin-bottom: 1rem; font-size: 1.3rem; }
+textarea, input[type="file"], input[type="text"], select { width: 100%; padding: 0.75rem; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-size: 0.9rem; }
+textarea { font-family: 'Cascadia Code', monospace; resize: vertical; min-height: 200px; }
+textarea:focus, input:focus, select:focus { outline: none; border-color: #58a6ff; }
+.btn { display: inline-block; padding: 0.75rem 1.5rem; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+.btn-primary { background: #238636; color: #fff; }
+.btn-primary:hover { background: #2ea043; }
+.btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
+.btn-secondary:hover { background: #30363d; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.flex-row { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+.mt-1 { margin-top: 1rem; }
+.mb-1 { margin-bottom: 1rem; }
+.hidden { display: none; }
+#loading { text-align: center; padding: 3rem; }
+.spinner { border: 3px solid #30363d; border-top: 3px solid #58a6ff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.report-content { font-family: 'Cascadia Code', monospace; font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 1rem; max-height: 70vh; overflow-y: auto; direction: ltr; text-align: left; }
+.nav-links { display: flex; gap: 1rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
+.nav-links a { color: #58a6ff; text-decoration: none; font-size: 0.9rem; }
+.nav-links a:hover { text-decoration: underline; }
+.tools-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+.tool-card { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 1.25rem; text-align: center; transition: border-color 0.2s; }
+.tool-card:hover { border-color: #58a6ff; }
+.tool-card .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+.tool-card .name { color: #c9d1d9; font-weight: 600; }
+.tool-card .desc { color: #8b949e; font-size: 0.8rem; margin-top: 0.25rem; }
+.tool-card a { text-decoration: none; }
+select { max-width: 300px; }
+footer { text-align: center; padding: 2rem; color: #8b949e; border-top: 1px solid #30363d; margin-top: 2rem; }
+.upload-zone { border: 2px dashed #30363d; border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s; }
+.upload-zone:hover, .upload-zone.dragover { border-color: #58a6ff; background: rgba(88, 166, 255, 0.05); }
+.upload-zone p { color: #8b949e; }
+.file-name { color: #58a6ff; margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>Smart Contract Auditor</h1>
+<p>تحليل أمني ذكي للعقود الذكية — متعدد الطبقات، متعدد اللغات</p>
+<div class="nav-links">
+<a href="/">الرئيسية</a>
+<a href="/dashboard">لوحة التحكم</a>
+<a href="/explorer">جلب من السلسلة</a>
+<a href="/batch">Batch</a>
+<a href="/project">مشروع</a>
+<a href="/report/list">التقارير</a>
+</div>
+</header>
+
+<div class="tools-grid">
+<a href="/explorer" class="tool-card"><div class="icon">⛓️</div><div class="name">Chain Loader</div><div class="desc">جلب عقود من 7 سلاسل</div></a>
+<a href="/batch" class="tool-card"><div class="icon">📁</div><div class="name">Batch Audit</div><div class="desc">فحص مجلد كامل</div></a>
+<a href="/project" class="tool-card"><div class="icon">📂</div><div class="name">Project Scan</div><div class="desc">Foundry/Hardhat</div></a>
+<a href="/gas" class="tool-card"><div class="icon">⛽</div><div class="name">Gas Analysis</div><div class="desc">تحسين الغاز</div></a>
+<a href="/testgen" class="tool-card"><div class="icon">🧪</div><div class="name">Test Generator</div><div class="desc">Foundry/Hardhat tests</div></a>
+<a href="/inhgraph" class="tool-card"><div class="icon">🔗</div><div class="name">Inheritance</div><div class="desc">رسم الوراثة</div></a>
+<a href="/permissions" class="tool-card"><div class="icon">🔑</div><div class="name">Permissions</div><div class="desc">مصفوفة الأذونات</div></a>
+<a href="/rules" class="tool-card"><div class="icon">⚙️</div><div class="name">Custom Rules</div><div class="desc">قواعد كشف مخصصة</div></a>
+<a href="/dashboard" class="tool-card"><div class="icon">📊</div><div class="name">Dashboard</div><div class="desc">لوحة الإحصائيات</div></a>
+<a href="/report/list" class="tool-card"><div class="icon">📄</div><div class="name">Reports</div><div class="desc">التقارير السابقة</div></a>
+</div>
+
+<div id="upload-section" class="card">
+<h2>رفع عقد ذكي</h2>
+<form id="uploadForm" onsubmit="runAnalysis(event)">
+<div class="flex-row mb-1">
+<select name="analysis_type" id="analysisType">
+<option value="audit">تحليل كامل (Audit)</option>
+<option value="chunked">تحليل مجزأ (Chunked)</option>
+<option value="hierarchical">هرمي (Hierarchical)</option>
+<option value="multi">متعدد النماذج (Multi)</option>
+<option value="selfcritique">نقد ذاتي (Self-Critique)</option>
+<option value="gas">Gas Optimization</option>
+<option value="permissions">Permission Analysis</option>
+<option value="external">أدوات خارجية (Slither/Mythril)</option>
+<option value="opcodes">Opcodes فقط</option>
+<option value="combined">تقرير مجمّع</option>
+<option value="storage">تحليل التخزين</option>
+<option value="inheritance">تحليل التوريث</option>
+</select>
+</div>
+<div class="upload-zone" id="dropZone">
+<p>اسحب وأفلت ملف .sol هنا أو اضغط للاختيار</p>
+<input type="file" id="fileInput" accept=".sol,.move,.cl,.py" style="display:none" onchange="handleFile(event)">
+</div>
+<div id="fileInfo" class="hidden file-name"></div>
+<button type="submit" class="btn btn-primary mt-1" id="runBtn">تشغيل التحليل</button>
+</form>
+</div>
+
+<div id="loading" class="hidden card">
+<div class="spinner"></div>
+<p id="loadingText">جاري التحليل...</p>
+</div>
+
+<div id="results" class="hidden card">
+<div class="flex-row" style="justify-content: space-between; align-items: center;">
+<h2>نتائج التحليل</h2>
+<div class="flex-row">
+<a id="downloadTxt" class="btn btn-secondary">تحميل TXT</a>
+<a id="downloadHtml" class="btn btn-secondary">تحميل HTML</a>
+<a id="downloadPdf" class="btn btn-secondary">📥 PDF</a>
+</div>
+</div>
+<hr class="mb-1" style="border-color: #30363d;">
+<div id="reportContent" class="report-content"></div>
+</div>
+
+<footer>
+Smart Contract Auditor — v2.0 | 12 أداة متكاملة للتدقيق الأمني
+</footer>
+</div>
+
+<script>
+let uploadedFile = null;
+function handleFile(e) {
+uploadedFile = e.target.files[0];
+if (uploadedFile) {
+document.getElementById('fileInfo').textContent = uploadedFile.name + ' (' + (uploadedFile.size/1024).toFixed(1) + ' KB)';
+document.getElementById('fileInfo').classList.remove('hidden');
+}
+}
+document.getElementById('dropZone').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('dropZone').addEventListener('dragover', (e) => { e.preventDefault(); e.currentTarget.classList.add('dragover'); });
+document.getElementById('dropZone').addEventListener('dragleave', (e) => { e.currentTarget.classList.remove('dragover'); });
+document.getElementById('dropZone').addEventListener('drop', (e) => {
+e.preventDefault(); e.currentTarget.classList.remove('dragover');
+const files = e.dataTransfer.files;
+if (files.length > 0) {
+document.getElementById('fileInput').files = files;
+uploadedFile = files[0];
+document.getElementById('fileInfo').textContent = uploadedFile.name + ' (' + (uploadedFile.size/1024).toFixed(1) + ' KB)';
+document.getElementById('fileInfo').classList.remove('hidden');
+}
+});
+
+async function runAnalysis(e) {
+e.preventDefault();
+if (!uploadedFile) { alert('الرجاء اختيار ملف'); return; }
+const section = document.getElementById('results');
+section.classList.add('hidden');
+const loading = document.getElementById('loading');
+loading.classList.remove('hidden');
+document.getElementById('loadingText').textContent = 'جاري رفع الملف وتحليله...';
+const formData = new FormData();
+formData.append('file', uploadedFile);
+formData.append('analysis_type', document.getElementById('analysisType').value);
+try {
+const response = await fetch('/analyze', { method: 'POST', body: formData });
+const data = await response.json();
+document.getElementById('loadingText').textContent = 'تم التحليل بنجاح';
+loading.classList.add('hidden');
+document.getElementById('reportContent').textContent = data.report;
+document.getElementById('downloadTxt').href = '/download/' + data.filename;
+document.getElementById('downloadHtml').href = '/download/' + data.filename_html;
+document.getElementById('downloadPdf').onclick = async () => {
+const r = await fetch('/api/pdf', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({report:data.report, label:uploadedFile?.name||'report'}) });
+const j = await r.json();
+window.location.href = j.url;
+};
+section.classList.remove('hidden');
+} catch (err) {
+document.getElementById('loadingText').textContent = 'خطأ: ' + err.message;
+}
+}
+</script>
+</body>
+</html>

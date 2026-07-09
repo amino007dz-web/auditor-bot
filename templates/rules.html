@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Custom Rules - Smart Contract Auditor</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#0d1117; color:#c9d1d9; padding:2rem; max-width:1000px; margin:0 auto; }
+h1 { color:#58a6ff; }
+a { color:#58a6ff; }
+.card { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:1.5rem; margin:1rem 0; }
+input,textarea,select { width:100%; padding:0.75rem; border:1px solid #30363d; border-radius:6px; background:#0d1117; color:#c9d1d9; margin-bottom:1rem; }
+textarea { font-family:monospace; }
+.btn { padding:0.75rem 1.5rem; border:none; border-radius:6px; cursor:pointer; }
+.btn-green { background:#238636; color:#fff; }
+.btn-red { background:#da3633; color:#fff; }
+.btn-gray { background:#21262d; border:1px solid #30363d; color:#c9d1d9; }
+pre { background:#0d1117; border:1px solid #30363d; border-radius:6px; padding:1rem; max-height:500px; overflow:auto; direction:ltr; text-align:left; }
+table { width:100%; border-collapse:collapse; }
+th,td { border:1px solid #30363d; padding:0.5rem; font-size:0.85rem; }
+th { background:#161b22; color:#58a6ff; }
+.flex { display:flex; gap:0.5rem; flex-wrap:wrap; }
+.success { color:#3fb950; }
+</style></head>
+<body>
+<h1>⚙️ Custom Rules</h1>
+<p><a href="/">الرئيسية</a></p>
+
+<div class="card">
+<h2>إضافة قاعدة جديدة</h2>
+<form method="POST">
+<input type="hidden" name="action" value="add">
+<input type="text" name="name" placeholder="اسم القاعدة" required>
+<input type="text" name="pattern" placeholder="النمط (Regex)" required>
+<select name="severity">
+<option value="critical">Critical</option><option value="high" selected>High</option>
+<option value="medium">Medium</option><option value="low">Low</option><option value="info">Info</option>
+</select>
+<select name="lang"><option value="solidity">Solidity</option><option value="move">Move</option><option value="chialisp">Chialisp</option><option value="all">All</option></select>
+<textarea name="description" placeholder="وصف الثغرة التي تكتشفها القاعدة"></textarea>
+<button type="submit" class="btn btn-green">➕ إضافة</button>
+</form>
+</div>
+
+{% if rules %}
+<div class="card">
+<h2>القواعد الحالية ({{ rules|length }})</h2>
+<table><tr><th>الاسم</th><th>الخطورة</th><th>اللغة</th><th>الوصف</th><th></th></tr>
+{% for r in rules %}
+<tr>
+<form method="POST">
+<input type="hidden" name="action" value="remove">
+<input type="hidden" name="name" value="{{ r.name }}">
+<td>{{ r.name }}</td><td>{{ r.severity }}</td><td>{{ r.lang }}</td><td>{{ r.description[:50] }}</td>
+<td><button type="submit" class="btn btn-red">🗑</button></td>
+</form>
+</tr>
+{% endfor %}
+</table>
+</div>
+{% endif %}
+
+<div class="card">
+<h2>اختبار القواعد على كود</h2>
+<form method="POST">
+<input type="hidden" name="action" value="scan">
+<textarea name="code" placeholder="الصق الكود لاختبار القواعد..." style="min-height:150px;"></textarea>
+<select name="lang"><option value="solidity">Solidity</option><option value="move">Move</option><option value="chialisp">Chialisp</option></select>
+<button type="submit" class="btn btn-gray">🔍 مسح</button>
+</form>
+</div>
+
+{% if scan %}
+<div class="card">
+<pre>{{ scan }}</pre>
+</div>
+{% endif %}
+</body></html>

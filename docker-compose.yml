@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  auditor:
+    build: .
+    container_name: sc-auditor
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    volumes:
+      - ./reports:/app/reports
+      - ./cache.db:/app/cache.db
+      - ./knowledge.db:/app/knowledge.db
+      - ./.env:/app/.env:ro
+    env_file:
+      - .env
+    environment:
+      - PORT=5000
+    command: python main.py
+
+  web-ui:
+    build: .
+    container_name: sc-auditor-web
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./reports:/app/reports
+      - ./.env:/app/.env:ro
+    env_file:
+      - .env
+    command: python web_ui.py
+    profiles:
+      - web
+
+  api:
+    build: .
+    container_name: sc-auditor-api
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./reports:/app/reports
+      - ./.env:/app/.env:ro
+    env_file:
+      - .env
+    command: python api_mode.py
+    profiles:
+      - api

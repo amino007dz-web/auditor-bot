@@ -1,0 +1,16 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.ipynb_checkpoints/
+audit_report*.txt
+audit_report*.json
+cache.db
+knowledge.db
+usage.db
+reports/
+verified_report.md
+.pytest_cache/
+dist/
+*.egg-info/

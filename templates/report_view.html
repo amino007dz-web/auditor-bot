@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ filename }} - Smart Contract Auditor</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
+.container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+header { text-align: center; padding: 2rem 0; border-bottom: 1px solid #30363d; margin-bottom: 2rem; }
+header h1 { color: #58a6ff; font-size: 1.5rem; word-break: break-word; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }
+.nav-links { display: flex; gap: 1rem; justify-content: center; margin-top: 1rem; }
+.nav-links a { color: #58a6ff; text-decoration: none; }
+.nav-links a:hover { text-decoration: underline; }
+.report-body { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word; direction: ltr; text-align: left; }
+.btn { display: inline-block; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; background: #21262d; color: #c9d1d9; border: 1px solid #30363d; margin-left: 0.5rem; }
+.btn:hover { background: #30363d; }
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>{{ filename }}</h1>
+<div class="nav-links">
+<a href="/">الرئيسية</a>
+<a href="/report/list">التقارير</a>
+<a href="/download/{{ filename }}" class="btn" style="margin-top: 0.5rem;">تحميل TXT</a>
+</div>
+</header>
+<div class="card">
+<div class="report-body">{{ content }}</div>
+</div>
+</div>
+</body>
+</html>

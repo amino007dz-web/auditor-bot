@@ -1,0 +1,163 @@
+import os, re, json, logging
+from typing import Dict, List, Optional, Set
+from collections import defaultdict
+
+logger = logging.getLogger(__name__)
+
+IMPORT_RE = re.compile(r'import\s+[\"\'"]+([^\"\'"]+)[\"\'"]+')
+SOL_PRAGMA_RE = re.compile(r'pragma\s+solidity\s+[^;]+;')
+CONTRACT_RE = re.compile(r'(contract|interface|library|abstract\s+contract)\s+(\w+)')
+INHERITANCE_RE = re.compile(r'contract\s+\w+\s+is\s+([^{]+)')
+FUNC_CALL_RE = re.compile(r'(\w+)\s*\.\s*(\w+)\s*\(')
+
+
+class AgenticAuditor:
+    def __init__(self, root_dir: str = ""):
+        self.root = root_dir
+        self.files: Dict[str, str] = {}
+        self.graph: Dict[str, List[str]] = defaultdict(list)
+        self.contracts: Dict[str, str] = {}
+        self.import_map: Dict[str, str] = {}
+
+    def load_directory(self, directory: str):
+        self.root = directory
+        exts = (".sol", ".vy", ".move", ".clsp", ".clib")
+        entries = []
+        for root, _, files in os.walk(directory):
+            for f in files:
+                ext = os.path.splitext(f)[1].lower()
+                if ext in exts:
+                    path = os.path.join(root, f)
+                    try:
+                        with open(path, "r", encoding="utf-8") as fh:
+                            content = fh.read()
+                        rel = os.path.relpath(path, directory)
+                        self.files[rel] = content
+                        entries.append((rel, content))
+                    except Exception:
+                        pass
+        for rel, content in entries:
+            try:
+                self._index_file(rel, content)
+            except Exception:
+                pass
+
+    def _index_file(self, path: str, content: str):
+        for m in IMPORT_RE.finditer(content):
+            imp = m.group(1)
+            resolved = self._resolve_import(path, imp)
+            if resolved:
+                self.graph[path].append(resolved)
+
+        contract_match = CONTRACT_RE.search(content)
+        if contract_match:
+            name = contract_match.group(2)
+            self.contracts[name] = path
+
+        inh = INHERITANCE_RE.search(content)
+        if inh:
+            bases = [b.strip() for b in inh.group(1).split(",")]
+            for base in bases:
+                if base in self.contracts:
+                    base_path = self.contracts[base]
+                    if base_path != path:
+                        self.graph[path].append(base_path)
+
+    def _resolve_import(self, current: str, imp_path: str) -> Optional[str]:
+        candidates = [
+            os.path.normpath(os.path.join(os.path.dirname(current), imp_path)),
+            os.path.normpath(imp_path),
+        ]
+        for c in candidates:
+            if c in self.files:
+                return c
+            for ext in (".sol", ".vy", ".move"):
+                with_ext = c + ext if not c.endswith(ext) else c
+                if with_ext in self.files:
+                    return with_ext
+        return None
+
+    def build_context(self, target_file: str, depth: int = 2) -> str:
+        visited: Set[str] = set()
+
+        def _walk(file: str, d: int) -> str:
+            if file not in self.files or d > depth or file in visited:
+                return ""
+            visited.add(file)
+            content = self.files[file]
+            parts = [f"// === {file} ===\n{content[:1500]}"]
+            for neighbor in self.graph.get(file, []):
+                parts.append(_walk(neighbor, d + 1))
+            return "\n\n".join(p for p in parts if p)
+
+        return _walk(target_file, 0)
+
+    def get_entry_points(self) -> List[str]:
+        """Files that are not imported by any other file."""
+        imported = set()
+        for deps in self.graph.values():
+            imported.update(deps)
+        return [f for f in self.files if f not in imported]
+
+    def prioritized_files(self, limit: int = 5) -> List[str]:
+        entry = self.get_entry_points()
+        scored = []
+        for f in entry:
+            content = self.files[f]
+            score = 0
+            if "payable" in content:
+                score += 3
+            if "delegatecall" in content.lower():
+                score += 5
+            if "selfdestruct" in content.lower():
+                score += 5
+            if "call{value" in content or "call.value" in content:
+                score += 4
+            if "tx.origin" in content:
+                score += 3
+            if "unchecked" in content:
+                score += 2
+            scored.append((score, f))
+        scored.sort(reverse=True, key=lambda x: x[0])
+        return [f for _, f in scored[:limit]]
+
+    def generate_code_map(self) -> str:
+        lines = ["# Code Architecture Map\n"]
+        for f, deps in self.graph.items():
+            if deps:
+                lines.append(f"- `{f}` imports: {', '.join(f'`{d}`' for d in deps)}")
+        lines.append(f"\n## Contracts ({len(self.contracts)})")
+        for name, path in sorted(self.contracts.items(), key=lambda x: x[0]):
+            lines.append(f"- **{name}** → `{path}`")
+        lines.append(f"\n## Entry Points ({len(self.get_entry_points())})")
+        for f in self.get_entry_points():
+            lines.append(f"- `{f}`")
+        lines.append(f"\n## Priority Files")
+        for f in self.prioritized_files():
+            lines.append(f"- `{f}` (high risk indicators)")
+        return "\n".join(lines)
+
+
+def analyze_project_agentic(directory: str) -> str:
+    auditor = AgenticAuditor()
+    auditor.load_directory(directory)
+    code_map = auditor.generate_code_map()
+
+    from agents import call_model_with_fallback
+    prompt = f"""You are a smart contract security expert. 
+
+Below is the architecture map of a project:
+
+{code_map}
+
+Based on this map:
+1. Identify which files are MOST CRITICAL (handle user funds, have external calls, etc.)
+2. Explain the data flow between contracts
+3. List potential attack vectors given the architecture
+4. For each high-risk file, explain what specific vulnerabilities to look for
+
+Be specific and reference actual file names and contract names."""
+    try:
+        return call_model_with_fallback(prompt)
+    except Exception as e:
+        return f"Agentic analysis failed: {e}"
