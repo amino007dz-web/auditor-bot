@@ -23,6 +23,7 @@ from gas_analysis import analyze_gas
 from permission_analysis import analyze_permissions
 from external_analyzers import run_external_analyzers, findings_to_text
 from diff_audit import run_diff_audit, compute_diff
+from auto_poc import validate_with_poc_silent
 from config import FREE_MODELS
 
 logger = logging.getLogger(__name__)
@@ -67,9 +68,13 @@ def dispatch_analysis(
         ext = run_external_analyzers(code)
         return findings_to_text(ext)
 
-    if analysis_type == "selfcritique":
+    if analysis_type == "autopoc":
         initial = analyze_code(code, lang)
-        return self_critique(initial, code, lang)
+        critique = self_critique(initial, code, lang)
+        return validate_with_poc_silent(critique, code)
+        initial = analyze_code(code, lang)
+        critique = self_critique(initial, code, lang)
+        return validate_with_poc_silent(critique, code)
 
     if analysis_type == "multi":
         return multi_audit(code, lang, team)

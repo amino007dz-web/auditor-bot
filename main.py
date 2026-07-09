@@ -718,6 +718,7 @@ class CLIApp:
         parser.add_argument("--lang", type=str, choices=["arabic", "english"], default="english")
         parser.add_argument("--parallel-workers", type=int, default=3, help="Parallel workers")
         parser.add_argument("--sarif", action="store_true", help="Export results as SARIF format for GitHub/VSCode")
+        parser.add_argument("--autopoc", action="store_true", help="Auto-PoC: validate Critical findings with Foundry tests")
         parser.add_argument("--bytecode", type=str, help="Bytecode hex string, address, or file path for bytecode analysis")
         parser.add_argument("--agentic", type=str, help="Project directory for agentic architecture analysis")
         parser.add_argument("--webhook", type=str, help="Discord/Slack webhook URL to send audit report")
@@ -828,6 +829,14 @@ def cli_mode(args: argparse.Namespace) -> None:
 
     lang = args.lang if args.lang else "english"
 
+    if args.autopoc:
+        console.log("[bold]Initial analysis + self-critique + Auto-PoC validation...[/]")
+        report = dispatch_analysis(code, "autopoc", lang=lang)
+        rpath = svc.save_report(f"autopoc_{label}.txt", report)
+        console.log(f"[green]Report saved:[/] {rpath}")
+        console.print(Markdown(report) if HAS_RICH else report)
+        return
+
     if args.critique:
         console.log("[bold]Initial analysis + self-critique...[/]")
         initial, critique = svc.run_critique(code, lang)
@@ -838,7 +847,9 @@ def cli_mode(args: argparse.Namespace) -> None:
         return
 
     analysis_type = "audit"
-    if args.opcodes:
+    if args.autopoc:
+        analysis_type = "autopoc"
+    elif args.opcodes:
         analysis_type = "opcodes"
     elif args.combined:
         analysis_type = "combined"
