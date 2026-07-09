@@ -10,12 +10,12 @@ from dotenv import load_dotenv
 logger = logging.getLogger(__name__)
 
 ENV_PATH = Path(__file__).parent / '.env'
-if not ENV_PATH.exists():
-    print("ERROR: .env file not found!")
-    print("   Copy .env.example to .env and set your OpenRouter API key")
-    print("   OPENROUTER_API_KEY=sk-...")
-else:
+if ENV_PATH.exists():
     load_dotenv(str(ENV_PATH))
+if not os.getenv("OPENROUTER_API_KEY"):
+    print("WARNING: OPENROUTER_API_KEY not set in environment or .env")
+    print("   Set it via Render Environment Variables or create .env file")
+    print("   OPENROUTER_API_KEY=sk-...")
 
 OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
