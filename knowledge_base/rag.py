@@ -63,17 +63,26 @@ class RAGContext:
 
         self._use_st = False
         self._use_tfidf = False
+        _st_available = False
         try:
-            from sentence_transformers import SentenceTransformer
-            self._st_model = SentenceTransformer("all-MiniLM-L6-v2")
-            self._use_st = True
-            logger.info("RAG: Sentence-Transformer model loaded (all-MiniLM-L6-v2)")
+            import sentence_transformers
+            _st_available = True
         except ImportError:
-            logger.info("sentence-transformers not available, trying TF-IDF")
+            pass
+        if _st_available and os.environ.get("KB_USE_ST", "1") == "1":
+            try:
+                from sentence_transformers import SentenceTransformer
+                self._st_model = SentenceTransformer("all-MiniLM-L6-v2")
+                self._use_st = True
+                logger.info("RAG: Sentence-Transformer model loaded (all-MiniLM-L6-v2)")
+            except Exception as e:
+                logger.warning(f"sentence-transformers load failed: {e}")
+        if not self._use_st:
             try:
                 from sklearn.feature_extraction.text import TfidfVectorizer
                 self._TfidfVectorizer = TfidfVectorizer
                 self._use_tfidf = True
+                logger.info("RAG: using TF-IDF fallback")
             except ImportError:
                 logger.info("scikit-learn not available, falling back to keyword search")
 
