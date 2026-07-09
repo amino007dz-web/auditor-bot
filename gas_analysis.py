@@ -1,6 +1,30 @@
 """Gas Analysis - analyze gas consumption and optimization."""
+import logging
 import re
-from typing import List, Dict
+from typing import List, Dict, Optional
+
+logger = logging.getLogger(__name__)
+
+_ETH_PRICE_CACHE: Optional[float] = None
+
+
+def _fetch_eth_price() -> float:
+    global _ETH_PRICE_CACHE
+    if _ETH_PRICE_CACHE is not None:
+        return _ETH_PRICE_CACHE
+    try:
+        import requests
+        resp = requests.get(
+            "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd",
+            timeout=5,
+        )
+        if resp.status_code == 200:
+            _ETH_PRICE_CACHE = resp.json()["ethereum"]["usd"]
+            logger.info(f"ETH price: ${_ETH_PRICE_CACHE}")
+            return _ETH_PRICE_CACHE
+    except Exception as e:
+        logger.debug(f"Failed to fetch ETH price: {e}")
+    return 3000.0
 
 GAS_PATTERNS = [
     (r"\bfor\s*\([^;]*;\s*[^;]*;\s*i\+\+\s*\)", "Loop with i++ (use ++i)", "medium"),
@@ -47,9 +71,13 @@ def analyze_gas(code: str) -> str:
     for f in findings:
         sev_count[f["severity"]] = sev_count.get(f["severity"], 0) + 1
 
+    eth_price = _fetch_eth_price()
+    gas_saved = sev_count['high'] * 5000 + sev_count['medium'] * 500 + sev_count['low'] * 50
+    eth_saved = gas_saved * 1e-9 * 0.1
+    usd_saved = eth_saved * eth_price
     result.append("### Summary")
     result.append(f"- High: {sev_count['high']} | Medium: {sev_count['medium']} | Low: {sev_count['low']} | Info: {sev_count['info']}")
-    result.append(f"- **Estimated savings:** ~{sev_count['high'] * 5000 + sev_count['medium'] * 500 + sev_count['low'] * 50} gas")
+    result.append(f"- **Estimated savings:** ~{gas_saved} gas (~${usd_saved:.2f} @ ${eth_price:.0f}/ETH)")
     result.append("")
 
     # Recommendations
@@ -91,17 +119,18 @@ def _count_severity(report: str) -> dict:
 
 
 def estimate_gas_savings(code: str) -> dict:
-    """Estimate gas savings in USD."""
+    """Estimate gas savings in USD using live ETH price."""
     analysis = analyze_gas(code)
     counts = _count_severity(analysis)
     high = counts["high"]
     medium = counts["medium"]
     low = counts["low"]
     gas_saved = high * 5000 + medium * 500 + low * 50
-    eth_price = 3000  # Approximate ETH price
-    eth_saved = gas_saved * 1e-9 * 0.1  # 0.1 gwei ≈ average price
+    eth_price = _fetch_eth_price()
+    eth_saved = gas_saved * 1e-9 * 0.1
     return {
         "gas_saved": gas_saved,
         "eth_saved": round(eth_saved, 6),
         "usd_saved": round(eth_saved * eth_price, 2),
+        "eth_price": eth_price,
     }
