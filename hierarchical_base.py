@@ -217,7 +217,7 @@ class HierarchicalAuditor:
         report += "\n\nAuto-merged report."
         return report
 
-    def run(self, code: str, lang: str = "arabic",
+    def run(self, code: str, lang: str = "english",
             extra_context: str = "") -> Tuple[Dict[str, str], Dict[str, str], str]:
         """Run full hierarchical analysis. Returns (layer1, layer2, final_report)."""
         layer1 = self.run_layer1(code)

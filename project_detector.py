@@ -71,7 +71,7 @@ class ProjectDetector:
         return None
 
 
-def analyze_project(root: str, lang: str = "arabic") -> str:
+def analyze_project(root: str, lang: str = "english") -> str:
     """Detect project and audit all its contracts."""
     from batch_audit import batch_audit
 

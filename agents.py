@@ -393,7 +393,7 @@ def run_parallel(work_items: List[Dict]) -> List[tuple]:
                 results.append((label, None, str(e)))
     return results
 
-def analyze_code(code: str, lang: str = "arabic", model_key: str = "") -> str:
+def analyze_code(code: str, lang: str = "english", model_key: str = "") -> str:
     code = truncate_code(code, model_key)
 
     rag_context = ""

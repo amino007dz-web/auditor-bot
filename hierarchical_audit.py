@@ -177,7 +177,7 @@ def _extract_contract(code: str, focus_name: str) -> str:
 
 
 def hierarchical_audit(code: str, protocol_name: str = "Protocol", repo_url: str = "",
-                       lang: str = "arabic", focus: str = "") -> str:
+                       lang: str = "english", focus: str = "") -> str:
     if focus:
         code = _extract_contract(code, focus)
 
@@ -220,7 +220,7 @@ def hierarchical_audit(code: str, protocol_name: str = "Protocol", repo_url: str
     return final
 
 
-def run_hierarchical_audit_interactive(code: str, lang: str = "arabic", focus: str = "") -> str:
+def run_hierarchical_audit_interactive(code: str, lang: str = "english", focus: str = "") -> str:
     print("\n" + "="*60 + "\nHierarchical Analysis\n" + "="*60)
     protocol_name = input("Protocol name (Enter for default): ").strip() or "Smart Contract"
     repo_url = input("Repo URL (Enter to skip): ").strip() or ""

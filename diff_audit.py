@@ -88,7 +88,7 @@ def compute_diff(v1: str, v2: str) -> CodeDiff:
     )
 
 
-def run_diff_audit(v1: str, v2: str, lang: str = "arabic") -> str:
+def run_diff_audit(v1: str, v2: str, lang: str = "english") -> str:
     """Analyze differences between two versions and verify fixes."""
     diff = compute_diff(v1, v2)
 

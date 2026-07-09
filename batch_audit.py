@@ -32,7 +32,7 @@ def find_contracts(root_dir: str, max_files: int = 200) -> list[dict[str, str]]:
     return contracts
 
 
-def audit_single(item: dict, lang: str = "arabic") -> dict:
+def audit_single(item: dict, lang: str = "english") -> dict:
     """Audit a single contract."""
     try:
         with open(item["path"], "r", encoding="utf-8", errors="replace") as f:
@@ -46,7 +46,7 @@ def audit_single(item: dict, lang: str = "arabic") -> dict:
         return {"file": item["name"], "status": "error", "reason": str(e)}
 
 
-def batch_audit(root_dir: str, max_workers: int = 4, lang: str = "arabic") -> dict:
+def batch_audit(root_dir: str, max_workers: int = 4, lang: str = "english") -> dict:
     """Audit all contracts in a directory in parallel."""
     contracts = find_contracts(root_dir)
     if not contracts:

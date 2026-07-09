@@ -182,7 +182,7 @@ def _handle_multi_audit() -> None:
     prompt_input("Press [bold]Enter[/] to start multi-model analysis")
     team_str = prompt_input(f"Model names (comma-separated) or Enter for default", default=', '.join(DEFAULT_TEAM))
     team = [t.strip() for t in team_str.split(",")] if team_str else None
-    lang = "arabic" if prompt_input("Report language: [bold]1[/]. Arabic  [bold]2[/]. English") != "2" else "english"
+    lang = "english" if prompt_input("Report language: [bold]1[/]. Arabic  [bold]2[/]. English") == "2" else "english"
     report = svc.run_multi(code, lang, team)
     rpath = svc.save_report(f"multi_audit_{label}.txt", report)
     console.log(f"[green]Report saved:[/] {rpath}")
@@ -715,7 +715,7 @@ class CLIApp:
         parser.add_argument("--token", type=str, help="GitHub Token")
         parser.add_argument("--contract-index", type=int, help="Contract index (1-based)")
         parser.add_argument("--name", type=str, help="Protocol name")
-        parser.add_argument("--lang", type=str, choices=["arabic", "english"], default="arabic")
+        parser.add_argument("--lang", type=str, choices=["arabic", "english"], default="english")
         parser.add_argument("--parallel-workers", type=int, default=3, help="Parallel workers")
         parser.add_argument("--sarif", action="store_true", help="Export results as SARIF format for GitHub/VSCode")
         parser.add_argument("--bytecode", type=str, help="Bytecode hex string, address, or file path for bytecode analysis")
@@ -826,7 +826,7 @@ def cli_mode(args: argparse.Namespace) -> None:
         console.log("[red]No code provided for analysis.[/]")
         sys.exit(1)
 
-    lang = args.lang if args.lang else "arabic"
+    lang = args.lang if args.lang else "english"
 
     if args.critique:
         console.log("[bold]Initial analysis + self-critique...[/]")

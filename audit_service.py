@@ -47,29 +47,29 @@ class AuditService:
             return None
 
     @staticmethod
-    def run_audit(code: str, lang: str = "arabic") -> str:
+    def run_audit(code: str, lang: str = "english") -> str:
         return audit(code, lang)
 
     @staticmethod
-    def run_critique(code: str, lang: str = "arabic") -> Tuple[str, str]:
+    def run_critique(code: str, lang: str = "english") -> Tuple[str, str]:
         initial = audit(code, lang)
         critique = self_critique(initial, code, lang)
         return initial, critique
 
     @staticmethod
-    def run_multi(code: str, lang: str = "arabic",
+    def run_multi(code: str, lang: str = "english",
                   team: Optional[List[str]] = None) -> str:
         return multi_audit(code, lang, team)
 
     @staticmethod
     def run_hierarchical(code: str, protocol: str = "Protocol",
-                          lang: str = "arabic", focus: str = "",
+                          lang: str = "english", focus: str = "",
                           repo_url: str = "") -> str:
         return hierarchical_audit(code, protocol, repo_url, lang, focus)
 
     @staticmethod
     def run_parallel(code: str, n_workers: int = 3,
-                      lang: str = "arabic") -> Tuple[str, list]:
+                      lang: str = "english") -> Tuple[str, list]:
         models = list(FREE_MODELS.keys())[:n_workers]
         prompt = f"""You are a smart contract security expert. Analyze the following code and find vulnerabilities:
 ```solidity
@@ -145,7 +145,7 @@ Language: {lang.capitalize()}"""
         return stats
 
     @staticmethod
-    def run_diff_audit(v1: str, v2: str, lang: str = "arabic") -> str:
+    def run_diff_audit(v1: str, v2: str, lang: str = "english") -> str:
         return run_diff_audit(v1, v2, lang)
 
     @staticmethod

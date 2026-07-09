@@ -17,7 +17,7 @@ DEFAULT_TEAM: List[str] = ["openrouter-free", "qwen3-coder", "nemotron-3-ultra"]
 LEAD_MODEL: str = "openrouter-free"
 
 
-def multi_audit(code: str, lang: str = "arabic", team: Optional[List[str]] = None) -> str:
+def multi_audit(code: str, lang: str = "english", team: Optional[List[str]] = None) -> str:
     if team is None:
         team = DEFAULT_TEAM
 

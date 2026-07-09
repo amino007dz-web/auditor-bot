@@ -67,7 +67,7 @@ def api_audit():
         return jsonify({"error": "Field 'code' is required"}), 400
 
     code = data["code"]
-    lang = data.get("lang", "arabic")
+    lang = data.get("lang", "english")
     analysis_type = data.get("type", "audit")
 
     try:
@@ -91,7 +91,7 @@ def api_file():
     code = load_local_contract(path)
     if not code:
         return jsonify({"error": "Failed to read file"}), 400
-    lang = request.form.get("lang", "arabic")
+    lang = request.form.get("lang", "english")
     result = analyze_code(code, lang)
     return jsonify({"result": result, "filename": f.filename})
 
@@ -104,7 +104,7 @@ def api_contract(chain, address):
     data = load_from_explorer(address, chain, api_key)
     if not data:
         return jsonify({"error": "Contract not found"}), 404
-    lang = request.args.get("lang", "arabic")
+    lang = request.args.get("lang", "english")
     result = analyze_code(data["code"], lang)
     return jsonify({
         "contract": data["name"],
@@ -121,7 +121,7 @@ def api_batch():
     data = request.get_json()
     if not data or "path" not in data:
         return jsonify({"error": "Field 'path' is required"}), 400
-    lang = data.get("lang", "arabic")
+    lang = data.get("lang", "english")
     workers = data.get("workers", 4)
     result = batch_audit(data["path"], workers, lang)
     return jsonify(result)
@@ -158,7 +158,7 @@ def api_project():
     data = request.get_json()
     if not data or "path" not in data:
         return jsonify({"error": "Field 'path' is required"}), 400
-    lang = data.get("lang", "arabic")
+    lang = data.get("lang", "english")
     result = analyze_project(data["path"], lang)
     return jsonify({"result": result})
 

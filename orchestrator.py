@@ -33,7 +33,7 @@ svc = AuditService()
 def dispatch_analysis(
     code: str,
     analysis_type: str = "audit",
-    lang: str = "arabic",
+    lang: str = "english",
     protocol_name: str = "Protocol",
     focus: str = "",
     repo_url: str = "",
@@ -83,7 +83,7 @@ def dispatch_analysis(
 def run_parallel_analysis(
     code: str,
     n_workers: int = 3,
-    lang: str = "arabic",
+    lang: str = "english",
 ) -> tuple[str, list]:
     """Run parallel analysis using multiple models."""
     from agents import run_parallel as _run_parallel

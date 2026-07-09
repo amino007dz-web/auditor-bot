@@ -43,7 +43,7 @@ def generate_combined_report(code: str, protocol: str = "Protocol") -> str:
     report += analyze_inheritance(code, contracts_data) + "\n"
     return report
 
-def generate_combined_report_interactive(code: str, lang: str = "arabic") -> str:
+def generate_combined_report_interactive(code: str, lang: str = "english") -> str:
     print("\n" + "="*60)
     print("📊 Combined Report (Opcodes + Storage + Inheritance)")
     print("="*60)

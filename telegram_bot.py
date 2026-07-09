@@ -381,7 +381,7 @@ class TelegramBot:
             self._answer_callback(cb_id, "Select language")
             self._edit_message(chat_id, msg_id, "Select report language:", keyboard=self._lang_keyboard())
         elif data == "lang_ar":
-            self._user_langs[chat_id] = "arabic"
+            self._user_langs[chat_id] = "english"
             self._answer_callback(cb_id, "✅ Arabic")
             self._edit_message(chat_id, msg_id, "✅ Arabic selected", keyboard=self._main_keyboard())
         elif data == "lang_en":
