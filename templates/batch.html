@@ -1,39 +1,129 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Batch Audit - Smart Contract Auditor</title>
+<title>Batch Audit — VulnAudit</title>
 <style>
+:root { --bg-primary:#0a0e14; --bg-secondary:#111820; --bg-card:#161f2e; --border:#1e2a3a; --text-primary:#e6edf3; --text-secondary:#8b95a5; --accent:#58a6ff; --radius:10px; }
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Segoe UI',sans-serif; background:#0d1117; color:#c9d1d9; padding:2rem; max-width:1000px; margin:0 auto; }
-h1 { color:#58a6ff; }
-a { color:#58a6ff; }
-.card { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:1.5rem; margin:1rem 0; }
-input,textarea,select { width:100%; padding:0.75rem; border:1px solid #30363d; border-radius:6px; background:#0d1117; color:#c9d1d9; margin-bottom:1rem; }
-.btn { padding:0.75rem 1.5rem; border:none; border-radius:6px; cursor:pointer; background:#238636; color:#fff; }
-pre { background:#0d1117; border:1px solid #30363d; border-radius:6px; padding:1rem; max-height:500px; overflow:auto; direction:ltr; text-align:left; }
+body { font-family:-apple-system,'Segoe UI',sans-serif; background:var(--bg-primary); color:var(--text-primary); padding:1.5rem; max-width:1000px; margin:0 auto; }
+h1 { font-size:1.5rem; background:linear-gradient(135deg,var(--accent),#a371f7); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.nav { display:flex; gap:0.5rem; flex-wrap:wrap; margin:0.75rem 0; }
+.nav a { color:var(--text-secondary); text-decoration:none; padding:0.4rem 0.85rem; border-radius:6px; font-size:0.85rem; border:1px solid transparent; }
+.nav a:hover { color:var(--text-primary); background:var(--bg-card); border-color:var(--border); }
+.card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; margin:1rem 0; }
+.tabs { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:1rem; }
+.tab { padding:0.6rem 1.2rem; cursor:pointer; border:1px solid transparent; border-bottom:none; border-radius:6px 6px 0 0; font-size:0.85rem; color:var(--text-secondary); background:transparent; }
+.tab:hover { color:var(--text-primary); background:var(--bg-primary); }
+.tab.active { color:var(--accent); border-color:var(--border); background:var(--bg-card); margin-bottom:-1px; }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+input, select { width:100%; padding:0.7rem; border:1px solid var(--border); border-radius:6px; background:var(--bg-primary); color:var(--text-primary); font-size:0.9rem; }
+input:focus, select:focus { outline:none; border-color:var(--accent); }
+.btn { display:inline-block; padding:0.7rem 1.4rem; border:none; border-radius:6px; font-size:0.9rem; cursor:pointer; background:linear-gradient(135deg,#238636,#2ea043); color:#fff; transition:filter 0.2s; }
+.btn:hover { filter:brightness(1.15); }
+.mt-1 { margin-top:1rem; }
+pre { background:var(--bg-primary); border:1px solid var(--border); border-radius:6px; padding:1rem; max-height:500px; overflow:auto; direction:ltr; text-align:left; font-size:0.82rem; line-height:1.6; }
+.hidden { display:none !important; }
+#loading { text-align:center; padding:2rem; }
+.spinner { width:36px; height:36px; border:3px solid var(--border); border-top:3px solid var(--accent); border-radius:50%; animation:spin 0.9s infinite; margin:0 auto 1rem; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.upload-zone { border:2px dashed var(--border); border-radius:var(--radius); padding:2rem; text-align:center; cursor:pointer; transition:all 0.25s; }
+.upload-zone:hover, .upload-zone.dragover { border-color:var(--accent); background:rgba(88,166,255,0.05); }
+.upload-zone .icon { font-size:2.5rem; }
+.upload-zone p { color:var(--text-secondary); }
+.file-name { color:var(--accent); margin-top:0.5rem; }
 .success { color:#3fb950; }
 .error { color:#f85149; }
+footer { text-align:center; padding:1.5rem; color:var(--text-secondary); border-top:1px solid var(--border); margin-top:2rem; font-size:0.8rem; }
 </style></head>
 <body>
-<h1>📁 Batch Audit</h1>
-<p><a href="/">الرئيسية</a> | <a href="/report/list">التقارير</a> | <a href="/dashboard">لوحة التحكم</a></p>
+<h1>📁 Batch Audit — Scan Directory</h1>
+<nav class="nav"><a href="/">Home</a><a href="/project">Project Scan</a><a href="/dashboard">Dashboard</a></nav>
+
 <div class="card">
-<form method="POST">
-<input type="text" name="path" placeholder="المسار الكامل للمجلد..." required>
-<select name="lang"><option value="english">English</option><option value="arabic">عربي</option></select>
-<button type="submit" class="btn">بدء التدقيق</button>
-</form>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('path',this)">Server Path</div>
+    <div class="tab" onclick="switchTab('zip',this)">Upload ZIP</div>
+  </div>
+
+  <div id="tab-path" class="tab-content active">
+    <form method="POST">
+      <input type="text" name="path" placeholder="Full path to Solidity files directory..." required>
+      <select name="lang"><option value="english">English</option><option value="arabic">Arabic</option></select>
+      <button type="submit" class="btn">Start Batch Audit</button>
+    </form>
+  </div>
+
+  <div id="tab-zip" class="tab-content">
+    <form method="POST" enctype="multipart/form-data">
+      <div class="upload-zone" id="dropZone">
+        <div class="icon">📦</div>
+        <p>Upload a ZIP file containing .sol files</p>
+        <input type="file" name="zipfile" id="fileInput" accept=".zip" style="display:none" onchange="handleFile(event)">
+      </div>
+      <div id="fileInfo" class="hidden file-name"></div>
+      <select name="lang"><option value="english">English</option><option value="arabic">Arabic</option></select>
+      <button type="submit" class="btn mt-1">Upload & Audit</button>
+    </form>
+  </div>
 </div>
+
+<div id="loading" class="hidden card">
+  <div class="spinner"></div>
+  <p>Processing batch...</p>
+</div>
+
 {% if result %}
 <div class="card">
-{% if result.error %}
-<p class="error">{{ result.error }}</p>
-{% else %}
-<p class="success">تم العثور على {{ result.total }} عقد / تم: {{ result.done }} / أخطاء: {{ result.errors }}</p>
-{% for r in result.results %}
-<pre>{{ r.file }} — {{ r.status }}{% if r.status == 'done' %}\n{{ r.result[:500] }}{% endif %}</pre>
-{% endfor %}
-{% endif %}
+  {% if result.error %}
+  <p class="error">{{ result.error }}</p>
+  {% else %}
+  <p class="success">Found {{ result.total }} contracts | Done: {{ result.done }} | Errors: {{ result.errors }}</p>
+  {% for r in result.results %}
+  <pre><strong>{{ r.file }}</strong> — {{ r.status }}{% if r.status == 'done' %}{{ r.result[:800] }}{% endif %}</pre>
+  {% endfor %}
+  {% endif %}
 </div>
 {% endif %}
-</body></html>
+
+<footer>VulnAudit — Smart Contract Security Analysis Engine</footer>
+
+<script>
+let uploadedFile = null;
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+function handleFile(e) {
+  uploadedFile = e.target.files[0];
+  if (uploadedFile) {
+    document.getElementById('fileInfo').textContent = uploadedFile.name + ' (' + (uploadedFile.size/1024).toFixed(1) + ' KB)';
+    document.getElementById('fileInfo').classList.remove('hidden');
+  }
+}
+document.getElementById('dropZone').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('dropZone').addEventListener('dragover', (e) => { e.preventDefault(); e.currentTarget.classList.add('dragover'); });
+document.getElementById('dropZone').addEventListener('dragleave', (e) => { e.currentTarget.classList.remove('dragover'); });
+document.getElementById('dropZone').addEventListener('drop', (e) => {
+  e.preventDefault(); e.currentTarget.classList.remove('dragover');
+  const files = e.dataTransfer.files;
+  if (files.length > 0) {
+    document.getElementById('fileInput').files = files;
+    uploadedFile = files[0];
+    document.getElementById('fileInfo').textContent = uploadedFile.name + ' (' + (uploadedFile.size/1024).toFixed(1) + ' KB)';
+    document.getElementById('fileInfo').classList.remove('hidden');
+  }
+});
+// Show loading on form submit for zip tab
+document.querySelectorAll('form').forEach(f => {
+  f.addEventListener('submit', () => {
+    if (f.querySelector('input[name="zipfile"]')?.files?.length > 0) {
+      document.getElementById('loading').classList.remove('hidden');
+    }
+  });
+});
+</script>
+</body>
+</html>

@@ -152,12 +152,37 @@ def analyze_chain():
 def batch_page():
     result = None
     if request.method == 'POST':
-        path = request.form.get('path', '').strip()
         lang = request.form.get('lang', 'arabic')
+        path = request.form.get('path', '').strip()
         if path and os.path.isdir(path):
             result = batch_audit(path, lang=lang)
+        elif 'zipfile' in request.files and request.files['zipfile'].filename:
+            import tempfile, zipfile, shutil
+            f = request.files['zipfile']
+            tmpdir = tempfile.mkdtemp(prefix="batch_upload_")
+            zippath = os.path.join(tmpdir, f.filename)
+            f.save(zippath)
+            try:
+                with zipfile.ZipFile(zippath, 'r') as zf:
+                    zf.extractall(tmpdir)
+                items = os.listdir(tmpdir)
+                root = tmpdir
+                for item in items:
+                    item_path = os.path.join(tmpdir, item)
+                    if os.path.isdir(item_path) and item != '__MACOSX':
+                        root = item_path
+                        break
+                result = batch_audit(root, lang=lang)
+            except zipfile.BadZipFile:
+                result = {"error": "Invalid zip file"}
+            except Exception as e:
+                logger.exception("Batch zip upload failed")
+                result = {"error": str(e)}
+            finally:
+                try: shutil.rmtree(tmpdir)
+                except: pass
         else:
-            result = {"error": "Invalid path"}
+            result = {"error": "Invalid path or no file uploaded"}
     return render_template('batch.html', result=result)
 
 
@@ -210,7 +235,53 @@ def project_page():
         lang = request.form.get('lang', 'arabic')
         if path:
             result = analyze_project(path, lang)
+        # Also handle zip file upload
+        if 'zipfile' in request.files and request.files['zipfile'].filename:
+            result = _handle_zip_upload(request.files['zipfile'], lang)
     return render_template('project.html', result=result)
+
+
+@app.route('/upload_project', methods=['POST'])
+def upload_project():
+    ensure_report_dir()
+    lang = request.form.get('lang', 'english')
+    if 'file' not in request.files or not request.files['file'].filename:
+        return jsonify({"error": "No file uploaded"}), 400
+    result = _handle_zip_upload(request.files['file'], lang)
+    if isinstance(result, dict) and 'error' in result:
+        return jsonify(result), 400
+    return jsonify({"report": str(result)})
+
+
+def _handle_zip_upload(file_storage, lang="english"):
+    """Extract and analyze an uploaded zip file containing a project."""
+    import tempfile, zipfile, os, json
+    tmpdir = tempfile.mkdtemp(prefix="project_upload_")
+    zippath = os.path.join(tmpdir, file_storage.filename)
+    file_storage.save(zippath)
+    try:
+        with zipfile.ZipFile(zippath, 'r') as zf:
+            zf.extractall(tmpdir)
+        # Find the project root (first subdirectory)
+        items = os.listdir(tmpdir)
+        root = tmpdir
+        for item in items:
+            item_path = os.path.join(tmpdir, item)
+            if os.path.isdir(item_path) and item != '__MACOSX':
+                root = item_path
+                break
+        return analyze_project(root, lang)
+    except zipfile.BadZipFile:
+        return {"error": "Invalid or corrupted zip file"}
+    except Exception as e:
+        logger.exception("Zip upload analysis failed")
+        return {"error": str(e)}
+    finally:
+        import shutil
+        try:
+            shutil.rmtree(tmpdir)
+        except Exception:
+            pass
 
 
 @app.route('/permissions', methods=['GET', 'POST'])
