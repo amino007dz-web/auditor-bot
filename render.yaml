@@ -6,7 +6,7 @@ services:
     name: smart-contract-auditor
     env: python
     buildCommand: pip install --no-cache-dir -r requirements.txt
-    startCommand: python web_ui.py
+    startCommand: ./start.sh
     healthCheckPath: /
     disk:
       name: kb-data

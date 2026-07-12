@@ -43,4 +43,5 @@ RUN mkdir -p reports
 
 EXPOSE 5000
 
-CMD ["python", "web_ui.py"]
+RUN chmod +x /app/start.sh
+CMD ["/app/start.sh"]
