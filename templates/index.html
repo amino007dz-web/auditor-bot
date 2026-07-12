@@ -223,10 +223,11 @@ footer a { color: var(--accent); text-decoration: none; }
         </select>
       </div>
 
-      <!-- Tabs: Paste / Upload -->
+      <!-- Tabs: Paste / Upload / GitHub -->
       <div class="tabs">
         <div class="tab active" onclick="switchTab('paste', this)">Paste Code</div>
         <div class="tab" onclick="switchTab('upload', this)">Upload File</div>
+        <div class="tab" onclick="switchTab('github', this)">GitHub URL</div>
       </div>
 
       <!-- Paste Tab -->
@@ -249,6 +250,15 @@ footer a { color: var(--accent); text-decoration: none; }
         </div>
         <div id="fileInfo" class="hidden file-name"></div>
         <button type="submit" class="btn btn-primary mt-1" id="runBtnUpload">Run Analysis</button>
+      </div>
+
+      <!-- GitHub Tab -->
+      <div id="tab-github" class="tab-content">
+        <div class="code-input-area">
+          <input type="text" id="githubUrl" placeholder="https://github.com/username/repo" style="font-family:monospace;">
+        </div>
+        <p style="color:var(--text-secondary);font-size:0.8rem;margin-top:0.3rem;">Fetches all .sol files from the repo and analyzes them</p>
+        <button type="button" class="btn btn-primary mt-1" onclick="analyzeGithub()">Fetch & Analyze</button>
       </div>
     </form>
   </div>
@@ -452,6 +462,39 @@ async function runAnalysis(e) {
     document.getElementById('loadingText').textContent = 'Error: ' + err.message;
     document.getElementById('progressFill').style.width = '0%';
     console.error(err);
+  }
+}
+
+async function analyzeGithub() {
+  const url = document.getElementById('githubUrl').value.trim();
+  if (!url || !url.includes('github.com')) { alert('Please enter a valid GitHub URL'); return; }
+  const loading = document.getElementById('loading');
+  const section = document.getElementById('results');
+  section.classList.add('hidden');
+  loading.classList.remove('hidden');
+  document.getElementById('loadingText').textContent = 'Fetching from GitHub...';
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.step')[0].classList.add('active');
+  document.getElementById('progressFill').style.width = '10%';
+  try {
+    const resp = await fetch('/analyze_github', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({url, analysis_type: document.getElementById('analysisType').value})
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed');
+    document.querySelectorAll('.step')[0].classList.remove('active');
+    document.querySelectorAll('.step')[3].classList.add('active');
+    document.getElementById('progressFill').style.width = '100%';
+    loading.classList.add('hidden');
+    document.getElementById('reportContent').innerHTML = renderReport(data.report);
+    document.getElementById('downloadTxt').href = '/download/' + data.filename;
+    document.getElementById('downloadHtml').href = '/download/' + data.filename_html;
+    document.getElementById('resultTitle').textContent = 'GitHub Analysis — ' + url.split('/').slice(-2).join('/');
+    section.classList.remove('hidden');
+  } catch (err) {
+    document.getElementById('loadingText').textContent = 'Error: ' + err.message;
+    document.getElementById('progressFill').style.width = '0%';
   }
 }
 

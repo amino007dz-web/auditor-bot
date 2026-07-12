@@ -35,5 +35,7 @@ services:
         sync: false
       - key: TELEGRAM_CHAT_ID
         sync: false
+      - key: GITHUB_TOKEN
+        sync: false
       - key: ETHERSCAN_API_KEY
         sync: false

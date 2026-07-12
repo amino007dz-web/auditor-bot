@@ -43,6 +43,8 @@ OLLAMA_API_KEY: str = os.getenv("OLLAMA_API_KEY", "")
 OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen3-coder:480b")
 OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", "300"))
 
+GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
+
 CONFIG_FILE = Path(__file__).parent / 'config.json'
 
 DEFAULT_CONFIG = {

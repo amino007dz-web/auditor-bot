@@ -11,7 +11,7 @@ from audit_service import AuditService
 from orchestrator import dispatch_analysis, save_report
 from chain_loader import load_from_explorer, list_supported_chains
 from external_analyzers import TOOL_AVAILABLE, run_external_analyzers, findings_to_text
-from config import KB_ENABLED, CACHE_ENABLED, REPORT_DIR
+from config import KB_ENABLED, CACHE_ENABLED, REPORT_DIR, GITHUB_TOKEN
 from main import ensure_report_dir, save_report_txt, load_local_contract
 from pdf_report import generate_pdf_report
 from batch_audit import batch_audit
@@ -282,6 +282,38 @@ def _handle_zip_upload(file_storage, lang="english"):
             shutil.rmtree(tmpdir)
         except Exception:
             pass
+
+
+@app.route('/analyze_github', methods=['POST'])
+def analyze_github():
+    """Fetch .sol files from a GitHub repo and analyze them."""
+    data = request.get_json()
+    if not data or 'url' not in data:
+        return jsonify({"error": "GitHub URL is required"}), 400
+    url = data['url'].strip()
+    analysis_type = data.get('analysis_type', 'audit')
+    try:
+        from github_loader import download_contracts
+        contracts = download_contracts(url, GITHUB_TOKEN if GITHUB_TOKEN else None)
+        if not contracts:
+            return jsonify({"error": "No Solidity files found in the repository"}), 404
+        # Combine all contracts into one report
+        combined_code = "\n\n// ====== " + "=" * 40 + "\n\n".join(
+            f"// File: {c['name']}\n{c['code'][:2000]}" for c in contracts[:10]
+        )[:5000]
+        report = dispatch_analysis(combined_code, analysis_type)
+        ts = int(time.time())
+        label = url.rstrip('/').split('/')[-1] or "github"
+        fn_txt = f"github_{label}_{ts}.txt"
+        fn_html = f"github_{label}_{ts}.html"
+        save_report_txt(fn_txt, report)
+        _save_html_report(fn_html, report, label, analysis_type)
+        return jsonify({"report": report, "filename": fn_txt, "filename_html": fn_html})
+    except ImportError:
+        return jsonify({"error": "PyGithub not installed. Run: pip install PyGithub"}), 500
+    except Exception as e:
+        logger.exception("GitHub analysis failed")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/permissions', methods=['GET', 'POST'])
