@@ -1,184 +1,481 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Contract Auditor</title>
+<title>VulnAudit — Smart Contract Security Auditor</title>
 <style>
+:root {
+  --bg-primary: #0a0e14;
+  --bg-secondary: #111820;
+  --bg-card: #161f2e;
+  --border: #1e2a3a;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b95a5;
+  --accent: #58a6ff;
+  --accent-glow: rgba(88, 166, 255, 0.15);
+  --critical: #f85149;
+  --critical-bg: rgba(248, 81, 73, 0.12);
+  --high: #d29922;
+  --high-bg: rgba(210, 153, 34, 0.12);
+  --medium: #58a6ff;
+  --medium-bg: rgba(88, 166, 255, 0.12);
+  --low: #8b949e;
+  --low-bg: rgba(139, 148, 158, 0.12);
+  --info: #3fb950;
+  --info-bg: rgba(63, 185, 80, 0.12);
+  --radius: 10px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
-.container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-header { text-align: center; padding: 2rem 0; border-bottom: 1px solid #30363d; margin-bottom: 2rem; }
-header h1 { color: #58a6ff; font-size: 2rem; margin-bottom: 0.5rem; }
-header p { color: #8b949e; font-size: 0.9rem; }
-.card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
-.card h2 { color: #58a6ff; margin-bottom: 1rem; font-size: 1.3rem; }
-textarea, input[type="file"], input[type="text"], select { width: 100%; padding: 0.75rem; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-size: 0.9rem; }
-textarea { font-family: 'Cascadia Code', monospace; resize: vertical; min-height: 200px; }
-textarea:focus, input:focus, select:focus { outline: none; border-color: #58a6ff; }
-.btn { display: inline-block; padding: 0.75rem 1.5rem; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; text-decoration: none; transition: all 0.2s; }
-.btn-primary { background: #238636; color: #fff; }
-.btn-primary:hover { background: #2ea043; }
-.btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
-.btn-secondary:hover { background: #30363d; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.flex-row { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+body { font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.6; }
+.container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+
+/* Header */
+header { text-align: center; padding: 2rem 0 1.5rem; position: relative; }
+header::after { content: ''; position: absolute; bottom: 0; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); }
+header h1 { font-size: 2.2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), #a371f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+header p { color: var(--text-secondary); font-size: 0.95rem; margin-top: 0.3rem; }
+.status-bar { display: flex; gap: 1rem; justify-content: center; align-items: center; margin-top: 0.75rem; font-size: 0.8rem; flex-wrap: wrap; }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+.status-dot.online { background: #3fb950; box-shadow: 0 0 8px rgba(63,185,80,0.5); }
+.status-dot.offline { background: var(--critical); }
+
+/* Navigation */
+.nav { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin: 1rem 0 1.5rem; }
+.nav a { color: var(--text-secondary); text-decoration: none; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; border: 1px solid transparent; }
+.nav a:hover { color: var(--text-primary); background: var(--bg-card); border-color: var(--border); }
+.nav a.active { color: var(--accent); border-color: var(--accent); }
+
+/* Tools Grid */
+.tools-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
+.tool-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; text-align: center; transition: all 0.25s; cursor: default; }
+.tool-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.tool-card a { text-decoration: none; color: inherit; }
+.tool-card .icon { font-size: 1.5rem; margin-bottom: 0.4rem; }
+.tool-card .name { font-weight: 600; font-size: 0.85rem; }
+.tool-card .desc { color: var(--text-secondary); font-size: 0.72rem; margin-top: 0.2rem; }
+
+/* Card */
+.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: var(--shadow); }
+.card h2 { font-size: 1.15rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+
+/* Inputs */
+textarea, input[type="text"], select {
+  width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg-primary); color: var(--text-primary); font-size: 0.9rem; transition: border-color 0.2s;
+}
+textarea { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; resize: vertical; min-height: 160px; line-height: 1.5; tab-size: 2; }
+textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+select { max-width: 280px; cursor: pointer; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.65rem 1.3rem; border: none; border-radius: 6px; font-size: 0.9rem; cursor: pointer; text-decoration: none; transition: all 0.2s; font-weight: 500; }
+.btn-primary { background: linear-gradient(135deg, #238636, #2ea043); color: #fff; }
+.btn-primary:hover { filter: brightness(1.15); transform: translateY(-1px); }
+.btn-secondary { background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--text-secondary); }
+.btn-critical { background: linear-gradient(135deg, #da3633, #f85149); color: #fff; }
+.btn-danger { background: #da3633; color: #fff; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+/* Flex utilities */
+.flex-row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
 .mt-1 { margin-top: 1rem; }
 .mb-1 { margin-bottom: 1rem; }
-.hidden { display: none; }
-#loading { text-align: center; padding: 3rem; }
-.spinner { border: 3px solid #30363d; border-top: 3px solid #58a6ff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+.hidden { display: none !important; }
+
+/* Upload zone */
+.upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 2rem; text-align: center; cursor: pointer; transition: all 0.25s; }
+.upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: var(--accent-glow); }
+.upload-zone p { color: var(--text-secondary); font-size: 0.9rem; }
+.upload-zone .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.file-name { color: var(--accent); margin-top: 0.5rem; font-size: 0.85rem; }
+
+/* Loading */
+#loading { text-align: center; padding: 2.5rem; }
+.spinner { width: 44px; height: 44px; border: 3px solid var(--border); border-top: 3px solid var(--accent); border-radius: 50%; animation: spin 0.9s cubic-bezier(0.6, 0, 0.4, 1) infinite; margin: 0 auto 1rem; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.report-content { font-family: 'Cascadia Code', monospace; font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 1rem; max-height: 70vh; overflow-y: auto; direction: ltr; text-align: left; }
-.nav-links { display: flex; gap: 1rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
-.nav-links a { color: #58a6ff; text-decoration: none; font-size: 0.9rem; }
-.nav-links a:hover { text-decoration: underline; }
-.tools-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
-.tool-card { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 1.25rem; text-align: center; transition: border-color 0.2s; }
-.tool-card:hover { border-color: #58a6ff; }
-.tool-card .icon { font-size: 2rem; margin-bottom: 0.5rem; }
-.tool-card .name { color: #c9d1d9; font-weight: 600; }
-.tool-card .desc { color: #8b949e; font-size: 0.8rem; margin-top: 0.25rem; }
-.tool-card a { text-decoration: none; }
-select { max-width: 300px; }
-footer { text-align: center; padding: 2rem; color: #8b949e; border-top: 1px solid #30363d; margin-top: 2rem; }
-.upload-zone { border: 2px dashed #30363d; border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s; }
-.upload-zone:hover, .upload-zone.dragover { border-color: #58a6ff; background: rgba(88, 166, 255, 0.05); }
-.upload-zone p { color: #8b949e; }
-.file-name { color: #58a6ff; margin-top: 0.5rem; }
+#loadingText { color: var(--text-secondary); font-size: 0.9rem; }
+#loading .steps { color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.3rem; }
+#loading .step { opacity: 0.4; transition: opacity 0.5s; }
+#loading .step.active { opacity: 1; color: var(--accent); }
+
+/* Report */
+.report-wrapper { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.report-content { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 0.82rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; padding: 1rem; max-height: 65vh; overflow-y: auto; direction: ltr; text-align: left; }
+.report-content::-webkit-scrollbar { width: 6px; }
+.report-content::-webkit-scrollbar-track { background: transparent; }
+.report-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.report-content::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+/* Severity badges in report */
+.severity-badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin: 0 0.2rem; }
+.severity-critical { background: var(--critical-bg); color: var(--critical); border: 1px solid rgba(248,81,73,0.3); }
+.severity-high { background: var(--high-bg); color: var(--high); border: 1px solid rgba(210,153,34,0.3); }
+.severity-medium { background: var(--medium-bg); color: var(--medium); border: 1px solid rgba(88,166,255,0.3); }
+.severity-low { background: var(--low-bg); color: var(--low); border: 1px solid rgba(139,148,158,0.3); }
+.severity-info { background: var(--info-bg); color: var(--info); border: 1px solid rgba(63,185,80,0.3); }
+.severity-rating { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 4px; font-size: 0.9rem; font-weight: 700; }
+
+/* Char counter */
+.char-counter { text-align: right; font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; direction: ltr; }
+.char-counter.warning { color: var(--high); }
+.char-counter.over { color: var(--critical); }
+
+/* Code input area */
+.code-input-area { position: relative; }
+.code-input-area textarea { min-height: 180px; }
+
+/* Tabs (Paste / Upload) */
+.tabs { display: flex; gap: 0; margin-bottom: 0; border-bottom: 1px solid var(--border); }
+.tab { padding: 0.6rem 1.2rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; font-size: 0.85rem; color: var(--text-secondary); transition: all 0.2s; background: transparent; }
+.tab:hover { color: var(--text-primary); background: var(--bg-primary); }
+.tab.active { color: var(--accent); border-color: var(--border); background: var(--bg-card); margin-bottom: -1px; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Footer */
+footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); border-top: 1px solid var(--border); margin-top: 2rem; font-size: 0.8rem; }
+footer a { color: var(--accent); text-decoration: none; }
+
+/* Infinite progress animation */
+.progress-bar { width: 100%; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 1rem; }
+.progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), #a371f7); transition: width 2s; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .container { padding: 1rem; }
+  header h1 { font-size: 1.6rem; }
+  .tools-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .card { padding: 1rem; }
+  .flex-between { flex-direction: column; align-items: stretch; }
+}
+
+/* Scroll-to-top */
+#scrollTop { position: fixed; bottom: 1.5rem; right: 1.5rem; width: 40px; height: 40px; border-radius: 50%; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary); cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 1.2rem; transition: all 0.2s; z-index: 100; }
+#scrollTop:hover { border-color: var(--accent); }
 </style>
 </head>
 <body>
+
 <div class="container">
-<header>
-<h1>Smart Contract Auditor</h1>
-<p>تحليل أمني ذكي للعقود الذكية — متعدد الطبقات، متعدد اللغات</p>
-<div class="nav-links">
-<a href="/">الرئيسية</a>
-<a href="/dashboard">لوحة التحكم</a>
-<a href="/explorer">جلب من السلسلة</a>
-<a href="/batch">Batch</a>
-<a href="/project">مشروع</a>
-<a href="/report/list">التقارير</a>
-</div>
-</header>
+  <!-- Header -->
+  <header>
+    <h1>VulnAudit</h1>
+    <p>Multi-Layer Smart Contract Security Analysis Engine</p>
+    <div class="status-bar">
+      <span><span class="status-dot online"></span> 17,164 KB Patterns</span>
+      <span><span class="status-dot online"></span> Ollama Cloud</span>
+      <span><span class="status-dot online"></span> Telegram Bot</span>
+      <span><span class="status-dot online"></span> v2.0</span>
+    </div>
+  </header>
 
-<div class="tools-grid">
-<a href="/explorer" class="tool-card"><div class="icon">⛓️</div><div class="name">Chain Loader</div><div class="desc">جلب عقود من 7 سلاسل</div></a>
-<a href="/batch" class="tool-card"><div class="icon">📁</div><div class="name">Batch Audit</div><div class="desc">فحص مجلد كامل</div></a>
-<a href="/project" class="tool-card"><div class="icon">📂</div><div class="name">Project Scan</div><div class="desc">Foundry/Hardhat</div></a>
-<a href="/gas" class="tool-card"><div class="icon">⛽</div><div class="name">Gas Analysis</div><div class="desc">تحسين الغاز</div></a>
-<a href="/testgen" class="tool-card"><div class="icon">🧪</div><div class="name">Test Generator</div><div class="desc">Foundry/Hardhat tests</div></a>
-<a href="/inhgraph" class="tool-card"><div class="icon">🔗</div><div class="name">Inheritance</div><div class="desc">رسم الوراثة</div></a>
-<a href="/permissions" class="tool-card"><div class="icon">🔑</div><div class="name">Permissions</div><div class="desc">مصفوفة الأذونات</div></a>
-<a href="/rules" class="tool-card"><div class="icon">⚙️</div><div class="name">Custom Rules</div><div class="desc">قواعد كشف مخصصة</div></a>
-<a href="/dashboard" class="tool-card"><div class="icon">📊</div><div class="name">Dashboard</div><div class="desc">لوحة الإحصائيات</div></a>
-<a href="/report/list" class="tool-card"><div class="icon">📄</div><div class="name">Reports</div><div class="desc">التقارير السابقة</div></a>
+  <!-- Navigation -->
+  <nav class="nav">
+    <a href="/" class="active">Home</a>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/explorer">Chain Loader</a>
+    <a href="/batch">Batch</a>
+    <a href="/project">Project</a>
+    <a href="/gas">Gas</a>
+    <a href="/testgen">Tests</a>
+    <a href="/inhgraph">Inheritance</a>
+    <a href="/permissions">Permissions</a>
+    <a href="/rules">Rules</a>
+    <a href="/report/list">Reports</a>
+  </nav>
+
+  <!-- Tools Grid -->
+  <div class="tools-grid">
+    <div class="tool-card"><a href="/explorer"><div class="icon">⛓️</div><div class="name">Chain Loader</div><div class="desc">Fetch from 7 chains</div></a></div>
+    <div class="tool-card"><a href="/batch"><div class="icon">📁</div><div class="name">Batch Audit</div><div class="desc">Scan a directory</div></a></div>
+    <div class="tool-card"><a href="/project"><div class="icon">📂</div><div class="name">Project Scan</div><div class="desc">Foundry / Hardhat</div></a></div>
+    <div class="tool-card"><a href="/gas"><div class="icon">⛽</div><div class="name">Gas Analysis</div><div class="desc">Optimize gas usage</div></a></div>
+    <div class="tool-card"><a href="/testgen"><div class="icon">🧪</div><div class="name">Test Gen</div><div class="desc">Auto-PoC generation</div></a></div>
+    <div class="tool-card"><a href="/inhgraph"><div class="icon">🔗</div><div class="name">Inheritance</div><div class="desc">Graph viewer</div></a></div>
+    <div class="tool-card"><a href="/permissions"><div class="icon">🔑</div><div class="name">Permissions</div><div class="desc">Access matrix</div></a></div>
+    <div class="tool-card"><a href="/rules"><div class="icon">⚙️</div><div class="name">Custom Rules</div><div class="desc">Regex + custom</div></a></div>
+    <div class="tool-card"><a href="/dashboard"><div class="icon">📊</div><div class="name">Dashboard</div><div class="desc">Analytics</div></a></div>
+    <div class="tool-card"><a href="/report/list"><div class="icon">📄</div><div class="name">Reports</div><div class="desc">History</div></a></div>
+  </div>
+
+  <!-- Analysis Section -->
+  <div class="card">
+    <h2>Smart Contract Analysis</h2>
+    <form id="uploadForm" onsubmit="runAnalysis(event)">
+      <div class="flex-row mb-1">
+        <select name="analysis_type" id="analysisType" style="width:auto; min-width:200px;">
+          <option value="audit">Full Audit (recommended)</option>
+          <option value="chunked">Chunked Analysis</option>
+          <option value="hierarchical">Hierarchical Audit</option>
+          <option value="multi">Multi-Model Audit</option>
+          <option value="selfcritique">Self-Critique Audit</option>
+          <option value="gas">Gas Optimization</option>
+          <option value="permissions">Permission Analysis</option>
+          <option value="external">Slither / Mythril</option>
+          <option value="opcodes">Opcodes Only</option>
+          <option value="combined">Combined Report</option>
+          <option value="storage">Storage Analysis</option>
+          <option value="inheritance">Inheritance Analysis</option>
+        </select>
+      </div>
+
+      <!-- Tabs: Paste / Upload -->
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('paste', this)">Paste Code</div>
+        <div class="tab" onclick="switchTab('upload', this)">Upload File</div>
+      </div>
+
+      <!-- Paste Tab -->
+      <div id="tab-paste" class="tab-content active">
+        <div class="code-input-area">
+          <textarea id="codeInput" placeholder="Paste your Solidity code here...&#10;&#10;pragma solidity ^0.8.0;&#10;contract MyContract { ... }" oninput="updateCharCount()"></textarea>
+        </div>
+        <div class="flex-between mt-1">
+          <div class="char-counter" id="charCount">0 / 3,000 chars</div>
+          <button type="submit" class="btn btn-primary" id="runBtn">Run Analysis</button>
+        </div>
+      </div>
+
+      <!-- Upload Tab -->
+      <div id="tab-upload" class="tab-content">
+        <div class="upload-zone" id="dropZone">
+          <div class="icon">📄</div>
+          <p>Drag & drop a .sol file here, or click to browse</p>
+          <input type="file" id="fileInput" accept=".sol,.vy,.move,.clsp,.rs,.py" style="display:none" onchange="handleFile(event)">
+        </div>
+        <div id="fileInfo" class="hidden file-name"></div>
+        <button type="submit" class="btn btn-primary mt-1" id="runBtnUpload">Run Analysis</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading" class="hidden card">
+    <div class="spinner"></div>
+    <p id="loadingText">Processing...</p>
+    <div class="steps" id="loadingSteps">
+      <span class="step" data-step="1">1. Submitting code to engine</span>
+      <span class="step" data-step="2">2. Analyzing with AI model</span>
+      <span class="step" data-step="3">3. Validating results (second pass)</span>
+      <span class="step" data-step="4">4. Generating report</span>
+    </div>
+    <div class="progress-bar"><div class="progress-bar-fill" id="progressFill"></div></div>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="hidden card">
+    <div class="flex-between">
+      <h2><span id="resultIcon">🔍</span> <span id="resultTitle">Audit Results</span></h2>
+      <div class="flex-row">
+        <a id="downloadTxt" class="btn btn-secondary">📄 TXT</a>
+        <a id="downloadHtml" class="btn btn-secondary">🌐 HTML</a>
+        <a id="downloadPdf" class="btn btn-secondary">📥 PDF</a>
+        <button class="btn btn-secondary" onclick="copyReport()">📋 Copy</button>
+      </div>
+    </div>
+    <div class="report-wrapper mt-1">
+      <div id="reportContent" class="report-content"></div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    VulnAudit — 17,164 KB patterns | Immunefi · Code4rena · FORGE-Curated · DeFiVulnLabs · SWC<br>
+    <a href="https://github.com/amino007dz-web/auditor-bot" target="_blank">GitHub</a> ·
+    <a href="https://auditor-bot.onrender.com" target="_blank">Status</a>
+  </footer>
 </div>
 
-<div id="upload-section" class="card">
-<h2>رفع عقد ذكي</h2>
-<form id="uploadForm" onsubmit="runAnalysis(event)">
-<div class="flex-row mb-1">
-<select name="analysis_type" id="analysisType">
-<option value="audit">تحليل كامل (Audit)</option>
-<option value="chunked">تحليل مجزأ (Chunked)</option>
-<option value="hierarchical">هرمي (Hierarchical)</option>
-<option value="multi">متعدد النماذج (Multi)</option>
-<option value="selfcritique">نقد ذاتي (Self-Critique)</option>
-<option value="gas">Gas Optimization</option>
-<option value="permissions">Permission Analysis</option>
-<option value="external">أدوات خارجية (Slither/Mythril)</option>
-<option value="opcodes">Opcodes فقط</option>
-<option value="combined">تقرير مجمّع</option>
-<option value="storage">تحليل التخزين</option>
-<option value="inheritance">تحليل التوريث</option>
-</select>
-</div>
-<div class="upload-zone" id="dropZone">
-<p>اسحب وأفلت ملف .sol هنا أو اضغط للاختيار</p>
-<input type="file" id="fileInput" accept=".sol,.move,.cl,.py" style="display:none" onchange="handleFile(event)">
-</div>
-<div id="fileInfo" class="hidden file-name"></div>
-<button type="submit" class="btn btn-primary mt-1" id="runBtn">تشغيل التحليل</button>
-</form>
-</div>
-
-<div id="loading" class="hidden card">
-<div class="spinner"></div>
-<p id="loadingText">جاري التحليل...</p>
-</div>
-
-<div id="results" class="hidden card">
-<div class="flex-row" style="justify-content: space-between; align-items: center;">
-<h2>نتائج التحليل</h2>
-<div class="flex-row">
-<a id="downloadTxt" class="btn btn-secondary">تحميل TXT</a>
-<a id="downloadHtml" class="btn btn-secondary">تحميل HTML</a>
-<a id="downloadPdf" class="btn btn-secondary">📥 PDF</a>
-</div>
-</div>
-<hr class="mb-1" style="border-color: #30363d;">
-<div id="reportContent" class="report-content"></div>
-</div>
-
-<footer>
-Smart Contract Auditor — v2.0 | 12 أداة متكاملة للتدقيق الأمني
-</footer>
-</div>
+<button id="scrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">⬆</button>
 
 <script>
 let uploadedFile = null;
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
 function handleFile(e) {
-uploadedFile = e.target.files[0];
-if (uploadedFile) {
-document.getElementById('fileInfo').textContent = uploadedFile.name + ' (' + (uploadedFile.size/1024).toFixed(1) + ' KB)';
-document.getElementById('fileInfo').classList.remove('hidden');
+  uploadedFile = e.target.files[0];
+  if (uploadedFile) {
+    document.getElementById('fileInfo').textContent = uploadedFile.name + ' (' + (uploadedFile.size/1024).toFixed(1) + ' KB)';
+    document.getElementById('fileInfo').classList.remove('hidden');
+  }
 }
-}
+
 document.getElementById('dropZone').addEventListener('click', () => document.getElementById('fileInput').click());
 document.getElementById('dropZone').addEventListener('dragover', (e) => { e.preventDefault(); e.currentTarget.classList.add('dragover'); });
 document.getElementById('dropZone').addEventListener('dragleave', (e) => { e.currentTarget.classList.remove('dragover'); });
 document.getElementById('dropZone').addEventListener('drop', (e) => {
-e.preventDefault(); e.currentTarget.classList.remove('dragover');
-const files = e.dataTransfer.files;
-if (files.length > 0) {
-document.getElementById('fileInput').files = files;
-uploadedFile = files[0];
-document.getElementById('fileInfo').textContent = uploadedFile.name + ' (' + (uploadedFile.size/1024).toFixed(1) + ' KB)';
-document.getElementById('fileInfo').classList.remove('hidden');
-}
+  e.preventDefault(); e.currentTarget.classList.remove('dragover');
+  const files = e.dataTransfer.files;
+  if (files.length > 0) {
+    document.getElementById('fileInput').files = files;
+    uploadedFile = files[0];
+    document.getElementById('fileInfo').textContent = uploadedFile.name + ' (' + (uploadedFile.size/1024).toFixed(1) + ' KB)';
+    document.getElementById('fileInfo').classList.remove('hidden');
+  }
 });
 
+function updateCharCount() {
+  const textarea = document.getElementById('codeInput');
+  const len = textarea.value.length;
+  const counter = document.getElementById('charCount');
+  counter.textContent = len.toLocaleString() + ' / 3,000 chars';
+  counter.className = 'char-counter' + (len > 2500 ? ' warning' : '') + (len > 3000 ? ' over' : '');
+}
+
+function renderReport(text) {
+  // Color severity badges in report text
+  let html = text
+    .replace(/\[(Critical)\]/gi, '<span class="severity-badge severity-critical">$1</span>')
+    .replace(/\[(High)\]/gi, '<span class="severity-badge severity-high">$1</span>')
+    .replace(/\[(Medium)\]/gi, '<span class="severity-badge severity-medium">$1</span>')
+    .replace(/\[(Low)\]/gi, '<span class="severity-badge severity-low">$1</span>')
+    .replace(/\[(Info)\]/gi, '<span class="severity-badge severity-info">$1</span>')
+    .replace(/\*\*(Critical|High|Medium|Low|Info)\*\*/g, '<span class="severity-badge severity-$1">$1</span>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/^### (.*$)/gm, '<h3 style="color:var(--accent);margin:1rem 0 0.3rem 0;font-size:0.95rem;">$1</h3>')
+    .replace(/^## (.*$)/gm, '<h2 style="color:var(--accent);margin:1.25rem 0 0.5rem 0;font-size:1.05rem;">$1</h2>')
+    .replace(/^- \*\*(.*?)\*\*:/gm, '<span style="color:var(--accent);font-weight:600;">$1</span>:')
+    .replace(/\n/g, '<br>');
+  return html;
+}
+
 async function runAnalysis(e) {
-e.preventDefault();
-if (!uploadedFile) { alert('الرجاء اختيار ملف'); return; }
-const section = document.getElementById('results');
-section.classList.add('hidden');
-const loading = document.getElementById('loading');
-loading.classList.remove('hidden');
-document.getElementById('loadingText').textContent = 'جاري رفع الملف وتحليله...';
-const formData = new FormData();
-formData.append('file', uploadedFile);
-formData.append('analysis_type', document.getElementById('analysisType').value);
-try {
-const response = await fetch('/analyze', { method: 'POST', body: formData });
-const data = await response.json();
-document.getElementById('loadingText').textContent = 'تم التحليل بنجاح';
-loading.classList.add('hidden');
-document.getElementById('reportContent').textContent = data.report;
-document.getElementById('downloadTxt').href = '/download/' + data.filename;
-document.getElementById('downloadHtml').href = '/download/' + data.filename_html;
-document.getElementById('downloadPdf').onclick = async () => {
-const r = await fetch('/api/pdf', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({report:data.report, label:uploadedFile?.name||'report'}) });
-const j = await r.json();
-window.location.href = j.url;
-};
-section.classList.remove('hidden');
-} catch (err) {
-document.getElementById('loadingText').textContent = 'خطأ: ' + err.message;
+  e.preventDefault();
+  const analysisType = document.getElementById('analysisType').value;
+  const section = document.getElementById('results');
+  section.classList.add('hidden');
+  const loading = document.getElementById('loading');
+  loading.classList.remove('hidden');
+  document.getElementById('loadingText').textContent = 'Starting analysis...';
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById('progressFill').style.width = '0%';
+
+  let code = '';
+  let fileName = 'contract';
+  const isPasteTab = document.getElementById('tab-paste').classList.contains('active');
+
+  if (isPasteTab) {
+    code = document.getElementById('codeInput').value.trim();
+    if (!code) { alert('Please paste or type Solidity code first.'); loading.classList.add('hidden'); return; }
+    if (code.length < 20) { alert('Code is too short. Please paste a complete contract.'); loading.classList.add('hidden'); return; }
+    fileName = 'pasted_contract';
+  } else {
+    if (!uploadedFile) { alert('Please select a file first.'); loading.classList.add('hidden'); return; }
+    fileName = uploadedFile.name.replace(/\.[^.]+$/, '');
+  }
+
+  // Animate steps
+  const stepEls = document.querySelectorAll('.step');
+  stepEls[0].classList.add('active');
+  document.getElementById('loadingText').textContent = 'Submitting code...';
+  document.getElementById('progressFill').style.width = '15%';
+
+  const formData = new FormData();
+  if (isPasteTab) {
+    // Use a blob for pasted code
+    const blob = new Blob([code], { type: 'text/plain' });
+    formData.append('file', blob, fileName + '.sol');
+  } else {
+    formData.append('file', uploadedFile);
+  }
+  formData.append('analysis_type', analysisType);
+
+  try {
+    stepEls[0].classList.remove('active');
+    stepEls[1].classList.add('active');
+    document.getElementById('loadingText').textContent = 'Analyzing with AI model...';
+    document.getElementById('progressFill').style.width = '35%';
+
+    const response = await fetch('/analyze', { method: 'POST', body: formData });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Analysis failed');
+    }
+
+    stepEls[1].classList.remove('active');
+    stepEls[2].classList.add('active');
+    document.getElementById('loadingText').textContent = 'Validating results (second pass)...';
+    document.getElementById('progressFill').style.width = '70%';
+
+    await new Promise(r => setTimeout(r, 400));
+
+    stepEls[2].classList.remove('active');
+    stepEls[3].classList.add('active');
+    document.getElementById('loadingText').textContent = 'Generating report...';
+    document.getElementById('progressFill').style.width = '90%';
+
+    await new Promise(r => setTimeout(r, 300));
+
+    document.getElementById('loadingText').textContent = 'Complete!';
+    loading.classList.add('hidden');
+    document.getElementById('progressFill').style.width = '100%';
+
+    // Render report with severity highlighting
+    document.getElementById('reportContent').innerHTML = renderReport(data.report);
+    document.getElementById('downloadTxt').href = '/download/' + data.filename;
+    document.getElementById('downloadHtml').href = '/download/' + data.filename_html;
+
+    // Determine result icon based on report content
+    const reportLower = data.report.toLowerCase();
+    if (reportLower.includes('critical') || reportLower.includes('**critical**')) {
+      document.getElementById('resultIcon').textContent = '🔴';
+    } else if (reportLower.includes('high') || reportLower.includes('**high**')) {
+      document.getElementById('resultIcon').textContent = '🟠';
+    } else if (reportLower.includes('medium') || reportLower.includes('**medium**')) {
+      document.getElementById('resultIcon').textContent = '🔵';
+    } else {
+      document.getElementById('resultIcon').textContent = '🟢';
+    }
+    document.getElementById('resultTitle').textContent = 'Analysis Results — ' + analysisType;
+
+    document.getElementById('downloadPdf').onclick = async () => {
+      const r = await fetch('/api/pdf', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({report:data.report, label:fileName||'report'}) });
+      const j = await r.json();
+      window.location.href = j.url;
+    };
+
+    section.classList.remove('hidden');
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch (err) {
+    document.getElementById('loadingText').textContent = 'Error: ' + err.message;
+    document.getElementById('progressFill').style.width = '0%';
+    console.error(err);
+  }
 }
+
+function copyReport() {
+  const text = document.getElementById('reportContent').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = '✅ Copied';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
 }
+
+// Keyboard shortcut: Ctrl+Enter to submit
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    document.getElementById('runBtn').click();
+  }
+});
+
+// Scroll to top button
+window.addEventListener('scroll', () => {
+  document.getElementById('scrollTop').style.display = window.scrollY > 400 ? 'flex' : 'none';
+});
 </script>
 </body>
 </html>

@@ -1,102 +1,194 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>لوحة التحكم - Smart Contract Auditor</title>
+<title>Dashboard — VulnAudit</title>
 <style>
+:root {
+  --bg-primary: #0a0e14;
+  --bg-secondary: #111820;
+  --bg-card: #161f2e;
+  --border: #1e2a3a;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b95a5;
+  --accent: #58a6ff;
+  --critical: #f85149;
+  --high: #d29922;
+  --medium: #58a6ff;
+  --low: #8b949e;
+  --info: #3fb950;
+  --radius: 10px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
-.container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-header { text-align: center; padding: 2rem 0; border-bottom: 1px solid #30363d; margin-bottom: 2rem; }
-header h1 { color: #58a6ff; }
-.nav-links { display: flex; gap: 1rem; justify-content: center; margin-top: 1rem; }
-.nav-links a { color: #58a6ff; text-decoration: none; }
-.nav-links a:hover { text-decoration: underline; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-.card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.5rem; text-align: center; }
-.card .num { font-size: 2.5rem; font-weight: 700; color: #58a6ff; }
-.card .label { font-size: 0.85rem; color: #8b949e; margin-top: 0.25rem; }
-.card .sub { font-size: 0.75rem; color: #8b949e; margin-top: 0.5rem; }
+body { font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+.container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+header { text-align: center; padding: 1.5rem 0; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+header h1 { font-size: 1.6rem; }
+.nav { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin: 0.75rem 0; }
+.nav a { color: var(--text-secondary); text-decoration: none; padding: 0.4rem 0.85rem; border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; border: 1px solid transparent; }
+.nav a:hover { color: var(--text-primary); background: var(--bg-card); border-color: var(--border); }
+.nav a.active { color: var(--accent); border-color: var(--accent); }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; text-align: center; box-shadow: var(--shadow); transition: transform 0.2s; }
+.stat-card:hover { transform: translateY(-2px); }
+.stat-card .num { font-size: 2.2rem; font-weight: 700; color: var(--accent); }
+.stat-card .label { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.2rem; }
+.stat-card .sub { font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.3rem; }
 .section { margin-bottom: 2rem; }
-.section h2 { color: #58a6ff; margin-bottom: 1rem; font-size: 1.2rem; }
-table { width: 100%; border-collapse: collapse; }
-th { text-align: right; padding: 0.75rem 0.5rem; border-bottom: 2px solid #30363d; color: #58a6ff; font-size: 0.85rem; }
-td { padding: 0.75rem 0.5rem; border-bottom: 1px solid #30363d; font-size: 0.85rem; }
+.section h2 { color: var(--accent); font-size: 1.1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+table { width: 100%; border-collapse: collapse; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+th { text-align: left; padding: 0.7rem 0.75rem; border-bottom: 2px solid var(--border); color: var(--accent); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; background: var(--bg-secondary); }
+td { padding: 0.65rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
 tr:hover td { background: rgba(88, 166, 255, 0.03); }
-.bar { display: inline-block; height: 18px; border-radius: 4px; margin-left: 0.5rem; vertical-align: middle; }
-.bar-critical { background: #da3633; }
-.bar-high { background: #d29922; }
-.bar-medium { background: #58a6ff; }
-.bar-low { background: #8b949e; }
-.bar-info { background: #238636; }
-.empty { text-align: center; padding: 2rem; color: #8b949e; }
-footer { text-align: center; padding: 2rem; color: #8b949e; border-top: 1px solid #30363d; margin-top: 2rem; }
+.severity-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.dot-critical { background: var(--critical); }
+.dot-high { background: var(--high); }
+.dot-medium { background: var(--medium); }
+.dot-low { background: var(--low); }
+.dot-info { background: var(--info); }
+.status-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+.status-on { background: rgba(63,185,80,0.15); color: var(--info); border: 1px solid rgba(63,185,80,0.3); }
+.status-off { background: rgba(248,81,73,0.15); color: var(--critical); border: 1px solid rgba(248,81,73,0.3); }
+.status-warn { background: rgba(210,153,34,0.15); color: var(--high); border: 1px solid rgba(210,153,34,0.3); }
+footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); border-top: 1px solid var(--border); margin-top: 2rem; font-size: 0.8rem; }
+.empty { text-align: center; padding: 2rem; color: var(--text-secondary); background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--radius); }
+.severity-bar { display: inline-flex; height: 14px; border-radius: 3px; margin-left: 0.5rem; }
+.bar-critical { background: var(--critical); }
+.bar-high { background: var(--high); }
+.bar-medium { background: var(--medium); }
+.bar-low { background: var(--low); }
+.bar-info { background: var(--info); }
 </style>
 </head>
 <body>
 <div class="container">
-<header>
-<h1>لوحة التحكم</h1>
-<div class="nav-links">
-<a href="/">الرئيسية</a>
-<a href="/report/list">التقارير</a>
-<a href="/dashboard">لوحة التحكم</a>
-</div>
-</header>
+  <header>
+    <h1>📊 System Dashboard</h1>
+    <nav class="nav">
+      <a href="/">Home</a>
+      <a href="/dashboard" class="active">Dashboard</a>
+      <a href="/report/list">Reports</a>
+      <a href="/explorer">Chain Loader</a>
+    </nav>
+  </header>
 
-<div class="grid">
-<div class="card"><div class="num">{{ stats.reports }}</div><div class="label">التقارير</div></div>
-<div class="card"><div class="num">{{ stats.patterns }}</div><div class="label">أنماط الثغرات</div></div>
-<div class="card"><div class="num">{{ stats.sessions }}</div><div class="label">جلسات التدقيق</div></div>
-<div class="card"><div class="num">{{ stats.false_positives }}</div><div class="label">False Positives</div></div>
-</div>
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="num">{{ stats.patterns }}</div>
+      <div class="label">KB Patterns</div>
+      <div class="sub">vulnerability patterns indexed</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">{{ stats.reports }}</div>
+      <div class="label">Reports Generated</div>
+      <div class="sub">stored on disk</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">{{ stats.sessions }}</div>
+      <div class="label">Audit Sessions</div>
+      <div class="sub">tracked with feedback</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">{{ stats.false_positives }}</div>
+      <div class="label">False Positives</div>
+      <div class="sub">logged for training</div>
+    </div>
+  </div>
 
-<div class="section">
-<h2>أكثر الثغرات شيوعاً</h2>
-{% if stats.top_patterns %}
-<table><thead><tr><th>النمط</th><th>الدرجة</th></tr></thead>
-<tbody>
-{% for p in stats.top_patterns %}
-<tr><td>{{ p.name }}</td><td>{{ p.score }}</td></tr>
-{% endfor %}
-</tbody></table>
-{% else %}
-<div class="empty">لا توجد أنماط مسجلة بعد</div>
-{% endif %}
-</div>
+  <!-- Top Patterns -->
+  <div class="section">
+    <h2>🏆 Most Common Vulnerability Patterns</h2>
+    {% if stats.top_patterns %}
+    <table>
+      <thead><tr><th>#</th><th>Pattern</th><th>Score</th></tr></thead>
+      <tbody>
+      {% for p in stats.top_patterns %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>
+            {% if 'access' in p.name.lower() %}<span class="severity-dot dot-high"></span>
+            {% elif 'reentrancy' in p.name.lower() %}<span class="severity-dot dot-critical"></span>
+            {% elif 'approve' in p.name.lower() %}<span class="severity-dot dot-medium"></span>
+            {% else %}<span class="severity-dot dot-low"></span>{% endif %}
+            {{ p.name }}
+          </td>
+          <td><strong>{{ p.score }}</strong></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">No patterns recorded yet. Run some audits to populate the knowledge base.</div>
+    {% endif %}
+  </div>
 
-<div class="section">
-<h2>ترتيب النماذج (حسب الدقة)</h2>
-{% if stats.rankings %}
-<table><thead><tr><th>النموذج</th><th>الدقة</th><th>TP</th><th>FP</th></tr></thead>
-<tbody>
-{% for r in stats.rankings %}
-<tr>
-<td>{{ r.model_name }}</td>
-<td>{{ "%.0f"|format(r.avg_accuracy * 100) }}%</td>
-<td>{{ r.total_tp }}</td>
-<td>{{ r.total_fp }}</td>
-</tr>
-{% endfor %}
-</tbody></table>
-{% else %}
-<div class="empty">لا توجد بيانات أداء للنماذج بعد</div>
-{% endif %}
-</div>
+  <!-- Model Rankings -->
+  <div class="section">
+    <h2>🤖 Model Performance Rankings</h2>
+    {% if stats.rankings %}
+    <table>
+      <thead><tr><th>Model</th><th>Accuracy</th><th>TP</th><th>FP</th></tr></thead>
+      <tbody>
+      {% for r in stats.rankings %}
+        <tr>
+          <td><span class="severity-dot {% if r.avg_accuracy > 0.7 %}dot-info{% elif r.avg_accuracy > 0.4 %}dot-medium{% else %}dot-critical{% endif %}"></span> {{ r.model_name }}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+              <div class="severity-bar" style="width:100px;background:var(--border);">
+                <div class="severity-bar {% if r.avg_accuracy > 0.7 %}bar-info{% elif r.avg_accuracy > 0.4 %}bar-medium{% else %}bar-critical{% endif %}" style="width:{{ (r.avg_accuracy * 100)|int }}%;"></div>
+              </div>
+              {{ "%.1f"|format(r.avg_accuracy * 100) }}%
+            </div>
+          </td>
+          <td>{{ r.total_tp }}</td>
+          <td>{{ r.total_fp }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">No model data yet. Results appear after audits with feedback.</div>
+    {% endif %}
+  </div>
 
-<div class="section">
-<h2>حالة النظام</h2>
-<table><thead><tr><th>المكون</th><th>الحالة</th></tr></thead>
-<tbody>
-<tr><td>Slither</td><td>{{ "مثبت" if stats.slither else "غير مثبت" }}</td></tr>
-<tr><td>Mythril</td><td>{{ "مثبت" if stats.mythril else "غير مثبت" }}</td></tr>
-<tr><td>قاعدة المعرفة (KB)</td><td>{{ "مفعلة" if stats.kb_enabled else "معطلة" }}</td></tr>
-<tr><td>ذاكرة التخزين (Cache)</td><td>{{ "مفعلة" if stats.cache_enabled else "معطلة" }}</td></tr>
-</tbody></table>
-</div>
+  <!-- System Status -->
+  <div class="section">
+    <h2>⚙️ System Components</h2>
+    <table>
+      <thead><tr><th>Component</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Knowledge Base (KB)</td>
+          <td><span class="status-badge {{ 'status-on' if stats.kb_enabled else 'status-off' }}">{{ "Enabled" if stats.kb_enabled else "Disabled" }}</span></td>
+        </tr>
+        <tr>
+          <td>Cache</td>
+          <td><span class="status-badge {{ 'status-on' if stats.cache_enabled else 'status-off' }}">{{ "Enabled" if stats.cache_enabled else "Disabled" }}</span></td>
+        </tr>
+        <tr>
+          <td>Slither</td>
+          <td><span class="status-badge {{ 'status-on' if stats.slither else 'status-warn' }}">{{ "Installed" if stats.slither else "Not available" }}</span></td>
+        </tr>
+        <tr>
+          <td>Mythril</td>
+          <td><span class="status-badge {{ 'status-on' if stats.mythril else 'status-warn' }}">{{ "Installed" if stats.mythril else "Not available" }}</span></td>
+        </tr>
+        <tr>
+          <td>AI Provider</td>
+          <td><span class="status-badge status-on">Ollama Cloud (qwen3-coder:480b)</span></td>
+        </tr>
+        <tr>
+          <td>Telegram Bot</td>
+          <td><span class="status-badge status-warn">Waiting for env token</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
-<footer>Smart Contract Auditor — لوحة التحكم والإحصائيات</footer>
+  <footer>VulnAudit — Smart Contract Security Analysis Engine</footer>
 </div>
 </body>
 </html>

@@ -70,7 +70,7 @@ def _build_discord_payload(
     embed = {
         "title": f"Smart Contract Audit Report{' - ' + project if project else ''}",
         "color": color,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(datetime.UTC).isoformat() + "Z",
     }
 
     if summary:
