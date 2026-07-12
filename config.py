@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import random
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -12,19 +13,34 @@ logger = logging.getLogger(__name__)
 ENV_PATH = Path(__file__).parent / '.env'
 if ENV_PATH.exists():
     load_dotenv(str(ENV_PATH))
-if not os.getenv("OPENROUTER_API_KEY"):
+
+# Single key (backward compat)
+OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
+
+# Multi-key rotation (OPENROUTER_API_KEYS = "key1,key2,key3,...")
+_raw_keys = os.getenv("OPENROUTER_API_KEYS", "")
+OPENROUTER_API_KEYS: List[str] = [k.strip() for k in _raw_keys.split(",") if k.strip()]
+if OPENROUTER_API_KEY and OPENROUTER_API_KEY not in OPENROUTER_API_KEYS:
+    OPENROUTER_API_KEYS.insert(0, OPENROUTER_API_KEY)
+
+if not OPENROUTER_API_KEYS:
     print("WARNING: OPENROUTER_API_KEY not set in environment or .env")
     print("   Set it via Render Environment Variables or create .env file")
     print("   OPENROUTER_API_KEY=sk-...")
 
-OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
+def get_api_key() -> str:
+    """Return a random API key from the rotation pool."""
+    if not OPENROUTER_API_KEYS:
+        return ""
+    return random.choice(OPENROUTER_API_KEYS)
 OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
 GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL: str = "llama-3.3-70b-versatile"
 API_PROVIDER: str = os.getenv("API_PROVIDER", "openrouter")
 
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.2")
+OLLAMA_API_KEY: str = os.getenv("OLLAMA_API_KEY", "")
+OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen3-coder:480b")
 OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", "300"))
 
 CONFIG_FILE = Path(__file__).parent / 'config.json'

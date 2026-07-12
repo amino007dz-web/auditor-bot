@@ -146,10 +146,8 @@ class RAGContext:
         contract_type = detect_contract_type(code)
         extract_key_functions(code)
 
-        if self._use_tfidf:
-            if self._pattern_count != len(self.kb.get_patterns_by_severity(limit=1000)):
-                self.update_embeddings()
-            patterns = self._tfidf_retrieve(code, top_k)
+        if self._use_st or self._use_tfidf:
+            patterns = self._vector_retrieve(code, top_k)
         else:
             patterns = self.kb.find_similar_patterns(code[:200], contract_type, limit=top_k)
 

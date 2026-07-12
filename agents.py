@@ -29,7 +29,8 @@ from config import (
     TEMPERATURE, MAX_CODE_CHARS, CACHE_ENABLED, CACHE_DB_PATH,
     MAX_RETRIES, INITIAL_BACKOFF, TIMEOUT, PARALLEL_MAX_WORKERS,
     KB_ENABLED, KB_RAG_ENABLED, KB_DB_PATH, KB_AUTO_LEARN, KB_MAX_CONTEXT,
-    OLLAMA_BASE_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT,
+    OLLAMA_BASE_URL, OLLAMA_API_KEY, OLLAMA_MODEL, OLLAMA_TIMEOUT,
+    get_api_key,
 )
 from cli_display import console
 
@@ -41,11 +42,19 @@ Your tasks:
 2. Analyze gas consumption and suggest improvements
 3. Give the contract a security rating
 
+CRITICAL RULES:
+- **NEVER alter business logic in fixes**: Only add security guards, never zero/reset balances, never change accounting logic
+- **Verify fix logic**: Before suggesting a fix, confirm it doesn't break intended contract behavior
+- **CRITICAL vs High**: If the bug gives full contract control or allows fund theft, mark it Critical (not High)
+
 Examples of vulnerabilities to look for:
-- **Reentrancy**: External call before state update (e.g. call.value{gas:2300}() before balance deduction)
+- **Reentrancy**: External call (call/transfer/send) before state update. NOT the same as Oracle Manipulation.
+- **Oracle Manipulation**: Using a spot price from an oracle that can be manipulated (e.g. via flash loan). This is NOT reentrancy unless the oracle itself reenters.
+- **Division by Zero**: Any division where denominator comes from user input or oracle — must check require(denominator > 0)
 - **Integer Overflow/Underflow**: Arithmetic without SafeMath in Solidity < 0.8
 - **Access Control**: Public functions without onlyOwner or modifier
-- **Uninitialized Storage**: Temporary storage variables polluting state
+- **Uninitialized Proxy/Storage**: initialize() function without initializer modifier
+- **Delegatecall to Untrusted Address**: execute(target, data) with delegatecall — attacker can manipulate storage
 - **Timestamp Manipulation**: Relying on block.timestamp for critical logic
 - **Front-running**: Transaction ordering affecting outcome
 - **Gas Griefing**: Infinite loop or high-gas fallback calls
@@ -58,9 +67,10 @@ Required response format:
 
 ### Vulnerability List
 - **Name**: [vulnerability name]
-- **Severity**: [High / Medium / Low]
+- **Severity**: [Critical / High / Medium / Low]
 - **Description**: [simple explanation]
-- **Fix**: [how to fix, with code if possible]
+- **Fix**: [how to fix, with code if possible — do NOT alter business logic]
+- **PoC** (for Critical/High only): [Foundry test code showing the exploit — include attack contract and test function]
 
 ### Gas Optimizations
 - [list of possible gas improvements]
@@ -80,8 +90,12 @@ CHUNK_PROMPT: str = """You are an expert smart contract security auditor. Analyz
 5. **Conclude**: Only list exploitable vulnerabilities with a clear exploit explanation.
 
 ## Focus on these vulnerabilities
-- **Reentrancy**: External call (call, transfer, send) before state update
+- **Reentrancy**: External call (call, transfer, send) before state update. NOT the same as Oracle Manipulation.
+- **Oracle Manipulation**: Spot price from oracle that can be manipulated (flash loan). NOT reentrancy.
+- **Division by Zero**: Any division with user-controlled or oracle-sourced denominator — must check require(> 0)
 - **Access Control**: Public/External functions without appropriate modifiers
+- **Uninitialized Proxy**: initialize() missing initializer modifier
+- **Delegatecall**: delegatecall to untrusted target can hijack storage
 - **Integer Issues**: Arithmetic without overflow checks (Solidity < 0.8)
 - **Timestamp**: Relying on block.timestamp for critical logic
 - **Unchecked Return**: Not checking return value of call/delegatecall
@@ -89,13 +103,15 @@ CHUNK_PROMPT: str = """You are an expert smart contract security auditor. Analyz
 ## Strict Rules
 - **Do not report theoretical vulnerabilities** that are not practically exploitable
 - **Minimize False Positives**: Ensure a realistic exploit path exists
-- **Provide specific fix code** for each vulnerability
+- **NEVER alter business logic in fixes**: Only add security guards, never zero/reset balances, never change accounting
+- **Verify fix logic**: Confirm the fix doesn't break intended contract behavior
 
 ## Response Format
 ### [Vulnerability Name] — [Severity]
 - **Analysis**: (step by step)
 - **Exploit**: (how)
-- **Fix**: (code)
+- **Fix**: (code — preserve original business logic)
+- **PoC** (for Critical/High only): (Foundry test + attack contract code)
 """
 
 _cache_lock = threading.Lock()
@@ -317,22 +333,38 @@ def call_model_with_fallback(prompt: str, timeout: int = 0, model_chain: Optiona
     raise Exception(f"All models failed. Last error: {last_error}")
 
 def _call_ollama(model_name: str, prompt: str, timeout: int = 0) -> str:
-    """Call Ollama local model API."""
+    """Call Ollama model API (local or cloud via OpenAI-compatible endpoint)."""
     cached = _cache_get(f"ollama:{model_name}", prompt)
     if cached is not None:
         return cached
     timeout = timeout or OLLAMA_TIMEOUT
-    url = f"{OLLAMA_BASE_URL.rstrip('/')}/api/generate"
-    console.log(f"[bold magenta]🦙 Ollama: {model_name}[/]")
+    if OLLAMA_API_KEY:
+        url = f"{OLLAMA_BASE_URL.rstrip('/')}/api/chat"
+        headers = {
+            "Authorization": f"Bearer {OLLAMA_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": model_name,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
+            "temperature": TEMPERATURE,
+        }
+        console.log(f"[bold magenta]☁️ Ollama Cloud: {model_name}[/]")
+    else:
+        url = f"{OLLAMA_BASE_URL.rstrip('/')}/api/generate"
+        headers = {}
+        payload = {"model": model_name, "prompt": prompt, "stream": False, "temperature": TEMPERATURE}
+        console.log(f"[bold magenta]🦙 Ollama: {model_name}[/]")
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            resp = requests.post(
-                url,
-                json={"model": model_name, "prompt": prompt, "stream": False, "temperature": TEMPERATURE},
-                timeout=timeout,
-            )
+            resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
             resp.raise_for_status()
-            result = resp.json().get("response", "")
+            data = resp.json()
+            if OLLAMA_API_KEY:
+                result = data.get("message", {}).get("content", "")
+            else:
+                result = data.get("response", "")
             _cache_set(f"ollama:{model_name}", prompt, result)
             return result
         except (requests.ConnectionError, requests.Timeout) as e:
@@ -356,14 +388,15 @@ def call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
     info = FREE_MODELS.get(model_id, {})
     ctx = info.get("context", 0)
     console.log(f"[bold cyan]🤖 {model_id}[/]  [dim]context: {ctx:,}[/]")
-    masked_key = OPENROUTER_API_KEY[:8] + "..." if OPENROUTER_API_KEY else "missing"
+    current_key = get_api_key()
+    masked_key = current_key[:8] + "..." if current_key else "missing"
     last_err = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             resp = requests.post(
                 f"{OPENROUTER_BASE_URL}/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "Authorization": f"Bearer {current_key}",
                     "Content-Type": "application/json",
                 },
                 json={
@@ -430,7 +463,8 @@ async def async_call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
         return cached
     timeout = timeout or TIMEOUT
     info = FREE_MODELS.get(model_id, {})
-    masked_key = OPENROUTER_API_KEY[:8] + "..." if OPENROUTER_API_KEY else "missing"
+    current_key = get_api_key()
+    masked_key = current_key[:8] + "..." if current_key else "missing"
     last_err = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -438,7 +472,7 @@ async def async_call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
                 async with session.post(
                     f"{OPENROUTER_BASE_URL}/chat/completions",
                     headers={
-                        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                        "Authorization": f"Bearer {current_key}",
                         "Content-Type": "application/json",
                     },
                     json={
@@ -490,6 +524,8 @@ def analyze_code(code: str, lang: str = "english", model_key: str = "") -> str:
         result = call_model_with_fallback(prompt, model_chain=[model_key] + MODEL_FALLBACK_CHAIN)
     elif API_PROVIDER == "openrouter":
         result = call_model_with_fallback(prompt)
+    elif API_PROVIDER == "ollama":
+        result = _call_ollama(OLLAMA_MODEL, prompt, timeout=TIMEOUT)
     else:
         result = _call_groq(prompt)
 

@@ -6,14 +6,20 @@ aiohttp>=3.9.0
 pytest>=7.0.0
 tqdm>=4.60.0
 flask>=3.0.0
+rich>=13.0.0
 
-# دعم التقارير العربية في PDF
-arabic-reshaper>=3.0.0
-python-bidi>=0.4.2
-
-# Semantic search for RAG
-sentence-transformers>=3.0.0
+# RAG dependencies
+scikit-learn>=1.3.0
+scipy>=1.10.0
 numpy>=1.24.0
 
-# واجهة CLI متقدمة — ألوان، جداول، Progress Bar
-rich>=13.0.0
+# Optional: heavy, disabled on Render via KB_USE_ST=0
+# sentence-transformers>=3.0.0
+
+# PDF report support
+arabic-reshaper>=3.0.0
+python-bidi>=0.4.2
+reportlab>=4.0.0
+
+# Visualization
+networkx>=3.0

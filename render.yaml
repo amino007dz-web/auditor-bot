@@ -1,0 +1,35 @@
+# Render deployment config
+# https://render.com/docs/deploy-flask
+
+services:
+  - type: web
+    name: smart-contract-auditor
+    env: python
+    buildCommand: pip install --no-cache-dir -r requirements.txt
+    startCommand: python web_ui.py
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+      - key: PYTHONDONTWRITEBYTECODE
+        value: "1"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: KB_USE_ST
+        value: "0"
+      - key: API_PROVIDER
+        value: ollama
+      - key: OLLAMA_BASE_URL
+        value: https://ollama.com
+      - key: OLLAMA_MODEL
+        value: qwen3-coder:480b
+      - key: OLLAMA_API_KEY
+        sync: false
+      - key: AUDITOR_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: ETHERSCAN_API_KEY
+        sync: false

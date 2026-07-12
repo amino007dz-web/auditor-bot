@@ -24,6 +24,12 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/root/.local/bin:$PATH"
+ENV PYTHONIOENCODING=utf-8
+ENV KB_USE_ST=0
+ENV API_PROVIDER=ollama
+ENV OLLAMA_BASE_URL=https://ollama.com
+ENV OLLAMA_MODEL=qwen3-coder:480b
+# OLLAMA_API_KEY must be set via Render dashboard (secret)
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -36,7 +42,5 @@ COPY --from=builder /build .
 RUN mkdir -p reports
 
 EXPOSE 5000
-EXPOSE 5001
-EXPOSE 8080
 
-CMD ["python", "run_bot.py"]
+CMD ["python", "web_ui.py"]
