@@ -110,7 +110,10 @@ REPORT_DIR: str = os.path.join(os.path.dirname(__file__), "reports")
 PROGRESS_FILE: str = os.path.join(REPORT_DIR, "_progress.json")
 
 KB_ENABLED: bool = _config.get("kb_enabled", True)
-KB_DB_PATH: str = os.path.join(os.path.dirname(__file__), _config.get("kb_db", "knowledge.db"))
+_kb_file = _config.get("kb_db", "knowledge.db")
+_kb_local = os.path.join(os.path.dirname(__file__), _kb_file)
+_kb_data = f"/data/{_kb_file}"
+KB_DB_PATH: str = _kb_data if os.path.isdir("/data") else _kb_local
 KB_RAG_ENABLED: bool = _config.get("kb_rag_enabled", True)
 KB_MAX_CONTEXT: int = _config.get("kb_max_context", 2000)
 KB_AUTO_LEARN: bool = _config.get("kb_auto_learn", True)

@@ -8,6 +8,10 @@ services:
     buildCommand: pip install --no-cache-dir -r requirements.txt
     startCommand: python web_ui.py
     healthCheckPath: /
+    disk:
+      name: kb-data
+      mountPath: /data
+      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.0
