@@ -319,6 +319,16 @@ def _fmt_size(size: int) -> str:
     return f"{size:.1f} GB"
 
 
+# Start Telegram bot in background thread if TELEGRAM_BOT_TOKEN is set
+try:
+    from telegram_bot import get_bot
+    _tg_bot = get_bot()
+    _tg_bot.start()
+    if _tg_bot.token:
+        logger.info("Telegram bot polling thread started")
+except Exception as e:
+    logger.warning(f"Telegram bot not started: {e}")
+
 if __name__ == '__main__':
     ensure_report_dir()
     port = int(os.environ.get("PORT", 5000))

@@ -541,7 +541,11 @@ class TelegramBot:
         self._run_audit(chat_id, code)
 
     def _run_audit(self, chat_id: int, code: str):
-        from agents import analyze_code
+        try:
+            from agents import analyze_code
+        except Exception as e:
+            self._send(chat_id, f"❌ Failed to load analysis engine: {e}")
+            return
         dots = ["🔄 Auditing", "🔄 Auditing.", "🔄 Auditing..", "🔄 Auditing..."]
         msg_id = None
         import itertools
@@ -558,6 +562,9 @@ class TelegramBot:
             result = analyze_code(code[:3000], self._user_langs.get(chat_id, "english"))
             self._send(chat_id, f"*🔍 Audit Result:*\n\n{result[:3500]}")
             self._track(chat_id, "audit")
+        except Exception as e:
+            logger.exception("Audit failed")
+            self._send(chat_id, f"❌ Audit failed: {e}")
         finally:
             stop.set()
 
