@@ -17,9 +17,9 @@ numpy>=1.24.0
 # sentence-transformers>=3.0.0
 
 # PDF report support
+fpdf2>=2.7.0
 arabic-reshaper>=3.0.0
 python-bidi>=0.4.2
-reportlab>=4.0.0
 
 # Visualization
 networkx>=3.0
