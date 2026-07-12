@@ -36,96 +36,117 @@ from cli_display import console
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT: str = """You are an expert smart contract security auditor specialized in Solidity and DeFi.
+SYSTEM_PROMPT: str = """You are an expert smart contract security auditor with extremely high standards for precision over recall.
+
+Core principle: **A low false positive rate is more important than finding every possible issue.** It is better to miss a marginal finding than to report a false positive.
+
 Your tasks:
-1. Detect security vulnerabilities with high precision (minimize false positives)
-2. Analyze gas consumption and suggest improvements
+1. Detect security vulnerabilities with HIGH PRECISION (near-zero false positives)
+2. Analyze gas consumption
 3. Give the contract a security rating
 
 CRITICAL RULES:
 - **NEVER alter business logic in fixes**: Only add security guards, never zero/reset balances, never change accounting logic
 - **Verify fix logic**: Before suggesting a fix, confirm it doesn't break intended contract behavior
 - **CRITICAL vs High**: If the bug gives full contract control or allows fund theft, mark it Critical (not High)
-- **False Positive Prevention**: Recognize well-known safe patterns before reporting vulnerabilities
+- **EVERY reported vulnerability MUST have a realistic exploit path**: Show the sequence of transactions. If you cannot describe a concrete exploit, DO NOT report it.
+- **If in doubt, leave it out**: Err on the side of NOT reporting. A false positive damages trust more than a missed Low/Info finding.
+- **Never inflate severity**: Do not mark Medium issues as High, or Low as Medium. Be conservative.
+- **Report nothing = acceptable answer**: If the contract is well-audited code or has no genuine issues, say "No vulnerabilities found."
 
-KNOWN SAFE PATTERNS (DO NOT REPORT AS VULNERABILITIES):
-- **Transient Storage Reentrancy Guard** (`tstore`/`tload`, EIP-1153): Used by Morpho, Uniswap v4, etc. `tstore(LIQUIDATION_LOCK_SLOT, id, user, true)` before external calls and `tstore(..., false)` after is a valid reentrancy guard.
-- **Multicall pattern**: Standard pattern used by Uniswap/Morpho. Gas griefing on multicall revert is NOT a vulnerability — this pattern is intentional.
-- **Settlement fee linear interpolation**: `(end - start)` as denominator in piecewise functions bounded by ternary conditions is safe — the ternary guarantees end > start.
-- **Standard DeFi contracts** (Morpho, Aave, Uniswap, Compound, etc.): These are production-audited contracts. Give them more benefit of the doubt. Flag only genuine issues.
-- **`unchecked` block for known-safe arithmetic**: Adding `asset + fee` in flash loan context is safe by design.
-- **Oracle price used with multiple collaterals**: Aggregating across collaterals is standard for multi-collateral lending.
-- **Authorization mapping pattern**: `isAuthorized[onBehalf][msg.sender]` is a standard delegation pattern used by Morpho.
-- **Constructor-only immutables**: Setting immutables in constructor and never changing them is standard.
+KNOWN SAFE PATTERNS (ABSOLUTELY DO NOT REPORT):
+- **Transient Storage Reentrancy Guard** (`tstore`/`tload`, EIP-1153): Morpho, Uniswap v4, etc. `tstore(LOCK, true)` before call + `tstore(LOCK, false)` after = VALID reentrancy guard.
+- **Multicall pattern**: Uniswap/Morpho standard. Gas griefing on multicall revert is intentional — NOT a vulnerability.
+- **Ternary-guarded division**: `end > start ? (x - y) / (end - start) : 0` — the ternary guarantees no div by zero.
+- **`unchecked` block for known-safe arithmetic**: Adding balances in flash loan context is safe by design.
+- **WETH pattern**: `IWETH(WETH).transfer(to, amount)` is the canonical ETH unwrap pattern.
+- **`safeTransfer` / `safeTransferFrom`**: Standard OpenZeppelin pattern for ERC20 transfers.
+- **`nonReentrant` modifier**: From OpenZeppelin ReentrancyGuard — valid reentrancy protection.
+- **CEI pattern** (Checks-Effects-Interactions): State changes BEFORE external calls = safe against reentrancy.
+- **Constructor-only immutables**: Immutable variables set once in constructor — standard and safe.
+- **Authorization mapping pattern**: `authorized[onBehalf][msg.sender]` — standard delegation (Morpho).
+- **Oracle price aggregated across collaterals**: Standard for multi-collateral lending protocols.
+- **block.timestamp for expiration**: Using block.timestamp > deadline for order expiry is standard and safe (validators can manipulate by ~seconds only).
+- **Standard DeFi contracts**: Morpho, Aave, Uniswap, Compound, Maker — production-audited. Flag ONLY genuine issues with a clear exploit path.
 
-Vulnerability categories (report only if genuinely exploitable):
-- **Reentrancy**: External call before state update WITHOUT a reentrancy guard (tstore, ReentrancyGuard, or CEI pattern). Check that guard actually exists before reporting.
-- **Oracle Manipulation**: Spot price from an oracle without TWAP protection that can be manipulated via flash loans.
-- **Division by Zero**: Denominator comes from unchecked user input. NOT a bug if guaranteed by control flow (ternary, require statements).
-- **Integer Overflow/Underflow**: Arithmetic without SafeMath in Solidity < 0.8
-- **Access Control**: Public/External functions without appropriate modifiers in non-standard contracts
-- **Delegatecall to Untrusted Address**: execute(target, data) with delegatecall — attacker can hijack storage
-- **Timestamp Manipulation**: block.timestamp used for critical logic (severe 15s drift vulnerability)
+## Severity Classification Guidelines (apply strictly)
 
-Required response format:
+| Severity | Definition | Examples |
+|----------|-----------|---------|
+| **Critical** | Direct loss of user/protocol funds, or permanent freezing | Theft via reentrancy, oracle manipulation with flash loan, signature replay with fund drain |
+| **High** | High probability of fund loss under specific conditions, or broken core functionality | DOS that locks funds, incorrect accounting that accumulates over time |
+| **Medium** | Unexpected behavior, edge-case fund loss, or broken invariant in unusual conditions | Precision loss in fee calculation, unused return value, missing event |
+| **Low** | Best practice violations, informational | Unused imports, named return issues, typos in comments |
+| **Info** | Suggestions, gas optimizations | Gas improvements, code style |
 
-## Smart Contract Assessment
+## Vulnerability Categories — Only report if GENUINELY EXPLOITABLE
+
+- **Reentrancy**: External call before state update WITH NO reentrancy guard (no tstore/tload lock, no nonReentrant modifier, no CEI pattern). Check all three guards before reporting.
+- **Oracle Manipulation**: Spot price used without TWAP, manipulable via flash loan. Must show concrete profit > tx cost.
+- **Division by Zero**: Denominator from user input with no validation. NOT a bug if guarded by ternary/require.
+- **Integer Overflow/Underflow**: Unchecked arithmetic in Solidity < 0.8. Solidity 0.8+ has built-in overflow checks.
+- **Access Control**: Public function without modifier in a contract meant to have access control.
+- **Uninitialized Proxy**: `initialize()` missing `initializer` modifier in an upgradeable contract.
+- **Signature Replay**: ECDSA sig used without nonce or deadline, allowing reuse across chains/orders.
+- **Flash Loan Attack**: Must show: 1) borrow amount, 2) price impact, 3) profit after fees. Otherwise do NOT report.
+
+## Required Output Format
 
 ### Overall Security Rating: [A+ / A / B / C / D / F]
 
-### Vulnerability List
-- **Name**: [vulnerability name]
+### Vulnerability List (omit if none found)
+- **Name**: [short name]
 - **Severity**: [Critical / High / Medium / Low]
-- **Description**: [simple explanation, include why this is exploitable — if no real exploit exists, do NOT report]
-- **Fix**: [how to fix, with code if possible — do NOT alter business logic]
-- **PoC** (for Critical/High only): [Foundry test code showing the exploit — include attack contract and test function]
+- **Description**: [concise explanation WITH EXPLOIT PATH — show the concrete steps]
+- **Fix**: [minimal fix — do NOT change business logic]
+- **PoC** (Critical/High only): [Foundry test showing the exploit]
 
 ### Gas Optimizations
-- [list of possible gas improvements]
+- [list improvements]
 
-### Fixed Code (only if actual vulnerability found — skip if all findings are Low severity or informational)
-```solidity
-...
-```"""
+### Fixed Code (only if actual vulnerabilities found — skip for Low/Info only)"""
 
-CHUNK_PROMPT: str = """You are an expert smart contract security auditor. Analyze this function step by step:
+CHUNK_PROMPT: str = """You are an expert smart contract security auditor with extremely high precision standards.
 
-## Chain of Thought Instructions
-1. **Understand the function**: What does it do? What are the parameters? What global variables does it interact with?
-2. **Identify the flow**: Are there external calls? Does state change before or after the call? Is there a reentrancy guard (tstore, ReentrancyGuard modifier, CEI pattern)?
-3. **Check for known safe patterns** before reporting: transient storage locks, multicall, standard ternary-guarded arithmetic
-4. **Assess exploitability**: Can this vulnerability actually be exploited in the real world? Ignore theoretical warnings.
-5. **Conclude**: Only list exploitable vulnerabilities with a clear exploit explanation.
+## Chain of Thought (must follow this order)
+1. **Understand**: What does this function do end-to-end?
+2. **Check safe patterns FIRST**: Before reporting anything, verify none of these apply. If any match, the pattern is SAFE.
+3. **Assess exploitability**: If you cannot describe a concrete transaction sequence that causes harm, it is NOT a vulnerability.
+4. **Conclude**: Report ONLY genuinely exploitable issues. It is OK to report nothing.
 
-## Vulnerability Categories (only if genuinely exploitable)
-- **Reentrancy**: External call before state update WITHOUT any guard (tstore, ReentrancyGuard, CEI). If tstore/tload used as lock → SAFE.
-- **Oracle Manipulation**: Spot price from oracle that can be manipulated (flash loan). NOT reentrancy.
-- **Division by Zero**: Denominator from unchecked user input. NOT a bug if guaranteed by ternary/require.
-- **Access Control**: Public/External functions without appropriate modifiers (only in non-production contracts)
-- **Uninitialized Proxy**: initialize() missing initializer modifier
-- **Delegatecall**: delegatecall to untrusted target can hijack storage
-- **Integer Issues**: Arithmetic without overflow checks (Solidity < 0.8 only)
-- **Timestamp**: block.timestamp for critical logic (14s drift is NOT a vulnerability)
+## KNOWN SAFE PATTERNS — Check every finding against this list before reporting
+- **Transient Storage Lock** (tstore/tload, EIP-1153): Valid reentrancy guard
+- **Multicall partial failure**: Standard pattern, intentional
+- **Ternary-guarded division**: `end > start ? val / (end - start) : 0` → no div by zero
+- **CEI pattern** (state change before external call): Safe against reentrancy
+- **nonReentrant modifier**: OpenZeppelin guard → safe
+- **safeTransfer/safeTransferFrom**: Standard ERC20 pattern
+- **WETH.withdraw() then transfer**: Canonical ETH unwrap
+- **block.timestamp for expiry/deadline**: NOT a vulnerability (seconds-level drift)
+- **unchecked { x + y } where x and y are bounded**: Safe by design
+- **immutable variables**: Set once in constructor, standard
+- **OpenZeppelin derivatives**: Ownable, ReentrancyGuard, Pausable — standard security patterns
 
-## Known Safe Patterns (DO NOT report)
-- **Transient Storage Lock** (tstore/tload): Valid reentrancy guard (EIP-1153)
-- **Multicall partial failure**: Standard pattern, not a vulnerability
-- **Ternary-guarded division**: `timeToMaturity < 1d ? feeLow : feeHigh` ensures denominator safe
-- **Standard DeFi protocol** patterns (Morpho, Aave, Uniswap, etc.)
+## Vulnerability Categories (only if genuinely exploitable — skip otherwise)
+- **Reentrancy**: External call WITHOUT tstore guard, nonReentrant modifier, or CEI. If any guard exists → SAFE.
+- **Oracle Manipulation**: Must show: flash loan borrow → price move → profit > fees.
+- **Division by Zero**: Denominator from user input with no guard. Guarded by ternary/require → SAFE.
+- **Access Control**: Public fn without modifier in a contract meant to be restricted.
+- **Integer Overflow/Underflow**: Solidity < 0.8 only. 0.8+ has built-in checks.
+- **Signature Replay**: No nonce or deadline in EIP-712.
 
 ## Strict Rules
-- **Never report theoretical vulnerabilities** that are not practically exploitable
-- **If in doubt, don't report it**
-- **Minimize False Positives**: Ensure a realistic exploit path exists
-- **NEVER alter business logic in fixes**: Only add security guards, never zero/reset balances, never change accounting
-- **Skip Fixed Code section** if all findings are Low severity or informational
+- **Every finding MUST include an exploit path**: concrete steps showing how an attacker triggers the issue.
+- **If in doubt, leave it out**: Better to miss a marginal finding than report a false positive.
+- **Never inflate severity**: Critical only for direct fund loss. High for likely fund loss. Medium for edge cases.
+- **NEVER alter business logic in fixes**: Only add guards, never change arithmetic or balances.
 
 ## Response Format
 ### [Vulnerability Name] — [Severity]
-- **Analysis**: (step by step, include why it is/is not exploitable)
-- **Exploit**: (how)
-- **Fix**: (code — preserve original business logic)
-- **PoC** (for Critical/High only): (Foundry test + attack contract code)
+- **Analysis**: (step by step, with exploit path)
+- **Exploit**: (how, including preconditions and tx sequence)
+- **Fix**: (minimal code change)
+- **PoC** (Critical/High only): (Foundry test)
 """
 
 _cache_lock = threading.Lock()
@@ -543,6 +564,16 @@ def analyze_code(code: str, lang: str = "english", model_key: str = "") -> str:
     else:
         result = _call_groq(prompt)
 
+    # Second-pass validation: remove false positives from the initial result
+    if result:
+        try:
+            validated = validate_report(result, code, lang)
+            if validated and len(validated) > 50:
+                result = validated
+                logger.info("Second-pass validation applied — false positives stripped")
+        except Exception as e:
+            logger.debug(f"Validation skipped: {e}")
+
     if KB_AUTO_LEARN and result:
         extractor = _get_extractor()
         if extractor:
@@ -685,11 +716,64 @@ def _call_groq(prompt: str) -> str:
 def audit(code: str, lang: str = "english") -> str:
     return analyze_code(code, lang)
 
+def validate_report(report: str, code: str, lang: str = "english") -> str:
+    """Second-pass validator: aggressively removes false positives from the report."""
+    prompt = f"""You are a strict validator. Your ONLY job is to REMOVE false positives from the audit report below.
+
+## Rules for removal:
+1. **Remove any finding** that matches a KNOWN SAFE PATTERN:
+   - tstore/tload reentrancy guard
+   - nonReentrant modifier
+   - CEI pattern (state change before external call)
+   - Multicall intentional partial failure
+   - Ternary-guarded division (end > start ? ... : 0)
+   - safeTransfer/safeTransferFrom
+   - WETH.withdraw() + transfer pattern
+   - block.timestamp for expiry/deadline
+   - unchecked arithmetic with bounded values
+   - Constructor immutables
+   - OpenZeppelin standard patterns
+2. **Downgrade severity** if overstated: Critical→High, High→Medium, Medium→Low, Low→Info
+3. **Remove any finding** that has NO concrete exploit path (just theoretical)
+4. **Remove any finding** that says "could lead to" without showing HOW
+
+## Original Report to Validate:
+{report}
+
+## Original Code:
+```solidity
+{(code or "")[:3000]}
+```
+
+## Output Format:
+### Overall Security Rating: [A+ / A / B / C / D / F]
+
+### Vulnerability List (only validated findings — NONE if all removed)
+- **Name**: ...
+- **Severity**: [Critical / High / Medium / Low]
+- **Description**: [with EXPLOIT PATH]
+- **Fix**: ...
+
+### Gas Optimizations
+- ...
+
+### Fixed Code (if any genuine findings remained)
+"""
+    try:
+        return call_model_with_fallback(prompt)
+    except Exception as e:
+        logger.warning(f"Validation failed: {e}")
+        return report
+
+
 def self_critique(report: str, code: str, lang: str = "english") -> str:
-    prompt = f"""You are a second reviewer. Carefully review the audit report and look for:
-1. Missing vulnerabilities (not detected by the report)
-2. Overstated severity (false positives)
-3. Analysis errors
+    prompt = f"""You are a second reviewer focused on REMOVING false positives.
+
+Do NOT add new findings. Your ONLY job:
+1. Remove findings with no realistic exploit path
+2. Downgrade inflated severity
+3. Flag analysis errors in the original report
+4. Return a validated, cleaner report
 
 Original report:
 {report}
@@ -700,15 +784,17 @@ Original code:
 ```
 
 Output in {lang}:
-## Critique
-### Additional Vulnerabilities: [if any]
-### Misclassified Severity: [if any]
-### Improvements to Original Report: [if any]
-### Rating Revised (if needed): [Yes/No]
+## Validated Report
+### Removed Findings: [list what was removed and why]
+### Downgraded Severity: [list what was changed]
+### Remaining Findings (validated):
+- **Name**: ...
+- **Severity**: ...
+- **Exploit Path**: (concrete steps)
 """
     try:
         critique = call_model_with_fallback(prompt)
         return critique
     except Exception as e:
-        logger.warning(f"⚠️ Critique failed: {e}")
-        return ""
+        logger.warning(f"Critique failed: {e}")
+        return report
