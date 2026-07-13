@@ -304,13 +304,28 @@ footer a { color: var(--accent); text-decoration: none; }
 
 <script>
 let uploadedFile = null;
+let cachedCode = '';
+let cachedGithubUrl = '';
 
+// Switch tabs without losing state
 function switchTab(name, el) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
+  // Restore cached values
+  if (name === 'paste') {
+    if (cachedCode) document.getElementById('codeInput').value = cachedCode;
+    updateCharCount();
+  } else if (name === 'github') {
+    if (cachedGithubUrl) document.getElementById('githubUrl').value = cachedGithubUrl;
+  }
 }
+
+// Restore code input on page switch back to paste
+document.getElementById('codeInput').addEventListener('input', () => {
+  cachedCode = document.getElementById('codeInput').value;
+});
 
 function handleFile(e) {
   uploadedFile = e.target.files[0];
@@ -359,6 +374,21 @@ function renderReport(text) {
   return html;
 }
 
+function validateCode(code, fileName) {
+  // Reject non-code files (images, binaries)
+  const name = (fileName || '').toLowerCase();
+  const badExts = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.bmp', '.webp', '.mp4', '.mp3', '.pdf', '.doc', '.docx', '.xls', '.xlsx'];
+  if (badExts.some(ext => name.endsWith(ext))) {
+    return 'Image or binary files are not supported. Please upload a smart contract file (.sol, .vy, .move, .rs).';
+  }
+  if (typeof code === 'string') {
+    // Check for binary content
+    const binaryChars = code.split('').filter(c => c.charCodeAt(0) > 127 && c.charCodeAt(0) < 32 && c !== '\n' && c !== '\r' && c !== '\t').length;
+    if (binaryChars > code.length * 0.1) return 'File appears to be binary. Please upload source code.';
+  }
+  return null;
+}
+
 async function runAnalysis(e) {
   e.preventDefault();
   const analysisType = document.getElementById('analysisType').value;
@@ -377,10 +407,14 @@ async function runAnalysis(e) {
   if (isPasteTab) {
     code = document.getElementById('codeInput').value.trim();
     if (!code) { alert('Please paste or type Solidity code first.'); loading.classList.add('hidden'); return; }
+    const err = validateCode(code, 'pasted.sol');
+    if (err) { alert(err); loading.classList.add('hidden'); return; }
     if (code.length < 20) { alert('Code is too short. Please paste a complete contract.'); loading.classList.add('hidden'); return; }
     fileName = 'pasted_contract';
   } else {
     if (!uploadedFile) { alert('Please select a file first.'); loading.classList.add('hidden'); return; }
+    const err = validateCode(uploadedFile.name, uploadedFile.name);
+    if (err) { alert(err); loading.classList.add('hidden'); return; }
     fileName = uploadedFile.name.replace(/\.[^.]+$/, '');
   }
 
@@ -468,6 +502,7 @@ async function runAnalysis(e) {
 async function analyzeGithub() {
   const url = document.getElementById('githubUrl').value.trim();
   if (!url || !url.includes('github.com')) { alert('Please enter a valid GitHub URL'); return; }
+  cachedGithubUrl = url; // cache for tab switching
   const loading = document.getElementById('loading');
   const section = document.getElementById('results');
   section.classList.add('hidden');

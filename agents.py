@@ -367,6 +367,19 @@ def call_model_with_fallback(prompt: str, timeout: int = 0, model_chain: Optiona
             logger.warning(f"⚠️ {model_key} failed: {e} — trying next...")
     raise Exception(f"All models failed. Last error: {last_error}")
 
+def _validate_text_input(prompt: str) -> str:
+    """Reject non-text content (images, binaries) before sending to model."""
+    if not prompt:
+        return ""
+    # Check for image/binary markers in the prompt text
+    binary_indicators = ["Cannot read", "this model does not support image", "image input"]
+    for indicator in binary_indicators:
+        if indicator.lower() in prompt.lower():
+            logger.warning(f"Rejected prompt containing image/binary reference: {indicator}")
+            return ""
+    return prompt
+
+
 def _call_ollama(model_name: str, prompt: str, timeout: int = 0) -> str:
     """Call Ollama model API (local or cloud via OpenAI-compatible endpoint)."""
     cached = _cache_get(f"ollama:{model_name}", prompt)

@@ -37,6 +37,10 @@ def index():
     return render_template('index.html')
 
 
+_CODE_EXTS: tuple = (".sol", ".vy", ".move", ".clsp", ".clib", ".rs", ".py")
+_IMAGE_EXTS: tuple = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".bmp", ".webp")
+
+
 @app.route('/analyze', methods=['POST'])
 def analyze():
     ensure_report_dir()
@@ -45,6 +49,9 @@ def analyze():
     label = "upload"
     if 'file' in request.files and request.files['file'].filename:
         f = request.files['file']
+        ext = os.path.splitext(f.filename)[1].lower()
+        if ext in _IMAGE_EXTS:
+            return jsonify({"error": "Image files are not supported. Please upload smart contract source code."}), 400
         safe_name = secure_filename(f.filename)
         path = os.path.join(UPLOAD_DIR, safe_name)
         f.save(path)
