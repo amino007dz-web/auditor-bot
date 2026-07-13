@@ -16,6 +16,8 @@ def extract_repo_info(repo_url: str) -> Tuple[Optional[str], Optional[str]]:
     return None, None
 
 
+SUPPORTED_EXTS: tuple = (".sol", ".vy", ".move", ".clsp", ".clib", ".rs", ".py")
+
 def get_all_sol_files(repo, path: str = "") -> List[Dict[str, str]]:
     contracts: List[Dict[str, str]] = []
     try:
@@ -23,7 +25,7 @@ def get_all_sol_files(repo, path: str = "") -> List[Dict[str, str]]:
         for content in contents:
             if content.type == "dir":
                 contracts.extend(get_all_sol_files(repo, content.path))
-            elif content.path.endswith(".sol"):
+            elif any(content.path.endswith(ext) for ext in SUPPORTED_EXTS):
                 try:
                     file_content = content.decoded_content.decode('utf-8')
                     contracts.append({
