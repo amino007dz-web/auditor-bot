@@ -71,6 +71,7 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
       <a href="/dashboard" class="active">Dashboard</a>
       <a href="/report/list">Reports</a>
       <a href="/explorer">Chain Loader</a>
+      <a href="/cvss">CVSS 4.0</a>
     </nav>
   </header>
 
@@ -98,9 +99,30 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
     </div>
   </div>
 
+  <!-- KB Confidence Stats -->
+  {% if stats.kb_dynamic %}
+  <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stat-card">
+      <div class="num">{{ stats.kb_dynamic.high_confidence }}</div>
+      <div class="label">High Confidence Patterns</div>
+      <div class="sub">confirmed by multiple sessions</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">{{ stats.kb_dynamic.medium_confidence }}</div>
+      <div class="label">Medium Confidence</div>
+      <div class="sub">moderately validated</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">{{ stats.kb_dynamic.low_confidence }}</div>
+      <div class="label">Low Confidence</div>
+      <div class="sub">unconfirmed / new patterns</div>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Top Patterns -->
   <div class="section">
-    <h2>🏆 Most Common Vulnerability Patterns</h2>
+    <h2>Most Common Vulnerability Patterns</h2>
     {% if stats.top_patterns %}
     <table>
       <thead><tr><th>#</th><th>Pattern</th><th>Score</th></tr></thead>

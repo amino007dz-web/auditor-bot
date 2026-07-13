@@ -185,6 +185,7 @@ footer a { color: var(--accent); text-decoration: none; }
     <a href="/inhgraph">Inheritance</a>
     <a href="/permissions">Permissions</a>
     <a href="/rules">Rules</a>
+    <a href="/cvss">CVSS 4.0</a>
     <a href="/report/list">Reports</a>
   </nav>
 
@@ -198,6 +199,7 @@ footer a { color: var(--accent); text-decoration: none; }
     <div class="tool-card"><a href="/inhgraph"><div class="icon">🔗</div><div class="name">Inheritance</div><div class="desc">Graph viewer</div></a></div>
     <div class="tool-card"><a href="/permissions"><div class="icon">🔑</div><div class="name">Permissions</div><div class="desc">Access matrix</div></a></div>
     <div class="tool-card"><a href="/rules"><div class="icon">⚙️</div><div class="name">Custom Rules</div><div class="desc">Regex + custom</div></a></div>
+    <div class="tool-card"><a href="/cvss"><div class="icon">📐</div><div class="name">CVSS 4.0</div><div class="desc">Score calculator</div></a></div>
     <div class="tool-card"><a href="/dashboard"><div class="icon">📊</div><div class="name">Dashboard</div><div class="desc">Analytics</div></a></div>
     <div class="tool-card"><a href="/report/list"><div class="icon">📄</div><div class="name">Reports</div><div class="desc">History</div></a></div>
   </div>
@@ -284,6 +286,7 @@ footer a { color: var(--accent); text-decoration: none; }
         <a id="downloadTxt" class="btn btn-secondary">📄 TXT</a>
         <a id="downloadHtml" class="btn btn-secondary">🌐 HTML</a>
         <a id="downloadPdf" class="btn btn-secondary">📥 PDF</a>
+        <button id="downloadH1" class="btn btn-secondary" onclick="downloadHackerOne()">🔶 H1</button>
         <button class="btn btn-secondary" onclick="copyReport()">📋 Copy</button>
       </div>
     </div>
@@ -531,6 +534,31 @@ async function analyzeGithub() {
     document.getElementById('loadingText').textContent = 'Error: ' + err.message;
     document.getElementById('progressFill').style.width = '0%';
   }
+}
+
+async function downloadHackerOne() {
+  const btn = document.getElementById('downloadH1');
+  btn.textContent = '⏳ H1...';
+  try {
+    const reportEl = document.getElementById('reportContent');
+    const resp = await fetch('/api/hackerone', {
+      method: 'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({report: reportEl.textContent, label: document.getElementById('resultTitle').textContent})
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed');
+    const blob = new Blob([data.report], {type: 'text/markdown'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'hackerone_report.md';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    btn.textContent = '✅ Downloaded';
+  } catch(err) {
+    btn.textContent = '❌ Error';
+    console.error(err);
+  }
+  setTimeout(() => { btn.textContent = '🔶 H1'; }, 3000);
 }
 
 function copyReport() {

@@ -21,6 +21,16 @@ from project_detector import analyze_project
 from inheritance_graph import extract_inheritance, generate_html_graph
 from permission_analysis import analyze_permissions
 from custom_rules import get_rules_engine, CustomRule
+try:
+    from hackerone_report import generate_h1_report
+    _has_h1 = True
+except ImportError:
+    _has_h1 = False
+try:
+    from cvss_scorer import score_report, compute_cvss, cvss_explanation
+    _has_cvss = True
+except ImportError:
+    _has_cvss = False
 
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -105,6 +115,15 @@ def dashboard():
     if os.path.isdir(REPORT_DIR):
         report_count = len([f for f in os.listdir(REPORT_DIR)
                            if f.endswith(('.txt', '.html')) and f != ".gitkeep"])
+    kb_dynamic = None
+    if KB_ENABLED:
+        try:
+            from knowledge_base import KnowledgeBase
+            from config import KB_DB_PATH
+            _tmp_kb = KnowledgeBase(KB_DB_PATH)
+            kb_dynamic = _tmp_kb.get_dynamic_stats()
+        except:
+            pass
     stats = {
         "reports": report_count,
         "patterns": s.get("patterns", 0),
@@ -116,6 +135,7 @@ def dashboard():
         "mythril": TOOL_AVAILABLE.get("mythril", False),
         "kb_enabled": KB_ENABLED,
         "cache_enabled": CACHE_ENABLED,
+        "kb_dynamic": kb_dynamic,
     }
     return render_template('dashboard.html', stats=stats)
 
@@ -333,6 +353,45 @@ def permissions_page():
     return render_template('permissions.html', result=result)
 
 
+@app.route('/cvss', methods=['GET', 'POST'])
+def cvss_page():
+    result = None
+    if request.method == 'POST':
+        action = request.form.get('action', 'score')
+        if action == 'score' and _has_cvss:
+            av = request.form.get('av', 'N')
+            ac = request.form.get('ac', 'L')
+            pr = request.form.get('pr', 'N')
+            ui = request.form.get('ui', 'N')
+            vc = request.form.get('vc', 'H')
+            vi = request.form.get('vi', 'H')
+            va = request.form.get('va', 'H')
+            score, sev, vector = compute_cvss(av, ac, pr, ui, vc, vi, va)
+            result = {"score": score, "severity": sev, "vector": vector,
+                       "explanation": cvss_explanation(score, sev, vector)}
+        elif action == 'report':
+            report_text = request.form.get('report', '')
+            if report_text and _has_cvss:
+                result = score_report(report_text)
+    return render_template('cvss.html', result=result, cvss_available=_has_cvss)
+
+
+@app.route('/api/hackerone', methods=['POST'])
+def api_hackerone():
+    data = request.get_json()
+    if not data or 'report' not in data:
+        return jsonify({"error": "Field 'report' is required"}), 400
+    label = data.get('label', 'Smart Contract')
+    code = data.get('code', '')
+    if _has_h1:
+        h1_report = generate_h1_report(data['report'], code, label)
+        return jsonify({"report": h1_report})
+    else:
+        from agents import generate_hackerone_report
+        h1_report = generate_hackerone_report(data['report'], code, label)
+        return jsonify({"report": h1_report})
+
+
 @app.route('/rules', methods=['GET', 'POST'])
 def rules_page():
     engine = get_rules_engine()
@@ -365,6 +424,23 @@ def report_view(filename):
     with open(fpath, "r", encoding="utf-8") as f:
         content = f.read()
     return render_template('report_view.html', filename=filename, content=content)
+
+
+@app.route('/report/hackerone/<filename>')
+def report_hackerone(filename):
+    """View a report in HackerOne format."""
+    fpath = os.path.join(REPORT_DIR, filename)
+    if not os.path.isfile(fpath):
+        return "Report not found", 404
+    with open(fpath, "r", encoding="utf-8") as f:
+        content = f.read()
+    if _has_h1:
+        from hackerone_report import generate_h1_report
+        h1 = generate_h1_report(content, label=os.path.splitext(filename)[0])
+    else:
+        from agents import generate_hackerone_report
+        h1 = generate_hackerone_report(content, label=os.path.splitext(filename)[0])
+    return render_template('report_view.html', filename=f"h1_{filename}", content=h1)
 
 
 @app.route('/api/pdf', methods=['POST'])

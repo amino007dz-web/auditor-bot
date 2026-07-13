@@ -399,5 +399,172 @@ class KnowledgeBase:
         except Exception as e:
             return {"error": str(e)}
 
+    # ─── Cross-Session Pattern Learning (Dynamic Scoring) ───
+
+    def score_pattern(self, pattern_id: int) -> float:
+        """Calculate a confidence score (0.0–1.0) for a pattern."""
+        try:
+            with _lock:
+                conn = self._connect()
+                row = conn.execute(
+                    "SELECT hit_count, confirmed_count FROM vulnerability_patterns WHERE id=?",
+                    (pattern_id,)
+                ).fetchone()
+                conn.close()
+                if not row:
+                    return 0.0
+                hits, confirmed = row
+                if hits == 0:
+                    return 0.0
+                return min(1.0, (confirmed / max(hits, 1)) * 0.8 + 0.1)
+        except:
+            return 0.0
+
+    def find_or_merge_pattern(self, name: str, severity: str = "", code_snippet: str = "",
+                               description: str = "", fix_code: str = "",
+                               protocol_name: str = "") -> int:
+        """Find existing pattern by name similarity; merge if found, create if not."""
+        try:
+            with _lock:
+                conn = self._connect()
+                row = conn.execute(
+                    "SELECT id, name, hit_count, confirmed_count FROM vulnerability_patterns WHERE name LIKE ?",
+                    (f"%{name[:50]}%",)
+                ).fetchone()
+                if row:
+                    pid = row[0]
+                    conn.execute(
+                        "UPDATE vulnerability_patterns SET hit_count = hit_count + 1, protocol_name = ? WHERE id=?",
+                        (protocol_name[:100] or "", pid)
+                    )
+                    conn.commit()
+                    conn.close()
+                    return pid
+                conn.close()
+        except:
+            pass
+        return self.add_pattern(name, severity, "solidity", code_snippet, description, fix_code,
+                                protocol_name=protocol_name)
+
+    def get_pattern_confidence(self, pattern_id: int) -> Dict:
+        """Get detailed confidence info for a pattern."""
+        try:
+            with _lock:
+                conn = self._connect()
+                row = conn.execute(
+                    "SELECT id, name, severity, hit_count, confirmed_count, created_at FROM vulnerability_patterns WHERE id=?",
+                    (pattern_id,)
+                ).fetchone()
+                conn.close()
+                if not row:
+                    return {"confidence": 0.0, "score": 0}
+                hits, confirmed = row[3], row[4]
+                score = hits + confirmed
+                confidence = min(1.0, (confirmed / max(hits, 1)) * 0.8 + 0.1)
+                return {
+                    "id": row[0],
+                    "name": row[1],
+                    "severity": row[2],
+                    "hit_count": hits,
+                    "confirmed_count": confirmed,
+                    "score": score,
+                    "confidence": round(confidence, 3),
+                    "created_at": row[5],
+                }
+        except:
+            return {"confidence": 0.0, "score": 0}
+
+    def get_top_patterns(self, limit: int = 20, min_confidence: float = 0.0) -> List[Dict]:
+        """Get top patterns by dynamic score, optionally filtered by minimum confidence."""
+        try:
+            with _lock:
+                conn = self._connect()
+                rows = conn.execute(
+                    """SELECT id, name, severity, hit_count, confirmed_count, pattern_type,
+                             (hit_count + confirmed_count) as raw_score
+                    FROM vulnerability_patterns
+                    ORDER BY raw_score DESC LIMIT ?""",
+                    (limit,)
+                ).fetchall()
+                conn.close()
+                results = []
+                for r in rows:
+                    hits, confirmed = r[3], r[4]
+                    confidence = min(1.0, (confirmed / max(hits, 1)) * 0.8 + 0.1)
+                    if confidence >= min_confidence:
+                        results.append({
+                            "id": r[0],
+                            "name": r[1],
+                            "severity": r[2],
+                            "hit_count": hits,
+                            "confirmed_count": confirmed,
+                            "pattern_type": r[5],
+                            "score": r[6],
+                            "confidence": round(confidence, 3),
+                        })
+                return results
+        except:
+            return []
+
+    def learn_cross_session(self, finding_name: str, severity: str,
+                            code_snippet: str = "", description: str = "",
+                            protocol: str = "") -> Tuple[int, bool]:
+        """Cross-session learning: find-or-merge a pattern across audit sessions.
+        Returns (pattern_id, is_new).
+        """
+        pid = self.find_or_merge_pattern(finding_name, severity, code_snippet,
+                                          description, protocol_name=protocol)
+        is_new = False
+        if pid:
+            status = self.get_pattern_confidence(pid)
+            is_new = status["hit_count"] <= 1 and status["confirmed_count"] == 0
+        return pid, is_new
+
+    def get_dynamic_stats(self) -> Dict:
+        """Get enhanced stats including confidence distribution."""
+        try:
+            with _lock:
+                conn = self._connect()
+                total = conn.execute("SELECT COUNT(*) FROM vulnerability_patterns").fetchone()[0]
+                high_conf = conn.execute(
+                    """SELECT COUNT(*) FROM vulnerability_patterns
+                    WHERE confirmed_count > 0 AND (CAST(confirmed_count AS REAL) / MAX(hit_count, 1)) > 0.5"""
+                ).fetchone()[0]
+                low_conf = conn.execute(
+                    """SELECT COUNT(*) FROM vulnerability_patterns
+                    WHERE confirmed_count = 0 OR (CAST(confirmed_count AS REAL) / MAX(hit_count, 1)) <= 0.1"""
+                ).fetchone()[0]
+                top = conn.execute(
+                    """SELECT name, (hit_count + confirmed_count) as score
+                    FROM vulnerability_patterns ORDER BY score DESC LIMIT 10"""
+                ).fetchall()
+                conn.close()
+                return {
+                    "total_patterns": total,
+                    "high_confidence": high_conf,
+                    "low_confidence": low_conf,
+                    "medium_confidence": total - high_conf - low_conf,
+                    "top_patterns": [{"name": r[0], "score": r[1]} for r in top],
+                }
+        except Exception as e:
+            return {"error": str(e)}
+
+    def _update_pattern_extra(self, pattern_id: int, severity: str, code_snippet: str,
+                               fix_code: str, contract_type: str, source_report: str):
+        """Update a pattern's extra fields after cross-session creation."""
+        try:
+            with _lock:
+                conn = self._connect()
+                conn.execute(
+                    """UPDATE vulnerability_patterns
+                    SET severity=?, code_snippet=?, fix_code=?, contract_type=?, source_report=?
+                    WHERE id=?""",
+                    (severity, code_snippet[:500], fix_code[:500], contract_type, source_report[:500], pattern_id)
+                )
+                conn.commit()
+                conn.close()
+        except:
+            pass
+
     def close(self):
         pass

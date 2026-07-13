@@ -34,6 +34,20 @@ from config import (
 )
 from cli_display import console
 
+_has_gate = False
+try:
+    import gate_validator as _gate
+    _has_gate = True
+except ImportError:
+    pass
+
+_has_cvss = False
+try:
+    import cvss_scorer as _cvss
+    _has_cvss = True
+except ImportError:
+    pass
+
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT: str = """You are an expert smart contract security auditor with extremely high standards for precision over recall.
@@ -587,11 +601,52 @@ def analyze_code(code: str, lang: str = "english", model_key: str = "") -> str:
         except Exception as e:
             logger.debug(f"Validation skipped: {e}")
 
+    # Third-pass: 4-Gate Validator (BugHunter-inspired)
+    if result and _has_gate:
+        try:
+            kb_pats = None
+            kb = _get_kb()
+            if kb:
+                kb_pats = kb.get_patterns_by_severity(limit=100)
+            gated = _gate.validate_report(result, code, kb_pats)
+            if gated and len(gated) > 20:
+                result = gated
+                logger.info("Third-pass (4-Gate) validation applied")
+        except Exception as e:
+            logger.debug(f"4-Gate validation skipped: {e}")
+
+    # CVSS scoring appended
+    if result and _has_cvss:
+        try:
+            cvss_data = _cvss.score_report(result)
+            if cvss_data.get("findings"):
+                cvss_note = "\n\n### CVSS 4.0 Assessment\n"
+                for f in cvss_data["findings"]:
+                    cvss_note += (
+                        f"- **{f['name']}**: {f['cvss_score']}/10 ({f['cvss_severity']}) "
+                        f"`{f['cvss_vector']}`\n"
+                    )
+                cvss_note += f"\n**Overall Max CVSS**: {cvss_data['overall_score']}/10 ({cvss_data['overall_severity']})"
+                result += cvss_note
+                logger.info("CVSS 4.0 scoring added to report")
+        except Exception as e:
+            logger.debug(f"CVSS scoring skipped: {e}")
+
+    # Cross-session pattern learning
     if KB_AUTO_LEARN and result:
         extractor = _get_extractor()
         if extractor:
             try:
-                extractor.learn_from_report(result, code, protocol_name="auto", contract_type="")
+                learned = extractor.learn_from_report(result, code, protocol_name="auto", contract_type="")
+                if learned and _has_gate:
+                    kb2 = _get_kb()
+                    if kb2:
+                        kb2.learn_cross_session(
+                            "cross_session", "Medium",
+                            code_snippet=code[:200],
+                            description="Auto-learned cross-session pattern",
+                            protocol="auto"
+                        )
             except Exception as e:
                 logger.debug(f"KB auto-learn skipped: {e}")
 
@@ -728,6 +783,23 @@ def _call_groq(prompt: str) -> str:
 
 def audit(code: str, lang: str = "english") -> str:
     return analyze_code(code, lang)
+
+
+def generate_hackerone_report(report: str, code: str = "", label: str = "Smart Contract") -> str:
+    try:
+        import hackerone_report as _h1
+        return _h1.generate_h1_report(report, code, label)
+    except ImportError:
+        return report
+
+
+def cvss_score_report(report: str) -> dict:
+    if _has_cvss:
+        try:
+            return _cvss.score_report(report)
+        except Exception as e:
+            return {"error": str(e)}
+    return {"error": "CVSS scorer not available"}
 
 def validate_report(report: str, code: str, lang: str = "english") -> str:
     """Second-pass validator: aggressively removes false positives from the report."""

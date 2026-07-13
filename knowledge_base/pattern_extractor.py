@@ -111,21 +111,24 @@ class PatternExtractor:
             if not desc:
                 desc = name[:200]
             fix = f.get("fix", "")
-            pid = self.kb.add_pattern(
-                name=name[:100],
+            # Use cross-session learning: find-or-merge
+            pid, is_new = self.kb.learn_cross_session(
+                finding_name=name[:100],
                 severity=severity,
-                pattern_type="solidity",
                 code_snippet=code[:500],
                 description=desc[:500],
-                fix_code=fix[:500] if fix else "",
-                contract_type=contract_type or _detect_simple(code),
-                source_report=report[:500],
-                protocol_name=protocol_name,
+                protocol=protocol_name,
             )
+            if pid and is_new:
+                self.kb._update_pattern_extra(pid, severity, code[:500], fix[:500] if fix else "",
+                                               contract_type or _detect_simple(code), report[:500])
+                logger.info(f"KB: new pattern '{name}' [{severity}] (cross-session)")
+            elif pid:
+                logger.info(f"KB: merged pattern '{name}' (session #{pid})")
             if pid:
                 stored += 1
         if stored:
-            logger.info(f"KB auto-learn: {stored} patterns extracted from report")
+            logger.info(f"KB auto-learn: {stored} patterns (cross-session)")
         return stored
 
 
