@@ -229,8 +229,6 @@ def run_parallel(work_items: List[Dict]) -> List[tuple]:
     with ThreadPoolExecutor(max_workers=PARALLEL_MAX_WORKERS) as executor:
         futures = {}
         for i, item in enumerate(work_items):
-            if i > 0:
-                time.sleep(1)
             future = executor.submit(call_model, item["model_id"], item["prompt"], item.get("timeout", 0))
             futures[future] = item.get("label", item["model_id"])
         for future in as_completed(futures):

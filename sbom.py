@@ -96,6 +96,7 @@ class Dependency:
 class SBOMResult:
     pragma: str = ""
     compiler_version: str = ""
+    compiler_cves: List[str] = field(default_factory=list)
     dependencies: List[Dependency] = field(default_factory=list)
 
 
@@ -133,6 +134,8 @@ def analyze_sbom(code: str) -> SBOMResult:
     major = re.search(r'(\d+\.\d+\.\d+)', result.pragma)
     result.compiler_version = major.group(1) if major else result.pragma
 
+    result.compiler_cves = check_version_cves(result.compiler_version)
+
     result.dependencies = []
     seen = set()
     for imp in parse_imports(code):
@@ -141,7 +144,6 @@ def analyze_sbom(code: str) -> SBOMResult:
         seen.add(imp)
         dep = Dependency(name=imp)
         dep.known_package = identify_package(imp)
-        dep.cves = check_version_cves(result.compiler_version) if dep.known_package else []
         result.dependencies.append(dep)
 
     return result
@@ -166,18 +168,16 @@ def format_sbom_text(result: SBOMResult) -> str:
         parts.append(f"| {i} | `{dep.name}` | {pkg} | {cve_str} |")
     parts.append("")
 
-    vuln_deps = [d for d in result.dependencies if d.cves]
-    if vuln_deps:
-        parts.append("### ⚠ Known Vulnerabilities\n")
-        for dep in vuln_deps:
-            for cve in dep.cves:
-                parts.append(f"- **{dep.name}**: {cve}")
-                parts.append(f"  - Upgrade Solidity to avoid this CVE")
+    if result.compiler_cves:
+        parts.append("### ⚠ Compiler CVEs\n")
+        for cve in result.compiler_cves:
+            parts.append(f"- **Solidity {result.compiler_version}**: {cve}")
+            parts.append(f"  - Upgrade Solidity to avoid this CVE")
         parts.append("")
 
     risk = "Low"
-    if vuln_deps:
-        risk = "Medium" if len(vuln_deps) <= 2 else "High"
+    if result.compiler_cves:
+        risk = "Medium" if len(result.compiler_cves) <= 2 else "High"
     parts.append(f"**Overall Dependency Risk**: {risk}")
 
     return "\n".join(parts)
@@ -198,13 +198,20 @@ def generate_sbom_json(result: SBOMResult) -> str:
             {
                 "type": "library",
                 "name": d.known_package or d.name,
-                "version": result.compiler_version,
-                "purl": f"pkg:npm/{d.name.replace('@', '').replace('/', '%2F')}@{result.compiler_version}",
+                "version": "",
+                "purl": f"pkg:npm/{d.name.replace('@', '').replace('/', '%2F')}",
                 "licenses": [{"license": {"id": "MIT"}}] if d.known_package else [],
                 "evidence": {"identity": [{"field": "purl", "confidence": 0.5}]},
             }
             for d in result.dependencies
-        ],
+        ] + ([
+            {
+                "type": "compiler",
+                "name": "Solidity",
+                "version": result.compiler_version,
+                "cves": result.compiler_cves,
+            }
+        ] if result.compiler_cves else []),
         "dependencies": [
             {"ref": d.known_package or d.name, "dependsOn": []}
             for d in result.dependencies

@@ -123,7 +123,7 @@ def _balanceof_accounting(contract) -> tuple:
             # Check if function body uses balanceOf(address(this))
             # We need to scan the function — use the contract's source
             # Since we don't have the body text here, we check AST flags
-            if hasattr(func, 'external_calls') and 'balanceOf' not in func.external_calls:
+            if not hasattr(func, 'external_calls') or 'balanceOf' not in func.external_calls:
                 continue
             # Flag based on return pattern using contract source code context
             return True, (

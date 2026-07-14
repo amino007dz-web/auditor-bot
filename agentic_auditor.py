@@ -2,10 +2,10 @@ import os, re, json, logging
 from typing import Dict, List, Optional, Set
 from collections import defaultdict
 
-_HAS_NETWORKX = False
+_has_networkx = False
 try:
     import networkx as nx
-    _HAS_NETWORKX = True
+    _has_networkx = True
 except ImportError:
     pass
 
@@ -24,6 +24,7 @@ class AgenticAuditor:
         self.graph: Dict[str, List[str]] = defaultdict(list)
         self.contracts: Dict[str, str] = {}
         self.import_map: Dict[str, str] = {}
+        self.remappings: Dict[str, str] = {}
 
     def load_directory(self, directory: str):
         self.root = directory
@@ -42,6 +43,7 @@ class AgenticAuditor:
                         entries.append((rel, content))
                     except Exception:
                         pass
+        self._load_remappings()
         for rel, content in entries:
             try:
                 self._index_file(rel, content)
@@ -69,7 +71,42 @@ class AgenticAuditor:
                     if base_path != path:
                         self.graph[path].append(base_path)
 
+    def _load_remappings(self):
+        self.remappings = {}
+        remap_file = os.path.join(self.root, "remappings.txt")
+        if os.path.isfile(remap_file):
+            with open(remap_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if "=" in line and not line.startswith("#"):
+                        prefix, _, path = line.partition("=")
+                        self.remappings[prefix.strip()] = path.strip()
+
+        toml_file = os.path.join(self.root, "foundry.toml")
+        if os.path.isfile(toml_file):
+            with open(toml_file, "r", encoding="utf-8") as f:
+                content = f.read()
+            m = re.search(r'remappings\s*=\s*\[([^\]]+)\]', content, re.DOTALL)
+            if m:
+                for entry in re.findall(r'"([^"]+)"', m.group(1)):
+                    if "=" in entry:
+                        prefix, _, path = entry.partition("=")
+                        self.remappings[prefix.strip()] = path.strip()
+
+        logger.info("Loaded %d remappings", len(self.remappings))
+
     def _resolve_import(self, current: str, imp_path: str) -> Optional[str]:
+        for prefix, local_path in self.remappings.items():
+            if imp_path.startswith(prefix):
+                relocated = os.path.normpath(os.path.join(local_path, imp_path[len(prefix):]))
+                abs_check = os.path.normpath(os.path.join(self.root, relocated))
+                if abs_check in self.files:
+                    return abs_check
+                for ext in (".sol", ".vy", ".move"):
+                    with_ext = abs_check + ext if not abs_check.endswith(ext) else abs_check
+                    if with_ext in self.files:
+                        return with_ext
+                break
         candidates = [
             os.path.normpath(os.path.join(os.path.dirname(current), imp_path)),
             os.path.normpath(imp_path),
@@ -107,7 +144,7 @@ class AgenticAuditor:
         return [f for f in self.files if f not in imported]
 
     def build_call_graph(self) -> Optional[object]:
-        if not _HAS_NETWORKX:
+        if not _has_networkx:
             return None
         G = nx.DiGraph()
         for f in self.files:

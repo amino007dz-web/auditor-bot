@@ -10,9 +10,9 @@ sys.path.insert(0, os.path.dirname(__file__))
 from _shared import (
     rate_limit, require_api_key, UPLOAD_DIR, _CODE_EXTS,
     _run_analysis, _save_html_report, _fmt_size,
-    _HAS_GREP, _grep_arsenal, _HAS_MCP, _mcp_int,
-    _HAS_AI, _ai_scan, _HAS_ZKSYNC, _zksync_scan,
-    _HAS_SARIF, report_to_sarif, _HAS_H1, _h1_report_func,
+    _has_grep, _grep_arsenal, _has_mcp, _mcp_int,
+    _has_ai, _ai_scan, _has_zksync, _zksync_scan,
+    _has_sarif, report_to_sarif, _has_h1, _h1_report_func,
     _handle_zip_upload,
 )
 from main import ensure_report_dir, save_report_txt, load_local_contract
@@ -243,7 +243,7 @@ def api_hackerone():
         return jsonify({"error": "Field 'report' is required"}), 400
     label = data.get('label', 'Smart Contract')
     code = data.get('code', '')
-    if _HAS_H1:
+    if _has_h1:
         h1_report = _h1_report_func(data['report'], code, label)
         return jsonify({"report": h1_report})
     else:
@@ -259,7 +259,7 @@ def api_grep_arsenal():
     data = request.get_json()
     if not data or 'code' not in data:
         return jsonify({"error": "Field 'code' is required"}), 400
-    if not _HAS_GREP:
+    if not _has_grep:
         return jsonify({"error": "Grep arsenal not available"}), 500
     summary = _grep_arsenal.get_summary(data['code'])
     return jsonify({"summary": summary})
@@ -272,7 +272,7 @@ def api_mcp_scan():
     data = request.get_json()
     if not data or 'code' not in data:
         return jsonify({"error": "Field 'code' is required"}), 400
-    if not _HAS_MCP:
+    if not _has_mcp:
         return jsonify({"error": "MCP scanner not available"}), 500
     result = _mcp_int.analyze_contract(data['code'])
     return jsonify(result)
@@ -285,7 +285,7 @@ def api_ai_detect():
     data = request.get_json()
     if not data or 'code' not in data:
         return jsonify({"error": "Field 'code' is required"}), 400
-    if not _HAS_AI:
+    if not _has_ai:
         return jsonify({"error": "AI detector not available"}), 500
     ai_check = _ai_scan.detect_ai_generated(data['code'])
     vulns = _ai_scan.check_ai_vulnerabilities(data['code'])
@@ -299,7 +299,7 @@ def api_zksync_analyze():
     data = request.get_json()
     if not data or 'code' not in data:
         return jsonify({"error": "Field 'code' is required"}), 400
-    if not _HAS_ZKSYNC:
+    if not _has_zksync:
         return jsonify({"error": "ZKsync analyzer not available"}), 500
     result = _zksync_scan.check_vulnerable_patterns(data['code'])
     return jsonify(result)
@@ -330,7 +330,7 @@ def api_sarif():
     data = request.get_json()
     if not data or 'report' not in data:
         return jsonify({"error": "Field 'report' is required"}), 400
-    if not _HAS_SARIF:
+    if not _has_sarif:
         return jsonify({"error": "SARIF exporter not available"}), 500
     try:
         sarif = report_to_sarif(data['report'], data.get('code', ''), data.get('label', 'contract'))

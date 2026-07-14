@@ -13,6 +13,18 @@ from project_detector import analyze_project
 
 logger = logging.getLogger(__name__)
 
+_HAS_REDIS_RATE_LIMIT = False
+_REDIS_RATE_CLIENT = None
+try:
+    import redis as _redis_module
+    _url = os.environ.get("REDIS_URL", "")
+    if _url:
+        _REDIS_RATE_CLIENT = _redis_module.Redis.from_url(_url, socket_connect_timeout=1, socket_timeout=1, decode_responses=True)
+        _REDIS_RATE_CLIENT.ping()
+        _HAS_REDIS_RATE_LIMIT = True
+except Exception:
+    _REDIS_RATE_CLIENT = None
+
 _rate_limit_store = {}
 _rate_limit_lock = threading.Lock()
 
@@ -23,23 +35,41 @@ def rate_limit(max_per_minute: int = 10):
             effective_max = int(os.environ.get("RATE_LIMIT_PER_MINUTE", max_per_minute))
             key = f"{request.remote_addr}:{request.path}"
             now = time.time()
-            with _rate_limit_lock:
-                if len(_rate_limit_store) > 1000:
-                    expired = [k for k, (t, _) in _rate_limit_store.items() if now - t > 120]
-                    for k in expired:
-                        del _rate_limit_store[k]
-                entry = _rate_limit_store.get(key)
-                if entry is None:
-                    _rate_limit_store[key] = (now, 1)
-                else:
-                    window_start, count = entry
-                    if now - window_start > 60:
-                        _rate_limit_store[key] = (now, 1)
-                    elif count >= effective_max:
+            if _HAS_REDIS_RATE_LIMIT and _REDIS_RATE_CLIENT:
+                try:
+                    rkey = f"ratelimit:{key}"
+                    count = _REDIS_RATE_CLIENT.get(rkey)
+                    if count is None:
+                        _REDIS_RATE_CLIENT.incr(rkey)
+                        _REDIS_RATE_CLIENT.expire(rkey, 60)
+                        count = 1
+                    else:
+                        count = int(count)
+                        _REDIS_RATE_CLIENT.incr(rkey)
+                        count += 1
+                    if count > effective_max:
                         logger.warning(f"Rate limit hit: {key}")
                         return jsonify({"error": "Rate limit exceeded. Try again later."}), 429
+                except Exception:
+                    pass
+            else:
+                with _rate_limit_lock:
+                    if len(_rate_limit_store) > 1000:
+                        expired = [k for k, (t, _) in _rate_limit_store.items() if now - t > 120]
+                        for k in expired:
+                            del _rate_limit_store[k]
+                    entry = _rate_limit_store.get(key)
+                    if entry is None:
+                        _rate_limit_store[key] = (now, 1)
                     else:
-                        _rate_limit_store[key] = (window_start, count + 1)
+                        window_start, count = entry
+                        if now - window_start > 60:
+                            _rate_limit_store[key] = (now, 1)
+                        elif count >= effective_max:
+                            logger.warning(f"Rate limit hit: {key}")
+                            return jsonify({"error": "Rate limit exceeded. Try again later."}), 429
+                        else:
+                            _rate_limit_store[key] = (window_start, count + 1)
             return f(*args, **kwargs)
         return wrapper
     return decorator
@@ -66,52 +96,52 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 _CODE_EXTS: tuple = (".sol", ".vy", ".move", ".clsp", ".clib")
 _IMAGE_EXTS: tuple = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".bmp", ".webp")
 
-_HAS_GREP = False
+_has_grep = False
 _grep_arsenal = None
 try:
     import grep_arsenal as _grep_arsenal
-    _HAS_GREP = True
+    _has_grep = True
 except ImportError:
     pass
 
-_HAS_MCP = False
+_has_mcp = False
 _mcp_int = None
 try:
     import mcp_integration as _mcp_int
-    _HAS_MCP = True
+    _has_mcp = True
 except ImportError:
     pass
 
-_HAS_AI = False
+_has_ai = False
 _ai_scan = None
 try:
     import ai_tools as _ai_scan
-    _HAS_AI = True
+    _has_ai = True
 except ImportError:
     pass
 
-_HAS_ZKSYNC = False
+_has_zksync = False
 _zksync_scan = None
 try:
     import zksync_detector as _zksync_scan
-    _HAS_ZKSYNC = True
+    _has_zksync = True
 except ImportError:
     pass
 
-_HAS_SARIF = False
+_has_sarif = False
 report_to_sarif = None
 try:
     from sarif_export import report_to_sarif
-    _HAS_SARIF = True
+    _has_sarif = True
 except ImportError:
     pass
 
-_HAS_H1 = False
+_has_h1 = False
 _h1_report_func = None
 try:
     from hackerone_report import generate_h1_report
     _h1_report_func = generate_h1_report
-    _HAS_H1 = True
+    _has_h1 = True
 except ImportError:
     pass
 
@@ -199,15 +229,21 @@ def _handle_zip_upload(file_storage):
                 return {"error": "Zip file exceeds maximum size of 50 MB"}
             rejected = []
             for name in zf.namelist():
+                # Path traversal check via realpath
+                extracted_path = os.path.realpath(os.path.join(tmpdir, name))
+                if not extracted_path.startswith(os.path.realpath(tmpdir)):
+                    rejected.append(name + " (path traversal)")
+                    continue
                 parts = name.replace('\\', '/').split('/')
-                if '..' in parts or '__pycache__' in parts or 'node_modules' in parts:
+                if '__pycache__' in parts or 'node_modules' in parts:
                     rejected.append(name)
-                elif name.endswith(('.exe', '.sh', '.bat', '.cmd', '.dll', '.so', '.dylib')):
+                    continue
+                ext = os.path.splitext(name)[1].lower()
+                if ext in ('.exe', '.sh', '.bat', '.cmd', '.dll', '.so', '.dylib', '.ps1'):
                     rejected.append(name)
-                if len(rejected) >= 3:
-                    break
+                    continue
             if rejected:
-                return {"error": f"Zip contains rejected files: {', '.join(rejected)}"}
+                return {"error": f"Zip contains rejected files: {', '.join(rejected[:3])}" + (f" and {len(rejected)-3} more" if len(rejected) > 3 else "")}
             zf.extractall(tmpdir)
         items = os.listdir(tmpdir)
         root = tmpdir

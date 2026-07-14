@@ -116,8 +116,9 @@ function countSeverities(text) {
     const lower = text.toLowerCase();
     const lines = lower.split('\n');
     for (const line of lines) {
+        const trimmed = line.trim();
         for (const key of Object.keys(counts)) {
-            if (line.includes('### ' + key) || line.includes('## ' + key) || line.includes('**' + key) || line.includes(key + ' severity')) {
+            if (trimmed.startsWith('### ' + key) || trimmed.startsWith('## ' + key) || trimmed.startsWith('**' + key + '**') || trimmed.startsWith(key)) {
                 counts[key]++;
                 break;
             }
