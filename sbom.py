@@ -34,7 +34,7 @@ _KNOWN_PACKAGES = {
     "@forge-std/": "Foundry Forge Std",
 }
 
-_KNOWN_VULNERABLE = {
+_HARDCODED_VULNERABLE = {
     "0.4.22": ["CVE-2023-34460"],
     "0.4.24": ["CVE-2023-34461"],
     "0.4.25": ["CVE-2023-34462"],
@@ -70,6 +70,18 @@ _KNOWN_VULNERABLE = {
     "0.8.18": ["CVE-2023-40014"],
     "0.8.19": [],
 }
+
+_KNOWN_VULNERABLE = _HARDCODED_VULNERABLE
+_cves_json_path = os.path.join(os.path.dirname(__file__), "known_cves.json")
+if os.path.isfile(_cves_json_path):
+    try:
+        with open(_cves_json_path, "r", encoding="utf-8") as _f:
+            _external = json.load(_f)
+        if _external:
+            _KNOWN_VULNERABLE = _external
+            logger.info("Loaded CVE data from known_cves.json")
+    except Exception as _e:
+        logger.warning(f"Failed to read known_cves.json: {_e}")
 
 @dataclass
 class Dependency:

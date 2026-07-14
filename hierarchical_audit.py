@@ -177,7 +177,7 @@ def _extract_contract(code: str, focus_name: str) -> str:
 
 
 def hierarchical_audit(code: str, protocol_name: str = "Protocol", repo_url: str = "",
-                       lang: str = "english", focus: str = "") -> str:
+                       focus: str = "") -> str:
     if focus:
         code = _extract_contract(code, focus)
 
@@ -211,7 +211,7 @@ def hierarchical_audit(code: str, protocol_name: str = "Protocol", repo_url: str
     auditor = HierarchicalAuditor(LAYER1_AGENTS, LAYER2_AGENTS,
                                    default_model="llama-3.3-70b",
                                    protocol_name=protocol_name)
-    layer1, layer2, final = auditor.run(code, lang, extra_context=extra_ctx)
+    layer1, layer2, final = auditor.run(code, extra_context=extra_ctx)
 
     final += "\n\n---\n\n## Attachments\n\n"
     final += opcode_report + "\n"
@@ -220,13 +220,13 @@ def hierarchical_audit(code: str, protocol_name: str = "Protocol", repo_url: str
     return final
 
 
-def run_hierarchical_audit_interactive(code: str, lang: str = "english", focus: str = "") -> str:
+def run_hierarchical_audit_interactive(code: str, focus: str = "") -> str:
     print("\n" + "="*60 + "\nHierarchical Analysis\n" + "="*60)
     protocol_name = input("Protocol name (Enter for default): ").strip() or "Smart Contract"
     repo_url = input("Repo URL (Enter to skip): ").strip() or ""
     print()
-    return hierarchical_audit(code, protocol_name, repo_url, lang, focus=focus)
+    return hierarchical_audit(code, protocol_name, repo_url, focus=focus)
 
 
-generate_combined_report_interactive = lambda code, lang: __import__('static_analysis').combined_report.generate_combined_report_interactive(code, lang)
+generate_combined_report_interactive = lambda code: __import__('static_analysis').combined_report.generate_combined_report_interactive(code, "english")
 generate_combined_report = lambda code, protocol: __import__('static_analysis').combined_report.generate_combined_report(code, protocol)

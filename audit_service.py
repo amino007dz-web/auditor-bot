@@ -47,35 +47,33 @@ class AuditService:
             return None
 
     @staticmethod
-    def run_audit(code: str, lang: str = "english") -> str:
-        return audit(code, lang)
+    def run_audit(code: str) -> str:
+        return audit(code)
 
     @staticmethod
-    def run_critique(code: str, lang: str = "english") -> Tuple[str, str]:
-        initial = audit(code, lang)
-        critique = self_critique(initial, code, lang)
+    def run_critique(code: str) -> Tuple[str, str]:
+        initial = audit(code)
+        critique = self_critique(initial, code, "english")
         return initial, critique
 
     @staticmethod
-    def run_multi(code: str, lang: str = "english",
-                  team: Optional[List[str]] = None) -> str:
-        return multi_audit(code, lang, team)
+    def run_multi(code: str, team: Optional[List[str]] = None) -> str:
+        return multi_audit(code, team)
 
     @staticmethod
     def run_hierarchical(code: str, protocol: str = "Protocol",
-                          lang: str = "english", focus: str = "",
+                          focus: str = "",
                           repo_url: str = "") -> str:
-        return hierarchical_audit(code, protocol, repo_url, lang, focus)
+        return hierarchical_audit(code, protocol, repo_url, focus=focus)
 
     @staticmethod
-    def run_parallel(code: str, n_workers: int = 3,
-                      lang: str = "english") -> Tuple[str, list]:
+    def run_parallel(code: str, n_workers: int = 3) -> Tuple[str, list]:
         models = list(FREE_MODELS.keys())[:n_workers]
         prompt = f"""You are a smart contract security expert. Analyze the following code and find vulnerabilities:
 ```solidity
 {code[:3000]}
 ```
-Language: {lang.capitalize()}"""
+Language: English"""
         work_items = [
             {"model_id": FREE_MODELS[m]["id"], "prompt": prompt, "label": m}
             for m in models
@@ -145,8 +143,8 @@ Language: {lang.capitalize()}"""
         return stats
 
     @staticmethod
-    def run_diff_audit(v1: str, v2: str, lang: str = "english") -> str:
-        return run_diff_audit(v1, v2, lang)
+    def run_diff_audit(v1: str, v2: str) -> str:
+        return run_diff_audit(v1, v2, "english")
 
     @staticmethod
     def compute_diff(v1: str, v2: str) -> str:

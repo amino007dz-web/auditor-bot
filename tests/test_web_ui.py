@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import pytest
 
 os.environ["RATE_LIMIT_PER_MINUTE"] = "999"
+os.environ["AUDITOR_API_KEY"] = ""
 from web_ui import app, REPORT_DIR, ensure_report_dir
 
 MOCK_REPORT = """## Security Analysis Report
@@ -45,7 +46,7 @@ class TestWebUI:
     def test_index(self, client):
         rv = client.get('/')
         assert rv.status_code == 200
-        assert b'VulnAudit' in rv.data
+        assert b'Smart Contract Auditor' in rv.data
 
     def test_report_list_empty(self, client):
         rv = client.get('/report/list')
@@ -53,7 +54,7 @@ class TestWebUI:
         assert b'Smart Contract Auditor' in rv.data
 
     def test_analyze_no_file(self, client):
-        rv = client.post('/analyze', data={})
+        rv = client.post('/api/analyze', data={})
         assert rv.status_code == 400
         data = json.loads(rv.data)
         assert 'error' in data
@@ -67,7 +68,7 @@ class TestWebUI:
             f.write("contract C { function f() public pure returns (uint) { return 1; } }")
 
         with open(sol_path, "rb") as f:
-            rv = client.post('/analyze', data={
+            rv = client.post('/api/analyze', data={
                 'file': (f, 'test.sol'),
                 'analysis_type': 'opcodes'
             })
@@ -100,7 +101,7 @@ class TestWebUI:
             f.write(reentrancy_code)
 
         with open(sol_path, "rb") as f:
-            rv = client.post('/analyze', data={
+            rv = client.post('/api/analyze', data={
                 'file': (f, 'vuln.sol'),
                 'analysis_type': 'audit'
             })
@@ -154,7 +155,7 @@ class TestWebUI:
             with open(sol_path, "w", encoding="utf-8") as f:
                 f.write(code)
             with open(sol_path, "rb") as f:
-                rv = client.post('/analyze', data={
+                rv = client.post('/api/analyze', data={
                     'file': (f, f't_{atype}.sol'),
                     'analysis_type': atype
                 })

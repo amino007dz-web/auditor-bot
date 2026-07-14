@@ -56,14 +56,14 @@ class ChainMonitor:
     def _load(self):
         if os.path.isfile(self.state_file):
             try:
-                with open(self.state_file) as f:
+                with open(self.state_file, encoding="utf-8") as f:
                     data = json.load(f)
                 self.contracts = [MonitoredContract.from_dict(d) for d in data]
             except Exception as e:
                 logger.warning(f"Failed to load monitor state: {e}")
 
     def _save(self):
-        with open(self.state_file, "w") as f:
+        with open(self.state_file, "w", encoding="utf-8") as f:
             json.dump([c.to_dict() for c in self.contracts], f, indent=2)
 
     def add(self, address: str, chain: str = "ethereum", interval: int = 3600,

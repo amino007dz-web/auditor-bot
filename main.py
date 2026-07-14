@@ -182,8 +182,7 @@ def _handle_multi_audit() -> None:
     prompt_input("Press [bold]Enter[/] to start multi-model analysis")
     team_str = prompt_input(f"Model names (comma-separated) or Enter for default", default=', '.join(DEFAULT_TEAM))
     team = [t.strip() for t in team_str.split(",")] if team_str else None
-    lang = "english" if prompt_input("Report language: [bold]1[/]. Arabic  [bold]2[/]. English") == "2" else "english"
-    report = svc.run_multi(code, lang, team)
+    report = svc.run_multi(code, team)
     rpath = svc.save_report(f"multi_audit_{label}.txt", report)
     console.log(f"[green]Report saved:[/] {rpath}")
     console.print(Markdown(report) if HAS_RICH else report)
@@ -715,7 +714,7 @@ class CLIApp:
         parser.add_argument("--token", type=str, help="GitHub Token")
         parser.add_argument("--contract-index", type=int, help="Contract index (1-based)")
         parser.add_argument("--name", type=str, help="Protocol name")
-        parser.add_argument("--lang", type=str, choices=["arabic", "english"], default="english")
+
         parser.add_argument("--parallel-workers", type=int, default=3, help="Parallel workers")
         parser.add_argument("--sarif", action="store_true", help="Export results as SARIF format for GitHub/VSCode")
         parser.add_argument("--autopoc", action="store_true", help="Auto-PoC: validate Critical findings with Foundry tests")
@@ -828,11 +827,9 @@ def cli_mode(args: argparse.Namespace) -> None:
         console.log("[red]No code provided for analysis.[/]")
         sys.exit(1)
 
-    lang = args.lang if args.lang else "english"
-
     if args.autopoc:
         console.log("[bold]Initial analysis + self-critique + Auto-PoC validation...[/]")
-        report = dispatch_analysis(code, "autopoc", lang=lang)
+        report = dispatch_analysis(code, "autopoc")
         rpath = svc.save_report(f"autopoc_{label}.txt", report)
         console.log(f"[green]Report saved:[/] {rpath}")
         console.print(Markdown(report) if HAS_RICH else report)
@@ -840,7 +837,7 @@ def cli_mode(args: argparse.Namespace) -> None:
 
     if args.critique:
         console.log("[bold]Initial analysis + self-critique...[/]")
-        initial, critique = svc.run_critique(code, lang)
+        initial, critique = svc.run_critique(code)
         r1 = svc.save_report(f"audit_{label}.txt", initial)
         r2 = svc.save_report(f"critique_{label}.txt", critique)
         console.log(f"[green]Reports saved:[/]  {r1}  {r2}")
@@ -875,17 +872,17 @@ def cli_mode(args: argparse.Namespace) -> None:
         protocol = args.name or label.replace('_', ' ').title()
         if args.focus:
             console.log(f"[bold]Focus:[/] {args.focus}")
-        report = dispatch_analysis(code, "hierarchical", lang=lang, protocol_name=protocol,
+        report = dispatch_analysis(code, "hierarchical", protocol_name=protocol,
                                     focus=args.focus or "", repo_url=args.github or "")
     elif analysis_type == "multi":
-        report = dispatch_analysis(code, "multi", lang=lang, team=args.team)
+        report = dispatch_analysis(code, "multi", team=args.team)
     else:
-        report = dispatch_analysis(code, analysis_type, lang=lang,
+        report = dispatch_analysis(code, analysis_type,
                                     name=args.name or label.replace('_', ' ').title())
     rpath = svc.save_report(f"{analysis_type}_{label}.txt", report)
 
     if args.sarif:
-        from sarif_report import generate_sarif
+        from sarif_export import generate_sarif
         from analyzers.base import Finding
         dummy = []
         if code:

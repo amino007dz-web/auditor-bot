@@ -71,7 +71,7 @@ class ProjectDetector:
         return None
 
 
-def analyze_project(root: str, lang: str = "english") -> str:
+def analyze_project(root: str) -> str:
     """Detect project and audit all its contracts."""
     from batch_audit import batch_audit
 
@@ -87,7 +87,7 @@ def analyze_project(root: str, lang: str = "english") -> str:
              ""]
 
     for d in info["contract_dirs"]:
-        result = batch_audit(d, lang=lang)
+        result = batch_audit(d)
         lines.append(f"--- {d} ---")
         lines.append(f"Total: {result['total']} | Done: {result['done']} | Errors: {result['errors']}")
         for r in result.get("results", []):
@@ -96,5 +96,5 @@ def analyze_project(root: str, lang: str = "english") -> str:
 
     txt = "\n".join(lines)
     from main import save_report_txt
-    save_report_txt(f"project_{os.path.basename(root)}_{lang}.txt", txt)
+    save_report_txt(f"project_{os.path.basename(root)}_english.txt", txt)
     return txt

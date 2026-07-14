@@ -175,7 +175,7 @@ Final report format (HackenProof-ready):
 ]
 
 
-def move_hierarchical_audit(code: str, lang: str = "english") -> str:
+def move_hierarchical_audit(code: str) -> str:
     """Run hierarchical analysis on Move/Sui code."""
     auditor = HierarchicalAuditor(LAYER1_AGENTS, LAYER2_AGENTS,
                                    default_model="deepseek-chat",

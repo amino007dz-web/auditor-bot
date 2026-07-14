@@ -230,7 +230,7 @@ def _split_functions(code: str) -> List[Dict[str, str]]:
     return chunks
 
 
-def _run_chunk(chunk: Dict, lang: str) -> str:
+def _run_chunk(chunk: Dict) -> str:
     """Analyze a single function chunk."""
     fn_code = chunk["code"][:4000]
     state_context = "\n".join(f"// {sv}" for sv in chunk["state_vars"][:10])
@@ -249,7 +249,7 @@ State variables:
 ```
 
 ### Language
-{lang}
+english
 """
     try:
         return call_model_with_fallback(prompt, timeout=300)
@@ -258,12 +258,12 @@ State variables:
         return f"(Analysis failed: {e})"
 
 
-def chunked_audit(code: str, lang: str = "english") -> str:
+def chunked_audit(code: str) -> str:
     """Parallel chunked analysis by splitting code into functions."""
     chunks = _split_functions(code)
     if len(chunks) <= 1:
         logger.info("chunked_audit: only one function — using normal analysis")
-        return analyze_code(code, lang)
+        return analyze_code(code)
 
     console.log(f"[bold]chunked_audit:[/] splitting code into [cyan]{len(chunks)}[/] functions — parallel analysis")
 
@@ -271,7 +271,7 @@ def chunked_audit(code: str, lang: str = "english") -> str:
     with ThreadPoolExecutor(max_workers=min(PARALLEL_MAX_WORKERS, len(chunks))) as executor:
         futures = {}
         for chunk in chunks:
-            future = executor.submit(_run_chunk, chunk, lang)
+            future = executor.submit(_run_chunk, chunk)
             futures[future] = chunk["name"]
             time.sleep(0.5)
 
@@ -287,7 +287,7 @@ def chunked_audit(code: str, lang: str = "english") -> str:
     return header + body
 
 
-def analyze_code(code: str, lang: str = "english", model_key: str = "") -> str:
+def analyze_code(code: str, model_key: str = "") -> str:
     code = truncate_code(code, model_key)
 
     rag_context = ""
@@ -306,7 +306,7 @@ def analyze_code(code: str, lang: str = "english", model_key: str = "") -> str:
         f"{rag_context}\n"
         f"Code to analyze:\n"
         f"```solidity\n{code}\n```\n"
-        f"Language: {lang}"
+        f"Language: english"
     )
     result: str = ""
     if model_key:
@@ -321,7 +321,7 @@ def analyze_code(code: str, lang: str = "english", model_key: str = "") -> str:
 
     if result:
         try:
-            validated = validate_report(result, code, lang)
+            validated = validate_report(result, code, "english")
             if validated and len(validated) > 50:
                 result = validated
                 logger.info("Second-pass validation applied — false positives stripped")
@@ -381,8 +381,8 @@ def analyze_code(code: str, lang: str = "english", model_key: str = "") -> str:
     return result
 
 
-def audit(code: str, lang: str = "english") -> str:
-    return analyze_code(code, lang)
+def audit(code: str) -> str:
+    return analyze_code(code)
 
 
 def generate_hackerone_report(report: str, code: str = "", label: str = "Smart Contract") -> str:

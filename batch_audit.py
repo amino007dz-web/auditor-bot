@@ -32,21 +32,21 @@ def find_contracts(root_dir: str, max_files: int = 200) -> list[dict[str, str]]:
     return contracts
 
 
-def audit_single(item: dict, lang: str = "english") -> dict:
+def audit_single(item: dict) -> dict:
     """Audit a single contract."""
     try:
         with open(item["path"], "r", encoding="utf-8", errors="replace") as f:
             code = f.read()
         if len(code) < 10:
             return {"file": item["name"], "status": "skipped", "reason": "empty"}
-        result = analyze_code(code, lang)
+        result = analyze_code(code)
         return {"file": item["name"], "status": "done", "result": result}
     except Exception as e:
         logger.warning(f"  Failed {item['name']}: {e}")
         return {"file": item["name"], "status": "error", "reason": str(e)}
 
 
-def batch_audit(root_dir: str, max_workers: int = 4, lang: str = "english") -> dict:
+def batch_audit(root_dir: str, max_workers: int = 4) -> dict:
     """Audit all contracts in a directory in parallel."""
     contracts = find_contracts(root_dir)
     if not contracts:
@@ -55,7 +55,7 @@ def batch_audit(root_dir: str, max_workers: int = 4, lang: str = "english") -> d
     logger.info(f"batch_audit: {len(contracts)} contracts — {max_workers} workers")
     results = []
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        futures = {ex.submit(audit_single, c, lang): c for c in contracts}
+        futures = {ex.submit(audit_single, c): c for c in contracts}
         for f in as_completed(futures):
             results.append(f.result())
 

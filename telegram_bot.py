@@ -91,7 +91,7 @@ class TelegramBot:
         self._thread: threading.Thread = None
         self._monitor_thread: threading.Thread = None
         self._pool = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-        self._user_langs: dict = {}
+
         self._processing: set = set()
         self._processing_lock = threading.Lock()
 
@@ -120,14 +120,7 @@ class TelegramBot:
             ]
         }
 
-    def _lang_keyboard(self):
-        return {
-            "inline_keyboard": [
-                [{"text": "🌍 Arabic", "callback_data": "lang_ar"}],
-                [{"text": "🌍 English", "callback_data": "lang_en"}],
-                [{"text": "🔙 Back", "callback_data": "back"}],
-            ]
-        }
+
 
     def _processing_keyboard(self, chat_id: int):
         return {
@@ -302,10 +295,6 @@ class TelegramBot:
             self._cmd_status(chat_id, msg_id)
             return
 
-        if cmd == "/lang":
-            self._send(chat_id, "Select report language:", keyboard=self._lang_keyboard())
-            return
-
         if cmd == "/stats":
             self._dispatch(self._cmd_stats, chat_id)
             return
@@ -388,16 +377,8 @@ class TelegramBot:
             self._answer_callback(cb_id, "Back")
             self._edit_message(chat_id, msg_id, "Main menu:", keyboard=self._main_keyboard())
         elif data == "lang":
-            self._answer_callback(cb_id, "Select language")
-            self._edit_message(chat_id, msg_id, "Select report language:", keyboard=self._lang_keyboard())
-        elif data == "lang_ar":
-            self._user_langs[chat_id] = "english"
-            self._answer_callback(cb_id, "✅ Arabic")
-            self._edit_message(chat_id, msg_id, "✅ Arabic selected", keyboard=self._main_keyboard())
-        elif data == "lang_en":
-            self._user_langs[chat_id] = "english"
-            self._answer_callback(cb_id, "✅ English")
-            self._edit_message(chat_id, msg_id, "✅ English selected", keyboard=self._main_keyboard())
+            self._answer_callback(cb_id, "Language selection disabled")
+            self._edit_message(chat_id, msg_id, "Only English is supported", keyboard=self._main_keyboard())
         elif data == "stats":
             self._answer_callback(cb_id, "Loading statistics")
             self._dispatch(self._cmd_stats, chat_id)
@@ -484,13 +465,11 @@ class TelegramBot:
         openrouter_key = bool(os.environ.get("OPENROUTER_API_KEY"))
         with self._processing_lock:
             qsize = len(self._processing)
-        lang = self._user_langs.get(chat_id, "english")
         status = (
             f"*🤖 System Status*\n\n"
             f"✅ Bot active\n"
             f"🔑 OpenRouter: {'✅' if openrouter_key else '❌'}\n"
             f"📊 Processing: {qsize}\n"
-            f"🌍 Language: {lang}\n"
             f"🌐 [Web UI]({WEB_UI_URL})"
         )
         if msg_id:
@@ -559,7 +538,7 @@ class TelegramBot:
         p = threading.Thread(target=progress, daemon=True)
         p.start()
         try:
-            result = analyze_code(code[:3000], self._user_langs.get(chat_id, "english"))
+            result = analyze_code(code[:3000])
             self._send(chat_id, f"*🔍 Audit Result:*\n\n{result[:3500]}")
             self._track(chat_id, "audit")
         except Exception as e:
@@ -580,8 +559,7 @@ class TelegramBot:
         p = threading.Thread(target=progress, daemon=True)
         p.start()
         try:
-            lang = self._user_langs.get(chat_id, "english")
-            result = dispatch_analysis(code[:4000], analysis_type="autopoc", lang=lang)
+            result = dispatch_analysis(code[:4000], analysis_type="autopoc")
             self._send(chat_id, f"*🔬 Auto-PoC Audit Result:*\n\n{result[:3500]}")
             self._track(chat_id, "autopoc")
         finally:
@@ -605,24 +583,6 @@ class TelegramBot:
             self._track(chat_id, "gas")
         finally:
             stop.set()
-
-    def _run_pdf(self, chat_id: int, code: str):
-        from pdf_report import generate_pdf_report
-        from analyzers import get_analyzer, detect_language
-        self._send_action(chat_id)
-        tmp = tempfile.NamedTemporaryFile(suffix=".sol", delete=False, mode="w")
-        tmp.write(code[:3000])
-        tmp.close()
-        lang = detect_language(tmp.name) or "solidity"
-        a = get_analyzer(lang)
-        findings = a.analyze_file(tmp.name, code[:3000])
-        pdf_path = generate_pdf_report({tmp.name: findings})
-        os.unlink(tmp.name)
-        if pdf_path and os.path.exists(pdf_path):
-            self._send_document(chat_id, pdf_path, f"📊 Report - {len(findings)} findings")
-        else:
-            self._send(chat_id, "❌ Failed to create PDF")
-        self._track(chat_id, "pdf")
 
     # ── Polling ─────────────────────────────────────────────────
     def _poll(self):

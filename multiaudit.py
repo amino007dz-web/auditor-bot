@@ -17,7 +17,7 @@ DEFAULT_TEAM: List[str] = ["openrouter-free", "qwen3-coder", "nemotron-3-ultra"]
 LEAD_MODEL: str = "openrouter-free"
 
 
-def multi_audit(code: str, lang: str = "english", team: Optional[List[str]] = None) -> str:
+def multi_audit(code: str, team: Optional[List[str]] = None) -> str:
     if team is None:
         team = DEFAULT_TEAM
 
@@ -35,14 +35,14 @@ def multi_audit(code: str, lang: str = "english", team: Optional[List[str]] = No
         label = f"Analyst #{i} ({model_key})"
         console.rule(f"[bold cyan]{label}[/]" if HAS_RICH else f"\n--- {label} ---")
         try:
-            result = analyze_code(code, lang, model_key=model_key)
+            result = analyze_code(code, model_key=model_key)
             reports[label] = result
             console.log(f"[green]✅ {label} completed analysis[/]")
         except Exception as e:
             console.log(f"[red]❌ {label} failed: {e}[/]")
             try:
                 console.log("[yellow]🔄 Trying fallback...[/]")
-                result = analyze_code(code, lang, model_key="openrouter-free")
+                result = analyze_code(code, model_key="openrouter-free")
                 reports[f"{label} (fallback)"] = result
                 console.log("[green]✅ Success via fallback[/]")
             except:
@@ -57,7 +57,7 @@ def multi_audit(code: str, lang: str = "english", team: Optional[List[str]] = No
     # ─── Phase 2: Discussion between models ───
     banner("🗣️ Phase 2: Discussion")
 
-    discussion_prompt = _build_discussion_prompt(code, reports, lang)
+    discussion_prompt = _build_discussion_prompt(code, reports)
 
     for lead_key in [LEAD_MODEL, "openrouter-free"]:
         if lead_key not in FREE_MODELS:
@@ -78,7 +78,7 @@ def multi_audit(code: str, lang: str = "english", team: Optional[List[str]] = No
     return merged
 
 
-def _build_discussion_prompt(code: str, reports: Dict[str, str], lang: str) -> str:
+def _build_discussion_prompt(code: str, reports: Dict[str, str]) -> str:
     summaries = ""
     for i, (model, report) in enumerate(reports.items(), 1):
         summaries += f"\n--- Analysis #{i} ({model}) ---\n"
@@ -96,7 +96,7 @@ Original code (first 2000 chars):
 Team analysis summaries:
 {summaries}
 
-Output the report in {'Arabic' if lang == 'arabic' else 'English'} with the following format:
+Output the report in English with the following format:
 ## Unified Final Report
 ### Unified Assessment
 ### Comparison Table (Analyst | Rating | Top Finding)

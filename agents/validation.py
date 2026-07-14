@@ -13,7 +13,7 @@ except ImportError:
     pass
 
 
-def validate_report(report: str, code: str, lang: str = "english") -> str:
+def validate_report(report: str, code: str) -> str:
     """Second-pass validator: aggressively removes false positives from the report."""
     prompt = f"""You are a strict validator. Your ONLY job is to REMOVE false positives from the audit report below.
 
@@ -63,7 +63,7 @@ def validate_report(report: str, code: str, lang: str = "english") -> str:
         return report
 
 
-def self_critique(report: str, code: str, lang: str = "english") -> str:
+def self_critique(report: str, code: str) -> str:
     prompt = f"""You are a second reviewer focused on REMOVING false positives.
 
 Do NOT add new findings. Your ONLY job:
@@ -80,7 +80,7 @@ Original code:
 {(code or "")[:3000]}
 ```
 
-Output in {lang}:
+Output in English:
 ## Validated Report
 ### Removed Findings: [list what was removed and why]
 ### Downgraded Severity: [list what was changed]

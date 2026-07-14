@@ -49,7 +49,6 @@ footer { text-align:center; padding:1.5rem; color:var(--text-secondary); border-
   <div id="tab-path" class="tab-content active">
     <form method="POST">
       <input type="text" name="path" placeholder="Full path to Solidity files directory..." required>
-      <select name="lang"><option value="english">English</option><option value="arabic">Arabic</option></select>
       <button type="submit" class="btn">Start Batch Audit</button>
     </form>
   </div>
@@ -62,7 +61,6 @@ footer { text-align:center; padding:1.5rem; color:var(--text-secondary); border-
         <input type="file" name="zipfile" id="fileInput" accept=".zip" style="display:none" onchange="handleFile(event)">
       </div>
       <div id="fileInfo" class="hidden file-name"></div>
-      <select name="lang"><option value="english">English</option><option value="arabic">Arabic</option></select>
       <button type="submit" class="btn mt-1">Upload & Audit</button>
     </form>
   </div>

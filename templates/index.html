@@ -1,587 +1,274 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="en" class="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VulnAudit — Smart Contract Security Auditor</title>
+<title>Smart Contract Auditor</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<link rel="stylesheet" href="/static/css/style.css">
 <style>
-:root {
-  --bg-primary: #0a0e14;
-  --bg-secondary: #111820;
-  --bg-card: #161f2e;
-  --border: #1e2a3a;
-  --text-primary: #e6edf3;
-  --text-secondary: #8b95a5;
-  --accent: #58a6ff;
-  --accent-glow: rgba(88, 166, 255, 0.15);
-  --critical: #f85149;
-  --critical-bg: rgba(248, 81, 73, 0.12);
-  --high: #d29922;
-  --high-bg: rgba(210, 153, 34, 0.12);
-  --medium: #58a6ff;
-  --medium-bg: rgba(88, 166, 255, 0.12);
-  --low: #8b949e;
-  --low-bg: rgba(139, 148, 158, 0.12);
-  --info: #3fb950;
-  --info-bg: rgba(63, 185, 80, 0.12);
-  --radius: 10px;
-  --shadow: 0 4px 24px rgba(0,0,0,0.3);
-}
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.6; }
-.container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
-
-/* Header */
-header { text-align: center; padding: 2rem 0 1.5rem; position: relative; }
-header::after { content: ''; position: absolute; bottom: 0; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); }
-header h1 { font-size: 2.2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), #a371f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-header p { color: var(--text-secondary); font-size: 0.95rem; margin-top: 0.3rem; }
-.status-bar { display: flex; gap: 1rem; justify-content: center; align-items: center; margin-top: 0.75rem; font-size: 0.8rem; flex-wrap: wrap; }
-.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
-.status-dot.online { background: #3fb950; box-shadow: 0 0 8px rgba(63,185,80,0.5); }
-.status-dot.offline { background: var(--critical); }
-
-/* Navigation */
-.nav { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin: 1rem 0 1.5rem; }
-.nav a { color: var(--text-secondary); text-decoration: none; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; border: 1px solid transparent; }
-.nav a:hover { color: var(--text-primary); background: var(--bg-card); border-color: var(--border); }
-.nav a.active { color: var(--accent); border-color: var(--accent); }
-
-/* Tools Grid */
-.tools-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
-.tool-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; text-align: center; transition: all 0.25s; cursor: default; }
-.tool-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
-.tool-card a { text-decoration: none; color: inherit; }
-.tool-card .icon { font-size: 1.5rem; margin-bottom: 0.4rem; }
-.tool-card .name { font-weight: 600; font-size: 0.85rem; }
-.tool-card .desc { color: var(--text-secondary); font-size: 0.72rem; margin-top: 0.2rem; }
-
-/* Card */
-.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: var(--shadow); }
-.card h2 { font-size: 1.15rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
-
-/* Inputs */
-textarea, input[type="text"], select {
-  width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px;
-  background: var(--bg-primary); color: var(--text-primary); font-size: 0.9rem; transition: border-color 0.2s;
-}
-textarea { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; resize: vertical; min-height: 160px; line-height: 1.5; tab-size: 2; }
-textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-select { max-width: 280px; cursor: pointer; }
-
-/* Buttons */
-.btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.65rem 1.3rem; border: none; border-radius: 6px; font-size: 0.9rem; cursor: pointer; text-decoration: none; transition: all 0.2s; font-weight: 500; }
-.btn-primary { background: linear-gradient(135deg, #238636, #2ea043); color: #fff; }
-.btn-primary:hover { filter: brightness(1.15); transform: translateY(-1px); }
-.btn-secondary { background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); }
-.btn-secondary:hover { border-color: var(--text-secondary); }
-.btn-critical { background: linear-gradient(135deg, #da3633, #f85149); color: #fff; }
-.btn-danger { background: #da3633; color: #fff; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
-
-/* Flex utilities */
-.flex-row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
-.flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
-.mt-1 { margin-top: 1rem; }
-.mb-1 { margin-bottom: 1rem; }
-.hidden { display: none !important; }
-
-/* Upload zone */
-.upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 2rem; text-align: center; cursor: pointer; transition: all 0.25s; }
-.upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: var(--accent-glow); }
-.upload-zone p { color: var(--text-secondary); font-size: 0.9rem; }
-.upload-zone .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
-.file-name { color: var(--accent); margin-top: 0.5rem; font-size: 0.85rem; }
-
-/* Loading */
-#loading { text-align: center; padding: 2.5rem; }
-.spinner { width: 44px; height: 44px; border: 3px solid var(--border); border-top: 3px solid var(--accent); border-radius: 50%; animation: spin 0.9s cubic-bezier(0.6, 0, 0.4, 1) infinite; margin: 0 auto 1rem; }
-@keyframes spin { to { transform: rotate(360deg); } }
-#loadingText { color: var(--text-secondary); font-size: 0.9rem; }
-#loading .steps { color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.3rem; }
-#loading .step { opacity: 0.4; transition: opacity 0.5s; }
-#loading .step.active { opacity: 1; color: var(--accent); }
-
-/* Report */
-.report-wrapper { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-.report-content { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 0.82rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; padding: 1rem; max-height: 65vh; overflow-y: auto; direction: ltr; text-align: left; }
-.report-content::-webkit-scrollbar { width: 6px; }
-.report-content::-webkit-scrollbar-track { background: transparent; }
-.report-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-.report-content::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
-
-/* Severity badges in report */
-.severity-badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin: 0 0.2rem; }
-.severity-critical { background: var(--critical-bg); color: var(--critical); border: 1px solid rgba(248,81,73,0.3); }
-.severity-high { background: var(--high-bg); color: var(--high); border: 1px solid rgba(210,153,34,0.3); }
-.severity-medium { background: var(--medium-bg); color: var(--medium); border: 1px solid rgba(88,166,255,0.3); }
-.severity-low { background: var(--low-bg); color: var(--low); border: 1px solid rgba(139,148,158,0.3); }
-.severity-info { background: var(--info-bg); color: var(--info); border: 1px solid rgba(63,185,80,0.3); }
-.severity-rating { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 4px; font-size: 0.9rem; font-weight: 700; }
-
-/* Char counter */
-.char-counter { text-align: right; font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; direction: ltr; }
-.char-counter.warning { color: var(--high); }
-.char-counter.over { color: var(--critical); }
-
-/* Code input area */
-.code-input-area { position: relative; }
-.code-input-area textarea { min-height: 180px; }
-
-/* Tabs (Paste / Upload) */
-.tabs { display: flex; gap: 0; margin-bottom: 0; border-bottom: 1px solid var(--border); }
-.tab { padding: 0.6rem 1.2rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; font-size: 0.85rem; color: var(--text-secondary); transition: all 0.2s; background: transparent; }
-.tab:hover { color: var(--text-primary); background: var(--bg-primary); }
-.tab.active { color: var(--accent); border-color: var(--border); background: var(--bg-card); margin-bottom: -1px; }
-.tab-content { display: none; }
-.tab-content.active { display: block; }
-
-/* Footer */
-footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); border-top: 1px solid var(--border); margin-top: 2rem; font-size: 0.8rem; }
-footer a { color: var(--accent); text-decoration: none; }
-
-/* Infinite progress animation */
-.progress-bar { width: 100%; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 1rem; }
-.progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), #a371f7); transition: width 2s; }
-
-/* Responsive */
-@media (max-width: 640px) {
-  .container { padding: 1rem; }
-  header h1 { font-size: 1.6rem; }
-  .tools-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-  .card { padding: 1rem; }
-  .flex-between { flex-direction: column; align-items: stretch; }
-}
-
-/* Scroll-to-top */
-#scrollTop { position: fixed; bottom: 1.5rem; right: 1.5rem; width: 40px; height: 40px; border-radius: 50%; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary); cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 1.2rem; transition: all 0.2s; z-index: 100; }
-#scrollTop:hover { border-color: var(--accent); }
+body { background-color: #0d1117; color: #c9d1d9; font-family: 'Segoe UI', system-ui, sans-serif; }
+.dark .bg-card { background-color: #161b22; }
+.dark .border-custom { border-color: #30363d; }
+.dark .text-secondary { color: #8b949e; }
+.drop-zone { border: 2px dashed #30363d; transition: all 0.2s; cursor: pointer; }
+.drop-zone.dragover { border-color: #58a6ff; background: rgba(88, 166, 255, 0.1); }
+.step { opacity: 0.4; transition: all 0.3s; }
+.step-active { opacity: 1; color: #58a6ff; }
+.step-done { opacity: 1; color: #3fb950; }
+.severity-critical { color: #da3633; }
+.severity-high { color: #d29922; }
+.severity-medium { color: #58a6ff; }
+.severity-low { color: #8b949e; }
+.severity-info { color: #238636; }
 </style>
 </head>
-<body>
+<body class="min-h-screen">
+<div class="max-w-6xl mx-auto px-4 py-6">
 
-<div class="container">
-  <!-- Header -->
-  <header>
-    <h1>VulnAudit</h1>
-    <p>Multi-Layer Smart Contract Security Analysis Engine</p>
-    <div class="status-bar">
-      <span><span class="status-dot online"></span> 17,164 KB Patterns</span>
-      <span><span class="status-dot online"></span> Ollama Cloud</span>
-      <span><span class="status-dot online"></span> Telegram Bot</span>
-      <span><span class="status-dot online"></span> v2.0</span>
-    </div>
-  </header>
+    <!-- Header -->
+    <header class="text-center pb-6 mb-6 border-b border-gray-800">
+        <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Smart Contract Auditor</h1>
+        <p class="text-gray-400 mt-2">Multi-language security analysis engine</p>
+    </header>
 
-  <!-- Navigation -->
-  <nav class="nav">
-    <a href="/" class="active">Home</a>
-    <a href="/dashboard">Dashboard</a>
-    <a href="/explorer">Chain Loader</a>
-    <a href="/batch">Batch</a>
-    <a href="/project">Project</a>
-    <a href="/gas">Gas</a>
-    <a href="/testgen">Tests</a>
-    <a href="/inhgraph">Inheritance</a>
-    <a href="/permissions">Permissions</a>
-    <a href="/rules">Rules</a>
-    <a href="/cvss">CVSS 4.0</a>
-    <a href="/report/list">Reports</a>
-  </nav>
+    <!-- Nav -->
+    <nav class="flex flex-wrap gap-2 justify-center mb-8">
+        <a href="/" class="px-4 py-2 text-sm rounded border border-blue-500 text-blue-400 bg-blue-900 bg-opacity-20">Home</a>
+        <a href="/dashboard" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Dashboard</a>
+        <a href="/explorer" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Chain Loader</a>
+        <a href="/batch" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Batch</a>
+        <a href="/project" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Project</a>
+        <a href="/gas" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Gas</a>
+        <a href="/testgen" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Tests</a>
+        <a href="/inhgraph" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Inheritance</a>
+        <a href="/permissions" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Permissions</a>
+        <a href="/rules" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Rules</a>
+        <a href="/cvss" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">CVSS</a>
+        <a href="/report/list" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Reports</a>
+    </nav>
 
-  <!-- Tools Grid -->
-  <div class="tools-grid">
-    <div class="tool-card"><a href="/explorer"><div class="icon">⛓️</div><div class="name">Chain Loader</div><div class="desc">Fetch from 7 chains</div></a></div>
-    <div class="tool-card"><a href="/batch"><div class="icon">📁</div><div class="name">Batch Audit</div><div class="desc">Scan a directory</div></a></div>
-    <div class="tool-card"><a href="/project"><div class="icon">📂</div><div class="name">Project Scan</div><div class="desc">Upload ZIP or server path</div></a></div>
-    <div class="tool-card"><a href="/gas"><div class="icon">⛽</div><div class="name">Gas Analysis</div><div class="desc">Optimize gas usage</div></a></div>
-    <div class="tool-card"><a href="/testgen"><div class="icon">🧪</div><div class="name">Test Gen</div><div class="desc">Auto-PoC generation</div></a></div>
-    <div class="tool-card"><a href="/inhgraph"><div class="icon">🔗</div><div class="name">Inheritance</div><div class="desc">Graph viewer</div></a></div>
-    <div class="tool-card"><a href="/permissions"><div class="icon">🔑</div><div class="name">Permissions</div><div class="desc">Access matrix</div></a></div>
-    <div class="tool-card"><a href="/rules"><div class="icon">⚙️</div><div class="name">Custom Rules</div><div class="desc">Regex + custom</div></a></div>
-    <div class="tool-card"><a href="/cvss"><div class="icon">📐</div><div class="name">CVSS 4.0</div><div class="desc">Score calculator</div></a></div>
-    <div class="tool-card"><a href="/dashboard"><div class="icon">📊</div><div class="name">Dashboard</div><div class="desc">Analytics</div></a></div>
-    <div class="tool-card"><a href="/report/list"><div class="icon">📄</div><div class="name">Reports</div><div class="desc">History</div></a></div>
-  </div>
+    <!-- Input Section -->
+    <div class="bg-[#161b22] border border-gray-800 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">Smart Contract Analysis</h2>
 
-  <!-- Analysis Section -->
-  <div class="card">
-    <h2>Smart Contract Analysis</h2>
-    <form id="uploadForm" onsubmit="runAnalysis(event)">
-      <div class="flex-row mb-1">
-        <select name="analysis_type" id="analysisType" style="width:auto; min-width:200px;">
-          <option value="audit">Full Audit (recommended)</option>
-          <option value="chunked">Chunked Analysis</option>
-          <option value="hierarchical">Hierarchical Audit</option>
-          <option value="multi">Multi-Model Audit</option>
-          <option value="selfcritique">Self-Critique Audit</option>
-          <option value="gas">Gas Optimization</option>
-          <option value="permissions">Permission Analysis</option>
-          <option value="external">Slither / Mythril</option>
-          <option value="opcodes">Opcodes Only</option>
-          <option value="combined">Combined Report</option>
-          <option value="storage">Storage Analysis</option>
-          <option value="inheritance">Inheritance Analysis</option>
-        </select>
-      </div>
-
-      <!-- Tabs: Paste / Upload / GitHub -->
-      <div class="tabs">
-        <div class="tab active" onclick="switchTab('paste', this)">Paste Code</div>
-        <div class="tab" onclick="switchTab('upload', this)">Upload File</div>
-        <div class="tab" onclick="switchTab('github', this)">GitHub URL</div>
-      </div>
-
-      <!-- Paste Tab -->
-      <div id="tab-paste" class="tab-content active">
-        <div class="code-input-area">
-          <textarea id="codeInput" placeholder="Paste your Solidity code here...&#10;&#10;pragma solidity ^0.8.0;&#10;contract MyContract { ... }" oninput="updateCharCount()"></textarea>
+        <!-- Tabs -->
+        <div class="flex border-b border-gray-800 mb-4">
+            <button data-tab="paste" class="tab active px-4 py-2 text-sm text-blue-400 border-b-2 border-blue-500" onclick="switchTab('paste')">Paste Code</button>
+            <button data-tab="upload" class="tab px-4 py-2 text-sm text-gray-400 hover:text-white" onclick="switchTab('upload')">Upload File</button>
         </div>
-        <div class="flex-between mt-1">
-          <div class="char-counter" id="charCount">0 / 3,000 chars</div>
-          <button type="submit" class="btn btn-primary" id="runBtn">Run Analysis</button>
-        </div>
-      </div>
 
-      <!-- Upload Tab -->
-      <div id="tab-upload" class="tab-content">
-        <div class="upload-zone" id="dropZone">
-          <div class="icon">📄</div>
-          <p>Drag & drop a .sol file here, or click to browse</p>
-          <input type="file" id="fileInput" accept=".sol,.vy,.move,.clsp,.rs,.py" style="display:none" onchange="handleFile(event)">
-        </div>
-        <div id="fileInfo" class="hidden file-name"></div>
-        <button type="submit" class="btn btn-primary mt-1" id="runBtnUpload">Run Analysis</button>
-      </div>
+        <form id="uploadForm" onsubmit="runAnalysis(event)">
+            <div class="mb-4">
+                <select name="analysis_type" id="analysisType" class="bg-[#0d1117] border border-gray-700 rounded px-3 py-2 text-sm text-gray-300 w-full max-w-xs">
+                    <option value="audit">Full Audit</option>
+                    <option value="quick">Quick Scan</option>
+                    <option value="deep">Deep Analysis</option>
+                </select>
+            </div>
 
-      <!-- GitHub Tab -->
-      <div id="tab-github" class="tab-content">
-        <div class="code-input-area">
-          <input type="text" id="githubUrl" placeholder="https://github.com/username/repo" style="font-family:monospace;">
-        </div>
-        <p style="color:var(--text-secondary);font-size:0.8rem;margin-top:0.3rem;">Fetches all .sol files from the repo and analyzes them</p>
-        <button type="button" class="btn btn-primary mt-1" onclick="analyzeGithub()">Fetch & Analyze</button>
-      </div>
-    </form>
-  </div>
+            <!-- Paste Tab -->
+            <div id="tab-paste" class="tab-content active">
+                <textarea id="codeInput" placeholder="Paste your Solidity code here..." class="w-full bg-[#0d1117] border border-gray-700 rounded p-4 text-sm font-mono text-gray-300 min-h-[200px] resize-y focus:outline-none focus:border-blue-500"></textarea>
+                <div class="flex justify-between items-center mt-3">
+                    <span class="text-xs text-gray-500" id="charCount">0 chars</span>
+                    <button type="submit" class="bg-green-700 hover:bg-green-600 text-white px-5 py-2 rounded text-sm font-medium transition">Run Analysis</button>
+                </div>
+            </div>
 
-  <!-- Loading -->
-  <div id="loading" class="hidden card">
-    <div class="spinner"></div>
-    <p id="loadingText">Processing...</p>
-    <div class="steps" id="loadingSteps">
-      <span class="step" data-step="1">1. Submitting code to engine</span>
-      <span class="step" data-step="2">2. Analyzing with AI model</span>
-      <span class="step" data-step="3">3. Validating results (second pass)</span>
-      <span class="step" data-step="4">4. Generating report</span>
+            <!-- Upload Tab -->
+            <div id="tab-upload" class="tab-content hidden">
+                <div class="drop-zone rounded-lg p-10 text-center" id="dropZone">
+                    <p class="text-gray-400 text-sm">Drag & drop a contract file here, or click to browse</p>
+                    <p class="text-gray-600 text-xs mt-1">Supported: .sol, .vy, .move, .clsp, .clib, .rs, .py</p>
+                    <input type="file" id="fileInput" accept=".sol,.vy,.move,.clsp,.clib,.rs,.py" class="hidden" onchange="handleFile(event)">
+                </div>
+                <div id="fileInfo" class="hidden text-blue-400 text-sm mt-2"></div>
+                <button type="submit" class="bg-green-700 hover:bg-green-600 text-white px-5 py-2 rounded text-sm font-medium mt-4 transition">Run Analysis</button>
+            </div>
+        </form>
     </div>
-    <div class="progress-bar"><div class="progress-bar-fill" id="progressFill"></div></div>
-  </div>
 
-  <!-- Results -->
-  <div id="results" class="hidden card">
-    <div class="flex-between">
-      <h2><span id="resultIcon">🔍</span> <span id="resultTitle">Audit Results</span></h2>
-      <div class="flex-row">
-        <a id="downloadTxt" class="btn btn-secondary">📄 TXT</a>
-        <a id="downloadHtml" class="btn btn-secondary">🌐 HTML</a>
-        <a id="downloadPdf" class="btn btn-secondary">📥 PDF</a>
-        <button id="downloadH1" class="btn btn-secondary" onclick="downloadHackerOne()">🔶 H1</button>
-        <button class="btn btn-secondary" onclick="copyReport()">📋 Copy</button>
-      </div>
+    <!-- Progress Steps -->
+    <div id="loading" class="hidden bg-[#161b22] border border-gray-800 rounded-lg p-6 mb-6 text-center">
+        <div class="w-10 h-10 border-3 border-gray-700 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+        <p id="loadingText" class="text-gray-400 text-sm">Processing...</p>
+        <div class="flex flex-col gap-1 mt-4 text-sm text-gray-500" id="loadingSteps">
+            <span class="step" data-step="1">1. Reading AST</span>
+            <span class="step" data-step="2">2. Pre-scan</span>
+            <span class="step" data-step="3">3. AI Analysis</span>
+            <span class="step" data-step="4">4. Validation</span>
+            <span class="step" data-step="5">5. Scoring</span>
+        </div>
     </div>
-    <div class="report-wrapper mt-1">
-      <div id="reportContent" class="report-content"></div>
-    </div>
-  </div>
 
-  <!-- Footer -->
-  <footer>
-    VulnAudit — 17,164 KB patterns | Immunefi · Code4rena · FORGE-Curated · DeFiVulnLabs · SWC<br>
-    <a href="https://github.com/amino007dz-web/auditor-bot" target="_blank">GitHub</a> ·
-    <a href="https://auditor-bot.onrender.com" target="_blank">Status</a>
-  </footer>
+    <!-- Results Dashboard -->
+    <div id="results" class="hidden bg-[#161b22] border border-gray-800 rounded-lg p-6 mb-6">
+        <div class="flex flex-wrap justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold flex items-center gap-2">
+                <span id="resultIcon"></span>
+                <span id="resultTitle">Audit Results</span>
+            </h2>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="downloadMarkdown(document.getElementById('reportContent').textContent)" class="px-3 py-1.5 text-xs rounded border border-gray-700 text-gray-300 hover:border-gray-500 transition">Download Markdown</button>
+                <button onclick="downloadSarif(document.getElementById('reportContent').textContent, currentCode)" class="px-3 py-1.5 text-xs rounded border border-gray-700 text-gray-300 hover:border-gray-500 transition">Download SARIF</button>
+                <button onclick="downloadPDF()" class="px-3 py-1.5 text-xs rounded border border-gray-700 text-gray-300 hover:border-gray-500 transition">Download PDF</button>
+                <button id="copyBtn" onclick="copyToClipboard(document.getElementById('reportContent').textContent)" class="px-3 py-1.5 text-xs rounded border border-gray-700 text-gray-300 hover:border-gray-500 transition">Copy to Clipboard</button>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="flex flex-wrap gap-6 mb-6">
+            <div class="w-48 h-48">
+                <canvas id="severityChart"></canvas>
+            </div>
+            <div class="flex flex-col gap-2 text-sm" id="severityCounts">
+                <span class="severity-critical">Critical: <span id="count-critical">0</span></span>
+                <span class="severity-high">High: <span id="count-high">0</span></span>
+                <span class="severity-medium">Medium: <span id="count-medium">0</span></span>
+                <span class="severity-low">Low: <span id="count-low">0</span></span>
+                <span class="severity-info">Info: <span id="count-info">0</span></span>
+            </div>
+        </div>
+
+        <!-- Report Content -->
+        <div id="reportContent" class="bg-[#0d1117] border border-gray-800 rounded p-4 text-sm font-mono whitespace-pre-wrap max-h-[70vh] overflow-y-auto"></div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center py-6 border-t border-gray-800 text-gray-500 text-xs">
+        <a href="https://github.com" class="text-blue-400 hover:underline">GitHub</a> &middot;
+        v2.1.0 &middot;
+        Powered by Ollama
+    </footer>
 </div>
 
-<button id="scrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">⬆</button>
-
+<script src="/static/js/main.js"></script>
 <script>
 let uploadedFile = null;
-let cachedCode = '';
-let cachedGithubUrl = '';
+let currentCode = '';
 
-// Switch tabs without losing state
-function switchTab(name, el) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('tab-' + name).classList.add('active');
-  // Restore cached values
-  if (name === 'paste') {
-    if (cachedCode) document.getElementById('codeInput').value = cachedCode;
-    updateCharCount();
-  } else if (name === 'github') {
-    if (cachedGithubUrl) document.getElementById('githubUrl').value = cachedGithubUrl;
-  }
+function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active', 'border-blue-500', 'text-blue-400'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.add('text-gray-400', 'border-transparent'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    const tabBtn = document.querySelector(`[data-tab="${tab}"]`);
+    if (tabBtn) {
+        tabBtn.classList.add('active', 'border-blue-500', 'text-blue-400');
+        tabBtn.classList.remove('border-transparent', 'text-gray-400');
+    }
+    document.getElementById('tab-' + tab).classList.remove('hidden');
+    document.getElementById('tab-' + tab).classList.add('active');
 }
-
-// Restore code input on page switch back to paste
-document.getElementById('codeInput').addEventListener('input', () => {
-  cachedCode = document.getElementById('codeInput').value;
-});
 
 function handleFile(e) {
-  uploadedFile = e.target.files[0];
-  if (uploadedFile) {
-    document.getElementById('fileInfo').textContent = uploadedFile.name + ' (' + (uploadedFile.size/1024).toFixed(1) + ' KB)';
-    document.getElementById('fileInfo').classList.remove('hidden');
-  }
+    uploadedFile = e.target.files[0];
+    if (uploadedFile) {
+        document.getElementById('fileInfo').textContent = uploadedFile.name + ' (' + (uploadedFile.size / 1024).toFixed(1) + ' KB)';
+        document.getElementById('fileInfo').classList.remove('hidden');
+    }
 }
-
-document.getElementById('dropZone').addEventListener('click', () => document.getElementById('fileInput').click());
-document.getElementById('dropZone').addEventListener('dragover', (e) => { e.preventDefault(); e.currentTarget.classList.add('dragover'); });
-document.getElementById('dropZone').addEventListener('dragleave', (e) => { e.currentTarget.classList.remove('dragover'); });
-document.getElementById('dropZone').addEventListener('drop', (e) => {
-  e.preventDefault(); e.currentTarget.classList.remove('dragover');
-  const files = e.dataTransfer.files;
-  if (files.length > 0) {
-    document.getElementById('fileInput').files = files;
-    uploadedFile = files[0];
-    document.getElementById('fileInfo').textContent = uploadedFile.name + ' (' + (uploadedFile.size/1024).toFixed(1) + ' KB)';
-    document.getElementById('fileInfo').classList.remove('hidden');
-  }
-});
 
 function updateCharCount() {
-  const textarea = document.getElementById('codeInput');
-  const len = textarea.value.length;
-  const counter = document.getElementById('charCount');
-  counter.textContent = len.toLocaleString() + ' / 3,000 chars';
-  counter.className = 'char-counter' + (len > 2500 ? ' warning' : '') + (len > 3000 ? ' over' : '');
+    const ta = document.getElementById('codeInput');
+    document.getElementById('charCount').textContent = ta.value.length + ' chars';
 }
 
-function renderReport(text) {
-  // Color severity badges in report text
-  let html = text
-    .replace(/\[(Critical)\]/gi, '<span class="severity-badge severity-critical">$1</span>')
-    .replace(/\[(High)\]/gi, '<span class="severity-badge severity-high">$1</span>')
-    .replace(/\[(Medium)\]/gi, '<span class="severity-badge severity-medium">$1</span>')
-    .replace(/\[(Low)\]/gi, '<span class="severity-badge severity-low">$1</span>')
-    .replace(/\[(Info)\]/gi, '<span class="severity-badge severity-info">$1</span>')
-    .replace(/\*\*(Critical|High|Medium|Low|Info)\*\*/g, '<span class="severity-badge severity-$1">$1</span>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/^### (.*$)/gm, '<h3 style="color:var(--accent);margin:1rem 0 0.3rem 0;font-size:0.95rem;">$1</h3>')
-    .replace(/^## (.*$)/gm, '<h2 style="color:var(--accent);margin:1.25rem 0 0.5rem 0;font-size:1.05rem;">$1</h2>')
-    .replace(/^- \*\*(.*?)\*\*:/gm, '<span style="color:var(--accent);font-weight:600;">$1</span>:')
-    .replace(/\n/g, '<br>');
-  return html;
-}
-
-function validateCode(code, fileName) {
-  // Reject non-code files (images, binaries)
-  const name = (fileName || '').toLowerCase();
-  const badExts = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.bmp', '.webp', '.mp4', '.mp3', '.pdf', '.doc', '.docx', '.xls', '.xlsx'];
-  if (badExts.some(ext => name.endsWith(ext))) {
-    return 'Image or binary files are not supported. Please upload a smart contract file (.sol, .vy, .move, .rs).';
-  }
-  if (typeof code === 'string') {
-    // Check for binary content
-    const binaryChars = code.split('').filter(c => c.charCodeAt(0) > 127 && c.charCodeAt(0) < 32 && c !== '\n' && c !== '\r' && c !== '\t').length;
-    if (binaryChars > code.length * 0.1) return 'File appears to be binary. Please upload source code.';
-  }
-  return null;
+function parseSeverityCounts(text) {
+    const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+    const lower = text.toLowerCase();
+    for (const sev of ['critical', 'high', 'medium', 'low', 'info']) {
+        const regex = new RegExp(`\\b${sev}\\b`, 'gi');
+        const matches = lower.match(regex);
+        counts[sev] = matches ? matches.length : 0;
+    }
+    return counts;
 }
 
 async function runAnalysis(e) {
-  e.preventDefault();
-  const analysisType = document.getElementById('analysisType').value;
-  const section = document.getElementById('results');
-  section.classList.add('hidden');
-  const loading = document.getElementById('loading');
-  loading.classList.remove('hidden');
-  document.getElementById('loadingText').textContent = 'Starting analysis...';
-  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
-  document.getElementById('progressFill').style.width = '0%';
+    e.preventDefault();
+    const analysisType = document.getElementById('analysisType').value;
+    const loading = document.getElementById('loading');
+    const results = document.getElementById('results');
+    results.classList.add('hidden');
+    loading.classList.remove('hidden');
+    document.getElementById('loadingText').textContent = 'Starting...';
+    document.querySelectorAll('.step').forEach(s => { s.className = 'step'; });
+    document.querySelector('[data-step="1"]').classList.add('step-active');
 
-  let code = '';
-  let fileName = 'contract';
-  const isPasteTab = document.getElementById('tab-paste').classList.contains('active');
-
-  if (isPasteTab) {
-    code = document.getElementById('codeInput').value.trim();
-    if (!code) { alert('Please paste or type Solidity code first.'); loading.classList.add('hidden'); return; }
-    const err = validateCode(code, 'pasted.sol');
-    if (err) { alert(err); loading.classList.add('hidden'); return; }
-    if (code.length < 20) { alert('Code is too short. Please paste a complete contract.'); loading.classList.add('hidden'); return; }
-    fileName = 'pasted_contract';
-  } else {
-    if (!uploadedFile) { alert('Please select a file first.'); loading.classList.add('hidden'); return; }
-    const err = validateCode(uploadedFile.name, uploadedFile.name);
-    if (err) { alert(err); loading.classList.add('hidden'); return; }
-    fileName = uploadedFile.name.replace(/\.[^.]+$/, '');
-  }
-
-  // Animate steps
-  const stepEls = document.querySelectorAll('.step');
-  stepEls[0].classList.add('active');
-  document.getElementById('loadingText').textContent = 'Submitting code...';
-  document.getElementById('progressFill').style.width = '15%';
-
-  const formData = new FormData();
-  if (isPasteTab) {
-    // Use a blob for pasted code
-    const blob = new Blob([code], { type: 'text/plain' });
-    formData.append('file', blob, fileName + '.sol');
-  } else {
-    formData.append('file', uploadedFile);
-  }
-  formData.append('analysis_type', analysisType);
-
-  try {
-    stepEls[0].classList.remove('active');
-    stepEls[1].classList.add('active');
-    document.getElementById('loadingText').textContent = 'Analyzing with AI model...';
-    document.getElementById('progressFill').style.width = '35%';
-
-    const response = await fetch('/analyze', { method: 'POST', body: formData });
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Analysis failed');
-    }
-
-    stepEls[1].classList.remove('active');
-    stepEls[2].classList.add('active');
-    document.getElementById('loadingText').textContent = 'Validating results (second pass)...';
-    document.getElementById('progressFill').style.width = '70%';
-
-    await new Promise(r => setTimeout(r, 400));
-
-    stepEls[2].classList.remove('active');
-    stepEls[3].classList.add('active');
-    document.getElementById('loadingText').textContent = 'Generating report...';
-    document.getElementById('progressFill').style.width = '90%';
-
-    await new Promise(r => setTimeout(r, 300));
-
-    document.getElementById('loadingText').textContent = 'Complete!';
-    loading.classList.add('hidden');
-    document.getElementById('progressFill').style.width = '100%';
-
-    // Render report with severity highlighting
-    document.getElementById('reportContent').innerHTML = renderReport(data.report);
-    document.getElementById('downloadTxt').href = '/download/' + data.filename;
-    document.getElementById('downloadHtml').href = '/download/' + data.filename_html;
-
-    // Determine result icon based on report content
-    const reportLower = data.report.toLowerCase();
-    if (reportLower.includes('critical') || reportLower.includes('**critical**')) {
-      document.getElementById('resultIcon').textContent = '🔴';
-    } else if (reportLower.includes('high') || reportLower.includes('**high**')) {
-      document.getElementById('resultIcon').textContent = '🟠';
-    } else if (reportLower.includes('medium') || reportLower.includes('**medium**')) {
-      document.getElementById('resultIcon').textContent = '🔵';
+    let code = '';
+    const isPaste = document.getElementById('tab-paste').classList.contains('active');
+    if (isPaste) {
+        code = document.getElementById('codeInput').value.trim();
+        if (!code) { alert('Please paste code first.'); loading.classList.add('hidden'); return; }
     } else {
-      document.getElementById('resultIcon').textContent = '🟢';
+        if (!uploadedFile) { alert('Please select a file first.'); loading.classList.add('hidden'); return; }
+        code = await uploadedFile.text();
     }
-    document.getElementById('resultTitle').textContent = 'Analysis Results — ' + analysisType;
 
-    document.getElementById('downloadPdf').onclick = async () => {
-      const r = await fetch('/api/pdf', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({report:data.report, label:fileName||'report'}) });
-      const j = await r.json();
-      window.location.href = j.url;
-    };
+    document.querySelector('[data-step="1"]').classList.remove('step-active');
+    document.querySelector('[data-step="1"]').classList.add('step-done');
+    document.querySelector('[data-step="2"]').classList.add('step-active');
+    document.getElementById('loadingText').textContent = 'Pre-scanning...';
 
-    section.classList.remove('hidden');
-    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const formData = new FormData();
+    if (isPaste) {
+        const blob = new Blob([code], { type: 'text/plain' });
+        formData.append('file', blob, 'contract.sol');
+    } else {
+        formData.append('file', uploadedFile);
+    }
+    formData.append('analysis_type', analysisType);
 
-  } catch (err) {
-    document.getElementById('loadingText').textContent = 'Error: ' + err.message;
-    document.getElementById('progressFill').style.width = '0%';
-    console.error(err);
-  }
+    try {
+        document.querySelector('[data-step="2"]').classList.remove('step-active');
+        document.querySelector('[data-step="2"]').classList.add('step-done');
+        document.querySelector('[data-step="3"]').classList.add('step-active');
+        document.getElementById('loadingText').textContent = 'Analyzing with AI...';
+
+        const response = await fetch('/api/analyze', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Analysis failed');
+
+        document.querySelector('[data-step="3"]').classList.remove('step-active');
+        document.querySelector('[data-step="3"]').classList.add('step-done');
+        document.querySelector('[data-step="4"]').classList.add('step-active');
+        document.getElementById('loadingText').textContent = 'Validating results...';
+        await new Promise(r => setTimeout(r, 400));
+
+        document.querySelector('[data-step="4"]').classList.remove('step-active');
+        document.querySelector('[data-step="4"]').classList.add('step-done');
+        document.querySelector('[data-step="5"]').classList.add('step-active');
+        document.getElementById('loadingText').textContent = 'Scoring...';
+        await new Promise(r => setTimeout(r, 300));
+
+        document.getElementById('loadingText').textContent = 'Complete!';
+        loading.classList.add('hidden');
+
+        currentCode = data.report;
+        document.getElementById('reportContent').textContent = data.report;
+        document.getElementById('reportContent').innerHTML = renderReport(data.report);
+        document.getElementById('resultTitle').textContent = 'Analysis Results — ' + analysisType;
+
+        const counts = parseSeverityCounts(data.report);
+        for (const [sev, count] of Object.entries(counts)) {
+            document.getElementById('count-' + sev).textContent = count;
+        }
+        renderChart(counts);
+
+        results.classList.remove('hidden');
+        results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) {
+        document.getElementById('loadingText').textContent = 'Error: ' + err.message;
+        console.error(err);
+    }
 }
 
-async function analyzeGithub() {
-  const url = document.getElementById('githubUrl').value.trim();
-  if (!url || !url.includes('github.com')) { alert('Please enter a valid GitHub URL'); return; }
-  cachedGithubUrl = url; // cache for tab switching
-  const loading = document.getElementById('loading');
-  const section = document.getElementById('results');
-  section.classList.add('hidden');
-  loading.classList.remove('hidden');
-  document.getElementById('loadingText').textContent = 'Fetching from GitHub...';
-  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.step')[0].classList.add('active');
-  document.getElementById('progressFill').style.width = '10%';
-  try {
-    const resp = await fetch('/analyze_github', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({url, analysis_type: document.getElementById('analysisType').value})
-    });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Failed');
-    document.querySelectorAll('.step')[0].classList.remove('active');
-    document.querySelectorAll('.step')[3].classList.add('active');
-    document.getElementById('progressFill').style.width = '100%';
-    loading.classList.add('hidden');
-    document.getElementById('reportContent').innerHTML = renderReport(data.report);
-    document.getElementById('downloadTxt').href = '/download/' + data.filename;
-    document.getElementById('downloadHtml').href = '/download/' + data.filename_html;
-    document.getElementById('resultTitle').textContent = 'GitHub Analysis — ' + url.split('/').slice(-2).join('/');
-    section.classList.remove('hidden');
-  } catch (err) {
-    document.getElementById('loadingText').textContent = 'Error: ' + err.message;
-    document.getElementById('progressFill').style.width = '0%';
-  }
-}
-
-async function downloadHackerOne() {
-  const btn = document.getElementById('downloadH1');
-  btn.textContent = '⏳ H1...';
-  try {
-    const reportEl = document.getElementById('reportContent');
-    const resp = await fetch('/api/hackerone', {
-      method: 'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({report: reportEl.textContent, label: document.getElementById('resultTitle').textContent})
-    });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Failed');
-    const blob = new Blob([data.report], {type: 'text/markdown'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'hackerone_report.md';
-    a.click();
-    URL.revokeObjectURL(a.href);
-    btn.textContent = '✅ Downloaded';
-  } catch(err) {
-    btn.textContent = '❌ Error';
-    console.error(err);
-  }
-  setTimeout(() => { btn.textContent = '🔶 H1'; }, 3000);
-}
-
-function copyReport() {
-  const text = document.getElementById('reportContent').textContent;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = event.target;
-    const orig = btn.textContent;
-    btn.textContent = '✅ Copied';
-    setTimeout(() => btn.textContent = orig, 2000);
-  });
-}
-
-// Keyboard shortcut: Ctrl+Enter to submit
-document.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-    document.getElementById('runBtn').click();
-  }
-});
-
-// Scroll to top button
-window.addEventListener('scroll', () => {
-  document.getElementById('scrollTop').style.display = window.scrollY > 400 ? 'flex' : 'none';
-});
+document.getElementById('codeInput').addEventListener('input', updateCharCount);
+updateCharCount();
 </script>
 </body>
 </html>

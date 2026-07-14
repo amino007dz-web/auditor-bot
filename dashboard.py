@@ -13,11 +13,10 @@ tab1, tab2, tab3, tab4 = st.tabs(["Audit", "Gas Analysis", "Auto-PoC", "Status"]
 with tab1:
     st.subheader("Code Audit")
     code = st.text_area("Paste Solidity/Vyper/Move code", height=200)
-    lang = st.selectbox("Language", ["english", "arabic"])
     if st.button("Run Audit") and code:
         with st.spinner("Auditing..."):
             try:
-                r = requests.post(f"{API_BASE}/analyze", json={"code": code[:4000], "type": "audit", "lang": lang}, timeout=120)
+                r = requests.post(f"{API_BASE}/analyze", json={"code": code[:4000], "type": "audit", "lang": "english"}, timeout=120)
                 st.markdown(r.json().get("report", r.text))
             except Exception as e:
                 st.error(f"Failed: {e}")

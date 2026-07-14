@@ -14,7 +14,6 @@ from chain_loader import load_from_explorer
 from batch_audit import batch_audit
 from diff_audit import compute_diff, run_diff_audit
 from external_analyzers import run_external_analyzers, findings_to_text
-from pdf_report import generate_pdf_report
 from gas_analysis import analyze_gas, estimate_gas_savings
 from test_generator import generate_foundry_test
 from project_detector import analyze_project
@@ -67,16 +66,15 @@ def api_audit():
         return jsonify({"error": "Field 'code' is required"}), 400
 
     code = data["code"]
-    lang = data.get("lang", "english")
     analysis_type = data.get("type", "audit")
 
     try:
-        result = dispatch_analysis(code, analysis_type, lang=lang)
+        result = dispatch_analysis(code, analysis_type)
     except Exception as e:
         logger.exception("Audit failed")
         return jsonify({"error": str(e)}), 500
 
-    return jsonify({"result": result, "type": analysis_type, "lang": lang})
+    return jsonify({"result": result, "type": analysis_type})
 
 
 @app.route("/v1/analyze/file", methods=["POST"])
@@ -91,8 +89,7 @@ def api_file():
     code = load_local_contract(path)
     if not code:
         return jsonify({"error": "Failed to read file"}), 400
-    lang = request.form.get("lang", "english")
-    result = analyze_code(code, lang)
+    result = analyze_code(code)
     return jsonify({"result": result, "filename": f.filename})
 
 
@@ -104,8 +101,7 @@ def api_contract(chain, address):
     data = load_from_explorer(address, chain, api_key)
     if not data:
         return jsonify({"error": "Contract not found"}), 404
-    lang = request.args.get("lang", "english")
-    result = analyze_code(data["code"], lang)
+    result = analyze_code(data["code"])
     return jsonify({
         "contract": data["name"],
         "chain": chain,
@@ -121,9 +117,8 @@ def api_batch():
     data = request.get_json()
     if not data or "path" not in data:
         return jsonify({"error": "Field 'path' is required"}), 400
-    lang = data.get("lang", "english")
     workers = data.get("workers", 4)
-    result = batch_audit(data["path"], workers, lang)
+    result = batch_audit(data["path"], workers)
     return jsonify(result)
 
 
@@ -158,21 +153,8 @@ def api_project():
     data = request.get_json()
     if not data or "path" not in data:
         return jsonify({"error": "Field 'path' is required"}), 400
-    lang = data.get("lang", "english")
-    result = analyze_project(data["path"], lang)
+    result = analyze_project(data["path"], "english")
     return jsonify({"result": result})
-
-
-@app.route("/v1/pdf", methods=["POST"])
-@require_auth
-def api_pdf():
-    """Generate PDF."""
-    data = request.get_json()
-    if not data or "report" not in data:
-        return jsonify({"error": "Field 'report' is required"}), 400
-    label = data.get("label", "report")
-    path = generate_pdf_report(data["report"], label)
-    return jsonify({"pdf_path": path, "url": f"/download/{os.path.basename(path)}"})
 
 
 @app.route("/v1/tests", methods=["POST"])

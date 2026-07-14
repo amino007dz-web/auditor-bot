@@ -1,0 +1,282 @@
+import os
+import sys
+import json
+import time
+import logging
+from flask import Blueprint, request, jsonify, Response, stream_with_context
+
+sys.path.insert(0, os.path.dirname(__file__))
+
+from _shared import (
+    rate_limit, require_api_key, UPLOAD_DIR, _CODE_EXTS,
+    _run_analysis, _save_html_report, _fmt_size,
+    _HAS_GREP, _grep_arsenal, _HAS_MCP, _mcp_int,
+    _HAS_AI, _ai_scan, _HAS_ZKSYNC, _zksync_scan,
+    _HAS_SARIF, report_to_sarif, _HAS_H1, _h1_report_func,
+    _handle_zip_upload,
+)
+from main import ensure_report_dir, save_report_txt, load_local_contract
+from config import OLLAMA_MODEL, GITHUB_TOKEN
+from agents.pipeline import truncate_code
+from agents.llm_client import _stream_ollama
+from agents.prompts import SYSTEM_PROMPT
+from agents.pre_scan import run_pre_scan
+from werkzeug.utils import secure_filename
+from orchestrator import dispatch_analysis
+
+logger = logging.getLogger(__name__)
+
+api_bp = Blueprint('api', __name__, url_prefix='/api')
+
+@api_bp.route('/analyze', methods=['POST'])
+@rate_limit(5)
+@require_api_key
+def api_analyze():
+    ensure_report_dir()
+    analysis_type = request.form.get('analysis_type', 'audit')
+    code = None
+    label = "upload"
+    if 'file' in request.files and request.files['file'].filename:
+        f = request.files['file']
+        ext = os.path.splitext(f.filename)[1].lower()
+        if ext not in _CODE_EXTS:
+            return jsonify({"error": f"Unsupported file type '{ext}'. Only {', '.join(_CODE_EXTS)} files are allowed."}), 400
+        safe_name = secure_filename(f.filename)
+        path = os.path.join(UPLOAD_DIR, safe_name)
+        f.save(path)
+        code = load_local_contract(path)
+        label = os.path.splitext(safe_name)[0]
+    else:
+        return jsonify({"error": "No file was uploaded"}), 400
+    if not code:
+        return jsonify({"error": "Failed to read the file"}), 400
+    try:
+        report = _run_analysis(code, analysis_type)
+    except Exception as e:
+        logger.exception("Analysis failed")
+        return jsonify({"error": "An internal error occurred during analysis. Please try again later."}), 500
+    timestamp = int(time.time())
+    filename_txt = f"{analysis_type}_{label}_{timestamp}.txt"
+    filename_html = f"{analysis_type}_{label}_{timestamp}.html"
+    txt_path = save_report_txt(filename_txt, report)
+    html_path = _save_html_report(filename_html, report, label, analysis_type)
+    return jsonify({
+        "report": report,
+        "filename": filename_txt,
+        "filename_html": filename_html,
+    })
+
+
+@api_bp.route('/analyze/stream', methods=['POST'])
+@rate_limit(3)
+@require_api_key
+def api_analyze_stream():
+    data = request.get_json()
+    if not data or 'code' not in data:
+        return jsonify({"error": "Field 'code' is required"}), 400
+    code = data['code']
+    code = truncate_code(code)
+
+    def generate():
+        yield f"data: {json.dumps({'type': 'meta', 'message': 'Running pre-scan...'})}\n\n"
+        try:
+            pre_scan = run_pre_scan(code)
+            if pre_scan:
+                yield f"data: {json.dumps({'type': 'pre_scan', 'text': pre_scan})}\n\n"
+        except Exception as e:
+            logger.debug(f"Pre-scan in stream skipped: {e}")
+
+        yield f"data: {json.dumps({'type': 'meta', 'message': 'Analyzing with AI...'})}\n\n"
+        prompt = f"{SYSTEM_PROMPT}\n\nCode to analyze:\n```solidity\n{code}\n```\nLanguage: english"
+        for event in _stream_ollama(OLLAMA_MODEL, prompt):
+            yield event
+
+    return Response(stream_with_context(generate()), mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+
+
+@api_bp.route('/analyze/diff', methods=['POST'])
+@rate_limit(5)
+@require_api_key
+def api_analyze_diff():
+    data = request.get_json()
+    if not data or 'old_code' not in data or 'new_code' not in data:
+        return jsonify({"error": "Fields 'old_code' and 'new_code' are required"}), 400
+    try:
+        from diff_auditor import analyze_diff as _diff_analyze, summarize_diff, compute_diff
+        old = data['old_code']
+        new = data['new_code']
+        diff = compute_diff(old, new)
+        summary = summarize_diff(diff)
+        result = _diff_analyze(old, new)
+        return jsonify({"summary": summary, "diff": diff, "analysis": result})
+    except ImportError:
+        return jsonify({"error": "Diff auditor not available"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api_bp.route('/analyze_chain', methods=['POST'])
+def api_analyze_chain():
+    from chain_loader import load_from_explorer
+    data = request.get_json()
+    if not data or 'address' not in data:
+        return jsonify({"error": "Incomplete data"}), 400
+    chain_data = load_from_explorer(data['address'], data.get('chain', 'ethereum'),
+                                     data.get('api_key', ''))
+    if not chain_data:
+        return jsonify({"error": "Failed to fetch contract"}), 400
+    analysis_type = data.get('analysis_type', 'audit')
+    report = _run_analysis(chain_data['code'], analysis_type)
+    ts = int(time.time())
+    fn_txt = f"chain_{chain_data['name']}_{ts}.txt"
+    save_report_txt(fn_txt, report)
+    return jsonify({"report": report, "filename": fn_txt,
+                    "contract": chain_data['name']})
+
+
+@api_bp.route('/analyze_github', methods=['POST'])
+def api_analyze_github():
+    from github_loader import download_contracts
+    data = request.get_json()
+    if not data or 'url' not in data:
+        return jsonify({"error": "GitHub URL is required"}), 400
+    url = data['url'].strip()
+    analysis_type = data.get('analysis_type', 'audit')
+    try:
+        contracts = download_contracts(url, GITHUB_TOKEN if GITHUB_TOKEN else None)
+        if not contracts:
+            return jsonify({"error": "No Solidity files found in the repository"}), 404
+        combined_code = "\n\n// ====== " + "=" * 40 + "\n\n".join(
+            f"// File: {c['name']}\n{c['code'][:2000]}" for c in contracts[:10]
+        )[:5000]
+        report = dispatch_analysis(combined_code, analysis_type)
+        ts = int(time.time())
+        label = url.rstrip('/').split('/')[-1] or "github"
+        fn_txt = f"github_{label}_{ts}.txt"
+        fn_html = f"github_{label}_{ts}.html"
+        save_report_txt(fn_txt, report)
+        _save_html_report(fn_html, report, label, analysis_type)
+        return jsonify({"report": report, "filename": fn_txt, "filename_html": fn_html})
+    except ImportError:
+        return jsonify({"error": "PyGithub not installed. Run: pip install PyGithub"}), 500
+    except Exception as e:
+        logger.exception("GitHub analysis failed")
+        return jsonify({"error": str(e)}), 500
+
+
+@api_bp.route('/upload_project', methods=['POST'])
+def api_upload_project():
+    ensure_report_dir()
+    if 'file' not in request.files or not request.files['file'].filename:
+        return jsonify({"error": "No file uploaded"}), 400
+    result = _handle_zip_upload(request.files['file'])
+    if isinstance(result, dict) and 'error' in result:
+        return jsonify(result), 400
+    return jsonify({"report": str(result)})
+
+
+@api_bp.route('/hackerone', methods=['POST'])
+@rate_limit(10)
+@require_api_key
+def api_hackerone():
+    data = request.get_json()
+    if not data or 'report' not in data:
+        return jsonify({"error": "Field 'report' is required"}), 400
+    label = data.get('label', 'Smart Contract')
+    code = data.get('code', '')
+    if _HAS_H1:
+        h1_report = _h1_report_func(data['report'], code, label)
+        return jsonify({"report": h1_report})
+    else:
+        from agents import generate_hackerone_report
+        h1_report = generate_hackerone_report(data['report'], code, label)
+        return jsonify({"report": h1_report})
+
+
+@api_bp.route('/grep-arsenal', methods=['POST'])
+@rate_limit(20)
+@require_api_key
+def api_grep_arsenal():
+    data = request.get_json()
+    if not data or 'code' not in data:
+        return jsonify({"error": "Field 'code' is required"}), 400
+    if not _HAS_GREP:
+        return jsonify({"error": "Grep arsenal not available"}), 500
+    summary = _grep_arsenal.get_summary(data['code'])
+    return jsonify({"summary": summary})
+
+
+@api_bp.route('/mcp-scan', methods=['POST'])
+@rate_limit(20)
+@require_api_key
+def api_mcp_scan():
+    data = request.get_json()
+    if not data or 'code' not in data:
+        return jsonify({"error": "Field 'code' is required"}), 400
+    if not _HAS_MCP:
+        return jsonify({"error": "MCP scanner not available"}), 500
+    result = _mcp_int.analyze_contract(data['code'])
+    return jsonify(result)
+
+
+@api_bp.route('/ai-detect', methods=['POST'])
+@rate_limit(20)
+@require_api_key
+def api_ai_detect():
+    data = request.get_json()
+    if not data or 'code' not in data:
+        return jsonify({"error": "Field 'code' is required"}), 400
+    if not _HAS_AI:
+        return jsonify({"error": "AI detector not available"}), 500
+    ai_check = _ai_scan.detect_ai_generated(data['code'])
+    vulns = _ai_scan.check_ai_vulnerabilities(data['code'])
+    return jsonify({"ai_likely": ai_check, "vulnerabilities": vulns})
+
+
+@api_bp.route('/zksync-analyze', methods=['POST'])
+@rate_limit(20)
+@require_api_key
+def api_zksync_analyze():
+    data = request.get_json()
+    if not data or 'code' not in data:
+        return jsonify({"error": "Field 'code' is required"}), 400
+    if not _HAS_ZKSYNC:
+        return jsonify({"error": "ZKsync analyzer not available"}), 500
+    result = _zksync_scan.check_vulnerable_patterns(data['code'])
+    return jsonify(result)
+
+
+@api_bp.route('/poc', methods=['POST'])
+@rate_limit(15)
+@require_api_key
+def api_poc():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+    bug_class = data.get('bug_class', 'reentrancy')
+    target_addr = data.get('target_addr', '0x...')
+    fork_block = data.get('fork_block', 18000000)
+    try:
+        from hackerone_report import _get_poc_template
+        poc = _get_poc_template(bug_class, target_addr, fork_block)
+        return jsonify({"poc": poc, "filename": f"ExploitPoC_{bug_class}.t.sol"})
+    except ImportError:
+        return jsonify({"error": "PoC generator not available"}), 500
+
+
+@api_bp.route('/sarif', methods=['POST'])
+@rate_limit(10)
+@require_api_key
+def api_sarif():
+    data = request.get_json()
+    if not data or 'report' not in data:
+        return jsonify({"error": "Field 'report' is required"}), 400
+    if not _HAS_SARIF:
+        return jsonify({"error": "SARIF exporter not available"}), 500
+    try:
+        sarif = report_to_sarif(data['report'], data.get('code', ''), data.get('label', 'contract'))
+        return Response(sarif, mimetype='application/json',
+                        headers={'Content-Disposition': 'attachment; filename=audit.sarif'})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

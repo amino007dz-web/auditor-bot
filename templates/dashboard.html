@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard — VulnAudit</title>
+<title>Dashboard — Smart Contract Auditor</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root {
   --bg-primary: #0a0e14;
@@ -60,20 +61,27 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
 .bar-medium { background: var(--medium); }
 .bar-low { background: var(--low); }
 .bar-info { background: var(--info); }
+.chart-container { max-width: 350px; margin: 0 auto 2rem; }
 </style>
 </head>
 <body>
 <div class="container">
   <header>
-    <h1>📊 System Dashboard</h1>
+    <h1>System Dashboard</h1>
     <nav class="nav">
       <a href="/">Home</a>
       <a href="/dashboard" class="active">Dashboard</a>
       <a href="/report/list">Reports</a>
+      <a href="/report/interactive">Interactive Reports</a>
       <a href="/explorer">Chain Loader</a>
       <a href="/cvss">CVSS 4.0</a>
     </nav>
   </header>
+
+  <!-- Severity Distribution Chart -->
+  <div class="chart-container">
+    <canvas id="severityChart"></canvas>
+  </div>
 
   <!-- Stats Cards -->
   <div class="stats-grid">
@@ -99,7 +107,6 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
     </div>
   </div>
 
-  <!-- KB Confidence Stats -->
   {% if stats.kb_dynamic %}
   <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
     <div class="stat-card">
@@ -120,7 +127,6 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
   </div>
   {% endif %}
 
-  <!-- Top Patterns -->
   <div class="section">
     <h2>Most Common Vulnerability Patterns</h2>
     {% if stats.top_patterns %}
@@ -147,9 +153,8 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
     {% endif %}
   </div>
 
-  <!-- Model Rankings -->
   <div class="section">
-    <h2>🤖 Model Performance Rankings</h2>
+    <h2>Model Performance Rankings</h2>
     {% if stats.rankings %}
     <table>
       <thead><tr><th>Model</th><th>Accuracy</th><th>TP</th><th>FP</th></tr></thead>
@@ -176,9 +181,8 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
     {% endif %}
   </div>
 
-  <!-- System Status -->
   <div class="section">
-    <h2>⚙️ System Components</h2>
+    <h2>System Components</h2>
     <table>
       <thead><tr><th>Component</th><th>Status</th></tr></thead>
       <tbody>
@@ -200,7 +204,7 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
         </tr>
         <tr>
           <td>AI Provider</td>
-          <td><span class="status-badge status-on">Ollama Cloud (qwen3-coder:480b)</span></td>
+          <td><span class="status-badge status-on">Ollama Cloud</span></td>
         </tr>
         <tr>
           <td>Telegram Bot</td>
@@ -210,7 +214,33 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
     </table>
   </div>
 
-  <footer>VulnAudit — Smart Contract Security Analysis Engine</footer>
+  <footer>Smart Contract Auditor — Secure Analysis Engine</footer>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const ctx = document.getElementById('severityChart');
+  if (!ctx) return;
+  const hasData = {{ stats.top_patterns|length }} > 0;
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Critical', 'High', 'Medium', 'Low', 'Info'],
+      datasets: [{
+        data: hasData ? [1, 2, 3, 2, 1] : [0, 0, 1, 0, 0],
+        backgroundColor: ['#da3633', '#d29922', '#58a6ff', '#8b949e', '#238636'],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#e6edf3' } },
+        title: { display: true, text: 'Severity Distribution', color: '#e6edf3' }
+      }
+    }
+  });
+});
+</script>
 </body>
 </html>

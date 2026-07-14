@@ -50,7 +50,6 @@ footer { text-align:center; padding:1.5rem; color:var(--text-secondary); border-
   <div id="tab-path" class="tab-content active">
     <form method="POST">
       <input type="text" name="path" placeholder="Full path to project on server..." required>
-      <select name="lang"><option value="english">English</option><option value="arabic">Arabic</option></select>
       <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:0.5rem;">Auto-detects Foundry / Hardhat / Truffle / Brownie</p>
       <button type="submit" class="btn">Analyze Project</button>
     </form>
@@ -64,7 +63,6 @@ footer { text-align:center; padding:1.5rem; color:var(--text-secondary); border-
       <input type="file" id="fileInput" accept=".zip" style="display:none" onchange="handleFile(event)">
     </div>
     <div id="fileInfo" class="hidden file-name"></div>
-    <select id="langSelect"><option value="english">English</option><option value="arabic">Arabic</option></select>
     <button class="btn mt-1" onclick="uploadZip()">Upload & Analyze</button>
   </div>
 </div>
@@ -113,7 +111,6 @@ async function uploadZip() {
   document.getElementById('result').classList.add('hidden');
   const formData = new FormData();
   formData.append('file', uploadedFile);
-  formData.append('lang', document.getElementById('langSelect').value);
   try {
     const resp = await fetch('/upload_project', { method:'POST', body:formData });
     const data = await resp.json();

@@ -32,7 +32,7 @@
         },
         "sca.lang": {
           "type": "string",
-          "enum": ["english", "arabic"],
+          "enum": ["english"],
           "default": "english",
           "description": "Report language"
         },

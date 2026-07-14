@@ -34,7 +34,6 @@ svc = AuditService()
 def dispatch_analysis(
     code: str,
     analysis_type: str = "audit",
-    lang: str = "english",
     protocol_name: str = "Protocol",
     focus: str = "",
     repo_url: str = "",
@@ -62,30 +61,29 @@ def dispatch_analysis(
         return analyze_permissions(code)
 
     if analysis_type == "chunked":
-        return chunked_audit(code, lang)
+        return chunked_audit(code)
 
     if analysis_type == "external":
         ext = run_external_analyzers(code)
         return findings_to_text(ext)
 
     if analysis_type == "autopoc":
-        initial = analyze_code(code, lang)
-        critique = self_critique(initial, code, lang)
+        initial = analyze_code(code)
+        critique = self_critique(initial, code, "english")
         return validate_with_poc_silent(critique, code)
 
     if analysis_type == "multi":
-        return multi_audit(code, lang, team)
+        return multi_audit(code, team)
 
     if analysis_type == "hierarchical":
-        return hierarchical_audit(code, protocol_name, repo_url, lang, focus)
+        return hierarchical_audit(code, protocol_name, repo_url, focus=focus)
 
-    return analyze_code(code, lang)
+    return analyze_code(code)
 
 
 def run_parallel_analysis(
     code: str,
     n_workers: int = 3,
-    lang: str = "english",
 ) -> tuple[str, list]:
     """Run parallel analysis using multiple models."""
     from agents import run_parallel as _run_parallel
@@ -95,7 +93,7 @@ def run_parallel_analysis(
         f"You are a smart contract security expert. "
         f"Analyze the following code and find vulnerabilities:\n"
         f"```solidity\n{code[:3000]}\n```\n"
-        f"Language: {lang.capitalize()}"
+        f"Language: English"
     )
     work_items = [
         {"model_id": FREE_MODELS[m]["id"], "prompt": prompt, "label": m}
