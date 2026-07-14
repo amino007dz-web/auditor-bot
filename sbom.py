@@ -122,7 +122,7 @@ def identify_package(path: str) -> str:
 def check_version_cves(pragma: str) -> List[str]:
     cves = []
     for ver, vulns in _KNOWN_VULNERABLE.items():
-        if ver in pragma:
+        if re.search(r'(?<!\d)' + re.escape(ver) + r'(?!\d)', pragma):
             cves.extend(vulns)
     return cves
 

@@ -24,7 +24,7 @@ from cli_display import console
 
 logger = logging.getLogger(__name__)
 _cache_local = threading.local()
-_cache_lock = threading.Lock()
+_cache_lock = threading.RLock()
 
 
 def _get_conn() -> sqlite3.Connection:

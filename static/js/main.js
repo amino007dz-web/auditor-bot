@@ -121,7 +121,7 @@ function countSeverities(text) {
     for (const line of lines) {
         const trimmed = line.trim();
         for (const key of Object.keys(counts)) {
-            if (trimmed.startsWith('### ' + key) || trimmed.startsWith('## ' + key) || trimmed.startsWith('**' + key + '**') || trimmed.startsWith(key)) {
+            if (trimmed.startsWith('### ' + key) || trimmed.startsWith('## ' + key) || trimmed.startsWith('**' + key + '**') || trimmed.startsWith(key + ' ') || trimmed.startsWith(key + ':')) {
                 counts[key]++;
                 break;
             }
