@@ -1,3 +1,4 @@
+import html
 import os
 import sys
 import time
@@ -177,7 +178,8 @@ def _run_analysis(code: str, analysis_type: str) -> str:
     return dispatch_analysis(code, analysis_type)
 
 def _save_html_report(filename: str, report: str, label: str, analysis_type: str) -> str:
-    html = f"""<!DOCTYPE html>
+    safe_report = html.escape(report)
+    page = f"""<!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head><meta charset="UTF-8">
 <title>{label} - {analysis_type} Report</title>
@@ -200,13 +202,13 @@ hr {{ border: none; border-top: 1px solid #30363d; margin: 1rem 0; }}
 <h1>{label}</h1>
 <p class="meta"><strong>Analysis type:</strong> {analysis_type} | <strong>Date:</strong> {time.strftime('%Y-%m-%d %H:%M:%S')}</p>
 <hr>
-<pre>{report}</pre>
+<pre>{safe_report}</pre>
 <hr>
 <p class="meta" style="margin-top: 2rem;">Smart Contract Auditor — Secure Analysis Engine</p>
 </body></html>"""
     path = os.path.join(REPORT_DIR, filename)
     with open(path, "w", encoding="utf-8") as f:
-        f.write(html)
+        f.write(page)
     logger.info(f"HTML report saved: {path}")
     return path
 
@@ -244,7 +246,10 @@ def _handle_zip_upload(file_storage):
                     continue
             if rejected:
                 return {"error": f"Zip contains rejected files: {', '.join(rejected[:3])}" + (f" and {len(rejected)-3} more" if len(rejected) > 3 else "")}
-            zf.extractall(tmpdir)
+            try:
+                zf.extractall(tmpdir, filter='data')
+            except TypeError:
+                zf.extractall(tmpdir)
         items = os.listdir(tmpdir)
         root = tmpdir
         for item in items:

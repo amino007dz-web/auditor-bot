@@ -41,14 +41,19 @@ function updateStep(step, status) {
 }
 
 function renderReport(markdown) {
+    let html;
     if (typeof marked !== 'undefined') {
-        return marked.parse(markdown);
+        html = marked.parse(markdown);
+    } else {
+        html = markdown
+            .replace(/### (.*)/g, '<h3>$1</h3>')
+            .replace(/## (.*)/g, '<h2>$1</h2>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>');
     }
-    let html = markdown
-        .replace(/### (.*)/g, '<h3>$1</h3>')
-        .replace(/## (.*)/g, '<h2>$1</h2>')
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\n/g, '<br>');
+    if (typeof DOMPurify !== 'undefined') {
+        html = DOMPurify.sanitize(html);
+    }
     return html;
 }
 
