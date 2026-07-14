@@ -30,7 +30,7 @@ dependencies = [
     "PyGithub>=2.0.0",
     "flask>=3.0.0",
     "rich>=13.0.0",
-    "solcast>=1.3.0",
+    "py-solc-ast>=1.2.0",
     "py-solc-x>=2.0.0",
 ]
 [project.optional-dependencies]
