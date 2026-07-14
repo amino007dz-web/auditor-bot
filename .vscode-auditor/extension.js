@@ -15,7 +15,6 @@ function activate(context) {
     const code = editor.document.getText();
     const config = vscode.workspace.getConfiguration("sca");
     const apiUrl = config.get("apiUrl", "https://auditor-bot.onrender.com");
-    const lang = config.get("lang", "english");
     const apiKey = config.get("apiKey", "");
 
     const sendLength = code.length;
@@ -46,7 +45,7 @@ function activate(context) {
           const resp = await fetch(`${apiUrl}/analyze`, {
             method: "POST",
             headers,
-            body: JSON.stringify({ code: code.slice(0, 4000), type: "audit", lang }),
+            body: JSON.stringify({ code: code.slice(0, 4000), type: "audit" }),
           });
           const data = await resp.json();
           const panel = vscode.window.createWebviewPanel(

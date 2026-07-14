@@ -78,7 +78,9 @@ def api_analyze_stream():
     code = truncate_code(code)
 
     def generate():
+        # Step 1: Pre-scan
         yield f"data: {json.dumps({'type': 'meta', 'message': 'Running pre-scan...'})}\n\n"
+        yield f"data: {json.dumps({'type': 'step', 'step': 1, 'status': 'done'})}\n\n"
         try:
             pre_scan = run_pre_scan(code)
             if pre_scan:
@@ -86,10 +88,66 @@ def api_analyze_stream():
         except Exception as e:
             logger.debug(f"Pre-scan in stream skipped: {e}")
 
+        # Step 2: AI Analysis with SSE streaming
+        yield f"data: {json.dumps({'type': 'step', 'step': 2, 'status': 'active'})}\n\n"
         yield f"data: {json.dumps({'type': 'meta', 'message': 'Analyzing with AI...'})}\n\n"
         prompt = f"{SYSTEM_PROMPT}\n\nCode to analyze:\n```solidity\n{code}\n```\nLanguage: english"
+        full_report = ""
         for event in _stream_ollama(OLLAMA_MODEL, prompt):
+            if event.startswith("data: "):
+                try:
+                    edata = json.loads(event[6:])
+                    if 'token' in edata:
+                        full_report += edata['token']
+                        yield f"data: {json.dumps({'type': 'token', 'text': edata['token']})}\n\n"
+                        continue
+                    elif 'done' in edata:
+                        full_report = edata.get('full', full_report)
+                        yield f"data: {json.dumps({'type': 'step', 'step': 2, 'status': 'done'})}\n\n"
+                        continue
+                    elif 'error' in edata:
+                        yield f"data: {json.dumps({'type': 'error', 'message': edata['error']})}\n\n"
+                        return
+                except json.JSONDecodeError:
+                    pass
             yield event
+
+        # Step 3: Validation pass
+        if full_report:
+            yield f"data: {json.dumps({'type': 'step', 'step': 3, 'status': 'active'})}\n\n"
+            yield f"data: {json.dumps({'type': 'meta', 'message': 'Running second-pass validation...'})}\n\n"
+            try:
+                from agents.validation import validate_report
+                validated = validate_report(full_report, code, "english")
+                if validated and len(validated) > 50:
+                    full_report = validated
+            except Exception as e:
+                logger.debug(f"Validation in stream skipped: {e}")
+            yield f"data: {json.dumps({'type': 'step', 'step': 3, 'status': 'done'})}\n\n"
+
+        # Step 4: CVSS scoring
+        if full_report:
+            yield f"data: {json.dumps({'type': 'step', 'step': 4, 'status': 'active'})}\n\n"
+            yield f"data: {json.dumps({'type': 'meta', 'message': 'Computing CVSS scores...'})}\n\n"
+            try:
+                from cvss_scorer import score_report as _score_cvss
+                cvss_result = _score_cvss(full_report)
+                if cvss_result:
+                    full_report += f"\n\n---\n## CVSS Score\n{cvss_result}\n"
+            except Exception as e:
+                logger.debug(f"CVSS in stream skipped: {e}")
+            yield f"data: {json.dumps({'type': 'step', 'step': 4, 'status': 'done'})}\n\n"
+
+        # KB learning (silent, no step)
+        try:
+            from agents.pipeline import learn_from_audit
+            learn_from_audit(code, full_report)
+        except Exception as e:
+            logger.debug(f"KB learning skipped: {e}")
+
+        # Step 5: Done
+        yield f"data: {json.dumps({'type': 'step', 'step': 5, 'status': 'done'})}\n\n"
+        yield f"data: {json.dumps({'type': 'final', 'report': full_report})}\n\n"
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream',
                     headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})

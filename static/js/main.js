@@ -111,9 +111,25 @@ function copyToClipboard(text) {
     });
 }
 
+function countSeverities(text) {
+    const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+    const lower = text.toLowerCase();
+    const lines = lower.split('\n');
+    for (const line of lines) {
+        for (const key of Object.keys(counts)) {
+            if (line.includes('### ' + key) || line.includes('## ' + key) || line.includes('**' + key) || line.includes(key + ' severity')) {
+                counts[key]++;
+                break;
+            }
+        }
+    }
+    return counts;
+}
+
 function startAnalysis(code) {
     if (analysisAbortController) analysisAbortController.abort();
     analysisAbortController = new AbortController();
+    currentCode = '';
     const loading = document.getElementById('loading');
     const results = document.getElementById('results');
     if (loading) loading.classList.remove('hidden');
@@ -138,20 +154,31 @@ function startAnalysis(code) {
             buffer = lines.pop() || '';
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
-                    const data = JSON.parse(line.slice(6));
+                    let data;
+                    try { data = JSON.parse(line.slice(6)); } catch (e) { console.warn('SSE parse error:', line.slice(0, 80)); continue; }
                     if (data.type === 'meta' && data.message) {
                         document.getElementById('loadingText').textContent = data.message;
+                    }
+                    if (data.type === 'step') {
+                        updateStep(data.step, data.status);
                     }
                     if (data.type === 'token') {
                         currentCode += data.text;
                         document.getElementById('reportContent').innerHTML = renderReport(currentCode);
+                    }
+                    if (data.type === 'final') {
+                        currentCode = data.report;
+                        document.getElementById('reportContent').innerHTML = renderReport(currentCode);
+                        const sev = countSeverities(currentCode);
+                        renderChart(sev);
+                        document.getElementById('severityCounts').textContent =
+                            'Critical: ' + sev.critical + ' | High: ' + sev.high + ' | Medium: ' + sev.medium + ' | Low: ' + sev.low + ' | Info: ' + sev.info;
                     }
                 }
             }
         }
         if (loading) loading.classList.add('hidden');
         if (results) results.classList.remove('hidden');
-        updateStep(5, 'done');
     }).catch(err => {
         if (err.name !== 'AbortError') {
             console.error('Stream error:', err);
