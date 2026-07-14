@@ -88,13 +88,31 @@ def generate_poc(finding: Finding, full_code: str) -> Optional[str]:
         return None
 
 
-def run_foundry_test(poc_path: str, project_dir: str = ".") -> dict:
+def run_foundry_test(poc_path: str, project_dir: str = ".", use_docker: bool = False) -> dict:
     result = {"passed": False, "output": "", "error": ""}
     try:
-        proc = subprocess.run(
-            ["forge", "test", "--match-path", poc_path, "--no-match-coverage"],
-            capture_output=True, text=True, timeout=120, cwd=project_dir,
-        )
+        if use_docker:
+            import shutil
+            docker_path = shutil.which("docker")
+            if not docker_path:
+                result["error"] = "Docker not found. Install Docker: https://docs.docker.com/get-docker/"
+                return result
+            abs_poc = os.path.abspath(poc_path)
+            poc_dir = os.path.dirname(abs_poc)
+            poc_basename = os.path.basename(abs_poc)
+            proc = subprocess.run(
+                ["docker", "run", "--rm",
+                 "-v", f"{poc_dir}:/poc:ro",
+                 "ghcr.io/foundry-rs/foundry:latest",
+                 "forge", "test", "--match-path", f"/poc/{poc_basename}",
+                 "--no-match-coverage"],
+                capture_output=True, text=True, timeout=120,
+            )
+        else:
+            proc = subprocess.run(
+                ["forge", "test", "--match-path", poc_path, "--no-match-coverage"],
+                capture_output=True, text=True, timeout=120, cwd=project_dir,
+            )
         result["output"] = proc.stdout + proc.stderr
         result["passed"] = proc.returncode == 0
         if "FAILED" in proc.stdout or "FAILED" in proc.stderr:

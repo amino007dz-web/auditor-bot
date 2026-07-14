@@ -1,6 +1,6 @@
 import os, json, logging, html
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from analyzers.base import Finding
 
 logger = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ def _build_discord_payload(
     embed = {
         "title": f"Smart Contract Audit Report{' - ' + project if project else ''}",
         "color": color,
-        "timestamp": datetime.now(datetime.UTC).isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
     }
 
     if summary:

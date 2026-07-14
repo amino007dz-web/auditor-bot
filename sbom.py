@@ -1,0 +1,200 @@
+"""SBOM — Software Bill of Materials for smart contract dependencies."""
+
+import json
+import logging
+import os
+import re
+from typing import List, Dict, Optional
+from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
+
+IMPORT_RE = re.compile(
+    r'^\s*import\s+(?:\{[^}]*\}\s+from\s+)?["\']([^"\']+)["\']\s*;',
+    re.MULTILINE,
+)
+
+PRAGMA_RE = re.compile(r'^\s*pragma\s+solidity\s+([^;]+);', re.MULTILINE)
+
+_KNOWN_PACKAGES = {
+    "@openzeppelin/": "OpenZeppelin Contracts",
+    "@uniswap/": "Uniswap",
+    "@aave/": "Aave",
+    "@chainlink/": "Chainlink",
+    "@balancer-labs/": "Balancer",
+    "@curvefi/": "Curve",
+    "@makerdao/": "MakerDAO",
+    "@compound-finance/": "Compound",
+    "@lido/": "Lido",
+    "@sushi/": "SushiSwap",
+    "@pancakeswap/": "PancakeSwap",
+    "@layerzerolabs/": "LayerZero",
+    "@wormhole/": "Wormhole",
+    "@solmate/": "Solmate (rari-capital)",
+    "@forge-std/": "Foundry Forge Std",
+}
+
+_KNOWN_VULNERABLE = {
+    "0.4.22": ["CVE-2023-34460"],
+    "0.4.24": ["CVE-2023-34461"],
+    "0.4.25": ["CVE-2023-34462"],
+    "0.5.0": ["CVE-2022-39378"],
+    "0.5.1": ["CVE-2022-39378"],
+    "0.6.0": ["CVE-2022-38721"],
+    "0.6.1": ["CVE-2022-38721"],
+    "0.7.0": ["CVE-2022-38723"],
+    "0.7.1": ["CVE-2022-38723"],
+    "0.7.2": ["CVE-2022-38723"],
+    "0.7.3": ["CVE-2022-38723"],
+    "0.7.4": ["CVE-2022-38723"],
+    "0.7.5": ["CVE-2022-38723"],
+    "0.7.6": ["CVE-2022-38723"],
+    "0.8.0": ["CVE-2023-40014"],
+    "0.8.1": ["CVE-2023-40014"],
+    "0.8.2": ["CVE-2023-40014"],
+    "0.8.3": ["CVE-2023-40014"],
+    "0.8.4": ["CVE-2023-40014"],
+    "0.8.5": ["CVE-2023-40014"],
+    "0.8.6": ["CVE-2023-40014"],
+    "0.8.7": ["CVE-2023-40014"],
+    "0.8.8": ["CVE-2023-40014"],
+    "0.8.9": ["CVE-2023-40014"],
+    "0.8.10": ["CVE-2023-40014"],
+    "0.8.11": ["CVE-2023-40014"],
+    "0.8.12": ["CVE-2023-40014"],
+    "0.8.13": ["CVE-2023-40014"],
+    "0.8.14": ["CVE-2023-40014"],
+    "0.8.15": ["CVE-2023-40014"],
+    "0.8.16": ["CVE-2023-40014"],
+    "0.8.17": ["CVE-2023-40014"],
+    "0.8.18": ["CVE-2023-40014"],
+    "0.8.19": [],
+}
+
+@dataclass
+class Dependency:
+    name: str
+    version: str = ""
+    known_package: str = ""
+    cves: List[str] = field(default_factory=list)
+    license: str = ""
+
+
+@dataclass
+class SBOMResult:
+    pragma: str = ""
+    compiler_version: str = ""
+    dependencies: List[Dependency] = field(default_factory=list)
+
+
+def parse_imports(code: str) -> List[str]:
+    return IMPORT_RE.findall(code)
+
+
+def parse_pragma(code: str) -> str:
+    m = PRAGMA_RE.search(code)
+    return m.group(1).strip() if m else ""
+
+
+def identify_package(path: str) -> str:
+    for prefix, name in _KNOWN_PACKAGES.items():
+        if prefix in path:
+            return name
+    parts = path.split("/")
+    if len(parts) >= 2:
+        return parts[0]
+    return ""
+
+
+def check_version_cves(pragma: str) -> List[str]:
+    cves = []
+    for ver, vulns in _KNOWN_VULNERABLE.items():
+        if ver in pragma:
+            cves.extend(vulns)
+    return cves
+
+
+def analyze_sbom(code: str) -> SBOMResult:
+    result = SBOMResult()
+    result.pragma = parse_pragma(code)
+
+    major = re.search(r'(\d+\.\d+\.\d+)', result.pragma)
+    result.compiler_version = major.group(1) if major else result.pragma
+
+    result.dependencies = []
+    seen = set()
+    for imp in parse_imports(code):
+        if imp in seen:
+            continue
+        seen.add(imp)
+        dep = Dependency(name=imp)
+        dep.known_package = identify_package(imp)
+        dep.cves = check_version_cves(result.compiler_version) if dep.known_package else []
+        result.dependencies.append(dep)
+
+    return result
+
+
+def format_sbom_text(result: SBOMResult) -> str:
+    parts = ["## SBOM — Software Bill of Materials\n"]
+
+    parts.append(f"**Compiler**: Solidity {result.compiler_version}")
+    parts.append(f"**Pragma**: {result.pragma}\n")
+
+    if not result.dependencies:
+        parts.append("_No external dependencies detected._\n")
+        return "\n".join(parts)
+
+    parts.append(f"### Dependencies ({len(result.dependencies)})\n")
+    parts.append("| # | Import Path | Known Package | CVEs |")
+    parts.append("|---|------------|--------------|------|")
+    for i, dep in enumerate(result.dependencies, 1):
+        pkg = dep.known_package or "-"
+        cve_str = ", ".join(dep.cves) if dep.cves else "None"
+        parts.append(f"| {i} | `{dep.name}` | {pkg} | {cve_str} |")
+    parts.append("")
+
+    vuln_deps = [d for d in result.dependencies if d.cves]
+    if vuln_deps:
+        parts.append("### ⚠ Known Vulnerabilities\n")
+        for dep in vuln_deps:
+            for cve in dep.cves:
+                parts.append(f"- **{dep.name}**: {cve}")
+                parts.append(f"  - Upgrade Solidity to avoid this CVE")
+        parts.append("")
+
+    risk = "Low"
+    if vuln_deps:
+        risk = "Medium" if len(vuln_deps) <= 2 else "High"
+    parts.append(f"**Overall Dependency Risk**: {risk}")
+
+    return "\n".join(parts)
+
+
+def generate_sbom_json(result: SBOMResult) -> str:
+    return json.dumps({
+        "bomFormat": "CycloneDX",
+        "specVersion": "1.4",
+        "metadata": {
+            "component": {
+                "type": "application",
+                "name": "Smart Contract Audit Target",
+                "version": "1.0.0",
+            }
+        },
+        "components": [
+            {
+                "type": "library",
+                "name": d.known_package or d.name,
+                "version": result.compiler_version,
+                "purl": f"pkg:npm/{d.name.replace('@', '').replace('/', '%2F')}@{result.compiler_version}",
+                "licenses": [{"license": {"id": "MIT"}}] if d.known_package else [],
+                "evidence": {"identity": [{"field": "purl", "confidence": 0.5}]},
+            }
+            for d in result.dependencies
+        ],
+        "dependencies": [
+            {"ref": d.known_package or d.name, "dependsOn": []}
+            for d in result.dependencies
+        ],
+    }, indent=2)

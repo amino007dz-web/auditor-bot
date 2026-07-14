@@ -114,13 +114,6 @@ class TestCombinedReport:
         assert "Inheritance Analysis" in report
 
 
-try:
-    from static_analysis.ast_analyzer import HAS_SOLCAST as AST_AVAILABLE
-except ImportError:
-    AST_AVAILABLE = False
-
-
-@pytest.mark.skipif(not AST_AVAILABLE, reason="solcast not installed")
 class TestASTAnalysis:
     def test_ast_storage_simple(self):
         from static_analysis.ast_analyzer import analyze_storage_with_ast

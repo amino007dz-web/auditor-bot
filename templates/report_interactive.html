@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audit Report</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; padding: 2rem; max-width: 960px; margin: auto; }
+h1 { color: #58a6ff; margin-bottom: 0.5rem; }
+.meta { color: #8b949e; margin-bottom: 2rem; }
+.finding { background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; }
+.finding-header { display: flex; align-items: center; padding: 0.75rem 1rem; cursor: pointer; user-select: none; transition: background 0.15s; }
+.finding-header:hover { background: #1c2128; }
+.finding-header .severity-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin-right: 0.75rem; text-transform: uppercase; min-width: 60px; text-align: center; }
+.critical { background: #da3633; color: #fff; }
+.high { background: #d29922; color: #000; }
+.medium { background: #58a6ff; color: #fff; }
+.low { background: #3fb950; color: #000; }
+.info { background: #8b949e; color: #fff; }
+.finding-header .title { flex: 1; font-weight: 500; }
+.finding-header .toggle { color: #8b949e; font-size: 1.2rem; transition: transform 0.2s; }
+.finding-header.open .toggle { transform: rotate(90deg); }
+.finding-body { padding: 0 1rem 1rem; display: none; }
+.finding-body.open { display: block; }
+.finding-body pre { background: #0d1117; padding: 0.75rem; border-radius: 6px; font-size: 0.85rem; overflow-x: auto; margin-top: 0.5rem; line-height: 1.5; }
+.finding-body .detail-label { color: #8b949e; font-size: 0.8rem; margin-top: 0.75rem; }
+.summary-bar { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.summary-bar .count { padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
+.btn { display: inline-block; padding: 0.5rem 1rem; border-radius: 6px; background: #238636; color: #fff; text-decoration: none; font-size: 0.85rem; margin-right: 0.5rem; border: none; cursor: pointer; }
+.btn:hover { background: #2ea043; }
+.btn-secondary { background: #21262d; color: #c9d1d9; }
+.btn-secondary:hover { background: #30363d; }
+.actions { margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+<h1>{{ label }}</h1>
+<p class="meta">{{ analysis_type | capitalize }} analysis &mdash; {{ date }}</p>
+<div class="actions">
+  <button class="btn" onclick="expandAll()">Expand All</button>
+  <button class="btn btn-secondary" onclick="collapseAll()">Collapse All</button>
+</div>
+<div class="summary-bar" id="summaryBar"></div>
+<div id="findingsContainer">{{ findings_html | safe }}</div>
+<script>
+function toggleFinding(el) {
+  const header = el.classList.contains('finding-header') ? el : el.closest('.finding-header');
+  header.classList.toggle('open');
+  const body = header.nextElementSibling;
+  if (body) body.classList.toggle('open');
+}
+function expandAll() {
+  document.querySelectorAll('.finding-body').forEach(b => b.classList.add('open'));
+  document.querySelectorAll('.finding-header').forEach(h => h.classList.add('open'));
+}
+function collapseAll() {
+  document.querySelectorAll('.finding-body').forEach(b => b.classList.remove('open'));
+  document.querySelectorAll('.finding-header').forEach(h => h.classList.remove('open'));
+}
+// Build summary bar
+const sevs = {};
+document.querySelectorAll('.severity-badge').forEach(b => {
+  const s = b.textContent.trim().toLowerCase();
+  sevs[s] = (sevs[s] || 0) + 1;
+});
+const bar = document.getElementById('summaryBar');
+for (const [s, n] of Object.entries(sevs)) {
+  const el = document.createElement('span');
+  el.className = 'count ' + s;
+  el.textContent = s + ': ' + n;
+  bar.appendChild(el);
+}
+</script>
+</body>
+</html>

@@ -170,6 +170,7 @@ def generate_pdf_report(report_text: str, label: str = "report") -> str:
     # Parse report text into sections
     lines = report_text.split("\n")
     i = 0
+    bookmark_stack = []
     while i < len(lines):
         line = lines[i].strip()
         if not line:
@@ -178,18 +179,24 @@ def generate_pdf_report(report_text: str, label: str = "report") -> str:
 
         is_arabic = _has_arabic(line)
 
-        # Headings
+        # Headings — add bookmark for navigation
         if line.startswith("#"):
             level = line.count("#")
             title = line.lstrip("#").strip()
+            display_title = pdf.arabic_text(title) if is_arabic else title
+            # Pop bookmark stack to correct level
+            while bookmark_stack and bookmark_stack[-1][0] >= level:
+                bookmark_stack.pop()
+            parent = bookmark_stack[-1][1] if bookmark_stack else -1
+            bm = pdf.add_bookmark(display_title, level - 1, parent)
+            bookmark_stack.append((level, bm))
+
             if level <= 2:
                 pdf.section(title)
             else:
                 pdf.set_unicode_font("B", 10)
                 pdf.set_text_color(200, 210, 220)
-                if is_arabic:
-                    title = pdf.arabic_text(title)
-                pdf.cell(0, 7, title, new_x="LMARGIN", new_y="NEXT")
+                pdf.cell(0, 7, display_title, new_x="LMARGIN", new_y="NEXT")
                 pdf.ln(2)
             i += 1
             continue
@@ -209,14 +216,14 @@ def generate_pdf_report(report_text: str, label: str = "report") -> str:
             i += 1
             continue
 
-        # Code blocks
-        if line.startswith("`"):
+        # Code blocks (fenced with ```)
+        if line.strip().startswith("```"):
             code_lines = []
-            while i < len(lines) and (lines[i].strip().startswith("`") or lines[i].strip()):
+            i += 1
+            while i < len(lines) and not lines[i].strip().startswith("```"):
                 code_lines.append(lines[i])
                 i += 1
-                if len(code_lines) > 20:
-                    break
+            i += 1
             pdf.code_block("\n".join(code_lines))
             continue
 

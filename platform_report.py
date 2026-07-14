@@ -143,7 +143,7 @@ def parse_verified_report(path: str) -> List[Finding]:
         file = m.group(3).strip().strip("`").strip()
         desc = m.group(4).strip()
         fix = ""
-        fm = re.search(r"\*\*Recommended Fix:\*\*\s*(.*)", text)
+        fm = re.search(r"\*\*Recommended Fix:\*\*\s*(.*)", desc)
         if fm:
             fix = fm.group(1).strip()
         findings.append(Finding(sev, title, file, desc, fix))

@@ -70,8 +70,6 @@ class SolidityAnalyzer(LanguageAnalyzer):
 
     def _parse_single_file(self, fname: str, code: str):
         """Compile a single file to AST"""
-        if not HAS_SOLCAST:
-            return
         try:
             units = compile_to_ast(code)
             if units:
@@ -82,8 +80,6 @@ class SolidityAnalyzer(LanguageAnalyzer):
 
     def _parse_ast(self):
         """Try to compile every Solidity file to AST"""
-        if not HAS_SOLCAST:
-            return
         for fname, code in self._files.items():
             try:
                 units = compile_to_ast(code)

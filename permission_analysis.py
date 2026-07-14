@@ -46,10 +46,13 @@ def analyze_permissions(code: str) -> str:
                     roles.add(match.group().replace("modifier ", "").strip())
 
     # Detect functions and permissions
+    seen_fns = set()
     for pat, access in FUNCTION_VISIBILITIES:
         for match in re.finditer(pat, code, re.IGNORECASE):
             name = match.group(1) if match.lastindex else match.group(1)
-            functions.append({"name": name, "access": access})
+            if name not in seen_fns:
+                seen_fns.add(name)
+                functions.append({"name": name, "access": access})
 
     # Public state variables
     for m in re.finditer(r"(public|internal|private)\s+(\w+\s+\w+)\s*;", code):

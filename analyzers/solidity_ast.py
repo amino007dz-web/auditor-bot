@@ -8,14 +8,11 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-try:
-    import solcx
-    from solcast import from_ast
-    HAS_SOLCAST = True
-except ImportError:
-    HAS_SOLCAST = False
+import solcx
+from solcast import from_ast
+HAS_SOLCAST = True
 
-SOLC_VERSION = "0.8.28"
+SOLC_VERSION = "0.8.25"
 
 
 @dataclass
@@ -97,9 +94,6 @@ def resolve_imports(code: str, file_path: str = "", search_paths: list = None) -
 
 def compile_to_ast(code: str, file_path: str = "", search_paths: list = None) -> Optional[List]:
     """Compile Solidity code to AST using solcx + solcast, with import resolution"""
-    if not HAS_SOLCAST:
-        logger.warning("solcast not installed. Run: pip install solcast")
-        return None
     try:
         resolved = resolve_imports(code, file_path, search_paths) if file_path else code
         solcx.install_solc(SOLC_VERSION, show_progress=False)

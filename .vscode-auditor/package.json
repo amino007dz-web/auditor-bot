@@ -35,6 +35,11 @@
           "enum": ["english", "arabic"],
           "default": "english",
           "description": "Report language"
+        },
+        "sca.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for authenticated access (leave empty if server has no auth)"
         }
       }
     }

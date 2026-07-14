@@ -8,10 +8,7 @@ from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-try:
-    from analyzers.solidity_ast import compile_to_ast, analyze_contracts, _get_node_type, _get_name, _traverse, HAS_SOLCAST
-except ImportError:
-    HAS_SOLCAST = False
+from analyzers.solidity_ast import compile_to_ast, analyze_contracts, _get_node_type, _get_name, _traverse, HAS_SOLCAST
 
 TYPE_SIZES = {
     "uint8": 1, "uint16": 2, "uint24": 3, "uint32": 4,
@@ -48,9 +45,6 @@ def _type_size(raw_type: str) -> int:
 
 def analyze_storage_with_ast(code: str) -> str:
     """Analyze storage using AST instead of Regex"""
-    if not HAS_SOLCAST:
-        return "# AST not available — use solcast"
-
     units = compile_to_ast(code)
     if not units:
         return "# Failed to convert code to AST"
@@ -115,9 +109,6 @@ def _get_contract_modifiers(units, contract_name: str) -> List[str]:
 
 def analyze_inheritance_with_ast(code: str) -> str:
     """Analyze inheritance using AST instead of Regex"""
-    if not HAS_SOLCAST:
-        return "# AST not available — use solcast"
-
     units = compile_to_ast(code)
     if not units:
         return "# Failed to convert code to AST"

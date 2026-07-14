@@ -15,7 +15,6 @@ IMPORT_RE = re.compile(r'import\s+[\"\'"]+([^\"\'"]+)[\"\'"]+')
 SOL_PRAGMA_RE = re.compile(r'pragma\s+solidity\s+[^;]+;')
 CONTRACT_RE = re.compile(r'(contract|interface|library|abstract\s+contract)\s+(\w+)')
 INHERITANCE_RE = re.compile(r'contract\s+\w+\s+is\s+([^{]+)')
-FUNC_CALL_RE = re.compile(r'(\w+)\s*\.\s*(\w+)\s*\(')
 
 
 class AgenticAuditor:
@@ -92,7 +91,8 @@ class AgenticAuditor:
                 return ""
             visited.add(file)
             content = self.files[file]
-            parts = [f"// === {file} ===\n{content[:1500]}"]
+            max_per_file = 3000 if depth > 1 else 6000
+            parts = [f"// === {file} ===\n{content[:max_per_file]}"]
             for neighbor in self.graph.get(file, []):
                 parts.append(_walk(neighbor, d + 1))
             return "\n\n".join(p for p in parts if p)
@@ -138,17 +138,25 @@ class AgenticAuditor:
         for f in entry:
             content = self.files[f]
             score = 0
-            if "payable" in content:
+            if re.search(r"function\s+\w+\s*\([^)]*\)\s*(?:public|external)\s*(?:payable)?\s*(?:returns?[^\{]*)?\s*\{", content):
                 score += 3
-            if "delegatecall" in content.lower():
+            if re.search(r"\.(?:delegatecall|call)\{value", content):
                 score += 5
-            if "selfdestruct" in content.lower():
+            if re.search(r"\bselfdestruct\b", content, re.IGNORECASE):
                 score += 5
-            if "call{value" in content or "call.value" in content:
+            if re.search(r"tx\.origin", content):
+                score += 3
+            if re.search(r"unchecked\s*\{", content):
+                score += 2
+            if re.search(r"for\s*\([^)]*msg\.value", content):
+                score += 5
+            if re.search(r"(?:_mint|_burn|safeTransfer|transferFrom)\s*\(", content):
+                score += 2
+            if re.search(r"require\s*\(\s*tx\.origin", content):
                 score += 4
-            if "tx.origin" in content:
+            if re.search(r"\.call\s*\([^)]*\)(?:\s*;(?!\s*require))", content):
                 score += 3
-            if "unchecked" in content:
+            if len(self.graph.get(f, [])) > 3:
                 score += 2
             scored.append((score, f))
         scored.sort(reverse=True, key=lambda x: x[0])

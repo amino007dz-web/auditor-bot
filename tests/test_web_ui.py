@@ -3,10 +3,35 @@ import sys
 import os
 import json
 import tempfile
+from unittest.mock import patch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import pytest
+
+os.environ["RATE_LIMIT_PER_MINUTE"] = "999"
 from web_ui import app, REPORT_DIR, ensure_report_dir
+
+MOCK_REPORT = """## Security Analysis Report
+### Summary
+1 critical finding
+### Critical: Reentrancy in withdraw()
+- Severity: Critical (CVSS 9.8)
+- Description: The withdraw function sends ETH before updating state
+- Fix: Use Checks-Effects-Interactions pattern
+"""
+
+
+@pytest.fixture(autouse=True)
+def _no_rate_limit():
+    os.environ["RATE_LIMIT_PER_MINUTE"] = "999"
+    yield
+
+
+@pytest.fixture(autouse=True)
+def _mock_llm():
+    with patch("agents.pipeline._call_ollama", return_value=MOCK_REPORT):
+        with patch("agents.validation.call_model_with_fallback", return_value=MOCK_REPORT):
+            yield
 
 
 @pytest.fixture
@@ -20,7 +45,7 @@ class TestWebUI:
     def test_index(self, client):
         rv = client.get('/')
         assert rv.status_code == 200
-        assert b'Smart Contract Auditor' in rv.data
+        assert b'VulnAudit' in rv.data
 
     def test_report_list_empty(self, client):
         rv = client.get('/report/list')
