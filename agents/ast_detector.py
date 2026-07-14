@@ -179,12 +179,14 @@ def _cross_function_reentrancy(contract) -> tuple:
     return False, ""
 
 
-_RULES = [
+_FUNCTION_RULES = [
     ("CEI Violation", _cei_violation, "High"),
     ("Unprotected Flash Loan Receiver", _unprotected_flash_loan, "High"),
-    ("balanceOf-based Accounting", _balanceof_accounting, "High"),
     ("Arbitrary External Call (AST)", _arbitrary_call, "Critical"),
-    ("Cross-function Reentrancy", _cross_function_reentrancy, "Critical"),
+]
+
+_CONTRACT_RULES = [
+    ("balanceOf-based Accounting", _balanceof_accounting, "High"),
 ]
 
 
@@ -201,31 +203,25 @@ def analyze_ast(code: str) -> str:
 
     findings = []
     for contract in contracts:
-        # Contract-level rules
-        for rule_name, rule_fn, severity in _RULES:
-            if rule_name == "balanceOf-based Accounting":
-                ok, msg = rule_fn(contract)
-                if ok:
-                    findings.append(f"- [{severity}] {rule_name}: {msg}")
+        for rule_name, rule_fn, severity in _CONTRACT_RULES:
+            ok, msg = rule_fn(contract)
+            if ok:
+                findings.append(f"- [{severity}] {rule_name}: {msg}")
 
-        # Per-function rules
         for func in contract.functions:
             body = _get_function_body(code, func.name, func.parameters)
             if not body:
                 continue
-            for rule_name, rule_fn, severity in _RULES:
+            for rule_name, rule_fn, severity in _FUNCTION_RULES:
                 if rule_name == "CEI Violation":
                     ok, msg = rule_fn(body, func.name, contract.state_vars)
                 elif rule_name == "Unprotected Flash Loan Receiver":
                     ok, msg = rule_fn(code, func, body)
                 elif rule_name == "Arbitrary External Call (AST)":
                     ok, msg = rule_fn(func, body)
-                else:
-                    continue
                 if ok:
                     findings.append(f"- [{severity}] {rule_name}: {msg}")
 
-        # Cross-function rule
         ok, msg = _cross_function_reentrancy(contract)
         if ok:
             findings.append(f"- [Critical] Cross-function Reentrancy: {msg}")

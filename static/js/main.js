@@ -126,6 +126,45 @@ function countSeverities(text) {
     return counts;
 }
 
+function saveToHistory(report, label) {
+    let history = JSON.parse(localStorage.getItem('auditHistory') || '[]');
+    history.unshift({ report: report.slice(0, 500), full: report, label: label || 'Audit', date: new Date().toISOString() });
+    if (history.length > 5) history = history.slice(0, 5);
+    localStorage.setItem('auditHistory', JSON.stringify(history));
+    renderHistory();
+}
+
+function renderHistory() {
+    const el = document.getElementById('historyList');
+    if (!el) return;
+    const history = JSON.parse(localStorage.getItem('auditHistory') || '[]');
+    if (history.length === 0) {
+        el.innerHTML = '<p class="text-xs" style="color:var(--text-secondary)">No history yet</p>';
+        return;
+    }
+    el.innerHTML = history.map((item, i) => `
+        <div class="history-item" onclick='loadHistoryItem(${i})'>
+            <div class="text-xs font-medium">${item.label}</div>
+            <div class="text-xs" style="color:var(--text-secondary);opacity:0.7">${new Date(item.date).toLocaleString()}</div>
+        </div>
+    `).join('');
+}
+
+function loadHistoryItem(index) {
+    const history = JSON.parse(localStorage.getItem('auditHistory') || '[]');
+    const item = history[index];
+    if (!item) return;
+    currentCode = item.full;
+    document.getElementById('reportContent').innerHTML = renderReport(currentCode);
+    document.getElementById('results').classList.remove('hidden');
+    document.getElementById('resultTitle').textContent = item.label;
+    const sev = countSeverities(currentCode);
+    renderChart(sev);
+    document.getElementById('severityCounts').textContent =
+        'Critical: ' + sev.critical + ' | High: ' + sev.high + ' | Medium: ' + sev.medium + ' | Low: ' + sev.low + ' | Info: ' + sev.info;
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function startAnalysis(code) {
     if (analysisAbortController) analysisAbortController.abort();
     analysisAbortController = new AbortController();
@@ -173,6 +212,7 @@ function startAnalysis(code) {
                         renderChart(sev);
                         document.getElementById('severityCounts').textContent =
                             'Critical: ' + sev.critical + ' | High: ' + sev.high + ' | Medium: ' + sev.medium + ' | Low: ' + sev.low + ' | Info: ' + sev.info;
+                        saveToHistory(currentCode, 'Audit ' + new Date().toLocaleTimeString());
                     }
                 }
             }

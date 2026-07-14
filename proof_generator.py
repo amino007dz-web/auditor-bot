@@ -1,4 +1,4 @@
-import os, json, logging, tempfile, subprocess, re
+import os, json, logging, tempfile, subprocess, re, shutil
 from typing import List, Optional
 from analyzers.base import Finding
 
@@ -92,7 +92,6 @@ def run_foundry_test(poc_path: str, project_dir: str = ".", use_docker: bool = F
     result = {"passed": False, "output": "", "error": ""}
     try:
         if use_docker:
-            import shutil
             docker_path = shutil.which("docker")
             if not docker_path:
                 result["error"] = "Docker not found. Install Docker: https://docs.docker.com/get-docker/"
@@ -124,6 +123,83 @@ def run_foundry_test(poc_path: str, project_dir: str = ".", use_docker: bool = F
     except Exception as e:
         result["error"] = str(e)
     return result
+
+
+def _has_docker() -> bool:
+    """Check if Docker CLI is available on the system."""
+    return shutil.which("docker") is not None
+
+
+def run_foundry_test_docker(code: str, proof_dir: str) -> str:
+    """
+    Run a Foundry PoC test inside a Docker container.
+
+    Builds a Docker image with Foundry, writes the PoC code into a temporary
+    Foundry project, mounts it as a volume, and executes `forge test` inside
+    the container. Falls back to local subprocess execution if Docker is not
+    available.
+
+    Args:
+        code: Raw Solidity source of the PoC test.
+        proof_dir: Directory to use as the project root (for fallback and
+                   dependency resolution).
+
+    Returns:
+        Combined stdout/stderr output as a string.
+    """
+    if not _has_docker():
+        logger.info("Docker not available, falling back to subprocess")
+        os.makedirs(proof_dir, exist_ok=True)
+        safe_name = f"PoC_fallback_{int(time.time())}.t.sol"
+        poc_path = os.path.join(proof_dir, safe_name)
+        with open(poc_path, "w", encoding="utf-8") as f:
+            f.write(code)
+        result = run_foundry_test(poc_path, proof_dir)
+        return result.get("output", "") or result.get("error", "")
+
+    tmpdir = tempfile.mkdtemp(prefix="foundry_poc_")
+    try:
+        test_dir = os.path.join(tmpdir, "test")
+        src_dir = os.path.join(tmpdir, "src")
+        os.makedirs(test_dir)
+        os.makedirs(src_dir)
+
+        poc_path = os.path.join(test_dir, "PoC.t.sol")
+        with open(poc_path, "w", encoding="utf-8") as f:
+            f.write(code)
+
+        dockerfile_path = os.path.join(tmpdir, "Dockerfile")
+        with open(dockerfile_path, "w", encoding="utf-8") as f:
+            f.write("FROM ghcr.io/foundry-rs/foundry:latest\nWORKDIR /app\n")
+
+        build_proc = subprocess.run(
+            ["docker", "build", "-t", "foundry-test", tmpdir],
+            capture_output=True, text=True, timeout=60,
+        )
+        if build_proc.returncode != 0:
+            raise RuntimeError(f"Docker build failed: {build_proc.stderr}")
+
+        run_proc = subprocess.run(
+            ["docker", "run", "--rm",
+             "-v", f"{tmpdir}:/app",
+             "-w", "/app",
+             "foundry-test",
+             "forge", "test", "--match-path", "test/PoC.t.sol", "-vvv"],
+            capture_output=True, text=True, timeout=120,
+        )
+        output = run_proc.stdout + run_proc.stderr
+        if run_proc.returncode != 0:
+            logger.warning("Foundry test failed:\n%s", output)
+        return output
+
+    except subprocess.TimeoutExpired:
+        return "Error: Test timed out (120s)"
+    except subprocess.CalledProcessError as e:
+        return f"Error: {e.stderr or str(e)}"
+    except Exception as e:
+        return f"Error: {e}"
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def batch_generate_pocs(findings: List[Finding], codes: dict) -> List[dict]:

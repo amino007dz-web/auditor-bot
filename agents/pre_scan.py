@@ -1,3 +1,5 @@
+import re
+
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -187,6 +189,19 @@ def _run_learned(code: str) -> str:
     return _learned_text()
 
 
+def _run_pragma_warning(code: str) -> str:
+    warnings = []
+    for match in re.finditer(r'pragma\s+solidity\s+([\d.]+)', code, re.IGNORECASE):
+        version = match.group(1)
+        if version.startswith(("0.4.", "0.5.", "0.6.")):
+            warnings.append(f"- [CRITICAL] Outdated Solidity version {version}: This version is no longer supported and contains known vulnerabilities. Upgrade to >=0.8.0 immediately.")
+    if re.search(r'pragma\s+abicoder\s+v1', code, re.IGNORECASE):
+        warnings.append("- [CRITICAL] `pragma abicoder v1` is deprecated and may cause issues. Use `pragma abicoder v2` or remove it.")
+    if not warnings:
+        return ""
+    return "### ⚠️ Pragma Warning\n" + "\n".join(warnings)
+
+
 def _register_learned_classes():
     """Inject learned patterns into bug_detector's _BUG_CLASSES at runtime."""
     if not _has_detector or not _has_pattern_learner:
@@ -217,6 +232,7 @@ _SCAN_TASKS = [
     ("sbom", lambda c: _run_sbom(c)),
     ("learned", lambda c: _run_learned(c)),
     ("ast_detector", lambda c: _run_ast_analysis(c) if _has_ast_detector else ""),
+    ("pragma_warning", lambda c: _run_pragma_warning(c)),
 ]
 
 

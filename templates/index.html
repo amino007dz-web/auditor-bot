@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,140 +8,167 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <link rel="stylesheet" href="/static/css/style.css">
-<style>
-body { background-color: #0d1117; color: #c9d1d9; font-family: 'Segoe UI', system-ui, sans-serif; }
-.dark .bg-card { background-color: #161b22; }
-.dark .border-custom { border-color: #30363d; }
-.dark .text-secondary { color: #8b949e; }
-.drop-zone { border: 2px dashed #30363d; transition: all 0.2s; cursor: pointer; }
-.drop-zone.dragover { border-color: #58a6ff; background: rgba(88, 166, 255, 0.1); }
-.step { opacity: 0.4; transition: all 0.3s; }
-.step-active { opacity: 1; color: #58a6ff; }
-.step-done { opacity: 1; color: #3fb950; }
-.severity-critical { color: #da3633; }
-.severity-high { color: #d29922; }
-.severity-medium { color: #58a6ff; }
-.severity-low { color: #8b949e; }
-.severity-info { color: #238636; }
-</style>
 </head>
 <body class="min-h-screen">
-<div class="max-w-6xl mx-auto px-4 py-6">
+<div class="max-w-7xl mx-auto px-4 py-6">
 
     <!-- Header -->
-    <header class="text-center pb-6 mb-6 border-b border-gray-800">
-        <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Smart Contract Auditor</h1>
-        <p class="text-gray-400 mt-2">Multi-language security analysis engine</p>
+    <header class="flex items-center justify-between pb-4 mb-6 border-b border-[var(--border)]">
+        <div>
+            <h1 class="text-3xl font-bold" style="background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Smart Contract Auditor</h1>
+            <p class="text-sm" style="color:var(--text-secondary)">Multi-language security analysis engine</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button id="themeToggle" onclick="toggleTheme()" class="btn" title="Toggle theme">&#9790;</button>
+        </div>
     </header>
 
     <!-- Nav -->
     <nav class="flex flex-wrap gap-2 justify-center mb-8">
-        <a href="/" class="px-4 py-2 text-sm rounded border border-blue-500 text-blue-400 bg-blue-900 bg-opacity-20">Home</a>
-        <a href="/dashboard" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Dashboard</a>
-        <a href="/explorer" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Chain Loader</a>
-        <a href="/batch" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Batch</a>
-        <a href="/project" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Project</a>
-        <a href="/gas" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Gas</a>
-        <a href="/testgen" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Tests</a>
-        <a href="/inhgraph" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Inheritance</a>
-        <a href="/permissions" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Permissions</a>
-        <a href="/rules" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Rules</a>
-        <a href="/cvss" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">CVSS</a>
-        <a href="/report/list" class="px-4 py-2 text-sm rounded border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500">Reports</a>
+        <a href="/" class="px-4 py-2 text-sm rounded border border-[var(--accent)]" style="color:var(--accent);background:rgba(88,166,255,0.1)">Home</a>
+        <a href="/dashboard" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Dashboard</a>
+        <a href="/explorer" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Chain Loader</a>
+        <a href="/batch" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Batch</a>
+        <a href="/project" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Project</a>
+        <a href="/gas" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Gas</a>
+        <a href="/testgen" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Tests</a>
+        <a href="/inhgraph" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Inheritance</a>
+        <a href="/permissions" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Permissions</a>
+        <a href="/rules" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Rules</a>
+        <a href="/cvss" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">CVSS</a>
+        <a href="/report/list" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Reports</a>
     </nav>
 
-    <!-- Input Section -->
-    <div class="bg-[#161b22] border border-gray-800 rounded-lg p-6 mb-6">
-        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">Smart Contract Analysis</h2>
+    <div class="flex flex-col lg:flex-row gap-6">
 
-        <!-- Tabs -->
-        <div class="flex border-b border-gray-800 mb-4">
-            <button data-tab="paste" class="tab active px-4 py-2 text-sm text-blue-400 border-b-2 border-blue-500" onclick="switchTab('paste')">Paste Code</button>
-            <button data-tab="upload" class="tab px-4 py-2 text-sm text-gray-400 hover:text-white" onclick="switchTab('upload')">Upload File</button>
-        </div>
+        <!-- Main Content -->
+        <div class="flex-1 min-w-0">
 
-        <form id="uploadForm" onsubmit="runAnalysis(event)">
-            <div class="mb-4">
-                <select name="analysis_type" id="analysisType" class="bg-[#0d1117] border border-gray-700 rounded px-3 py-2 text-sm text-gray-300 w-full max-w-xs">
-                    <option value="audit">Full Audit</option>
-                    <option value="quick">Quick Scan</option>
-                    <option value="deep">Deep Analysis</option>
-                </select>
-            </div>
+            <!-- Input Section -->
+            <div class="card mb-6">
+                <div class="card-header">Smart Contract Analysis</div>
+                <div class="card-body">
 
-            <!-- Paste Tab -->
-            <div id="tab-paste" class="tab-content active">
-                <textarea id="codeInput" placeholder="Paste your Solidity code here..." class="w-full bg-[#0d1117] border border-gray-700 rounded p-4 text-sm font-mono text-gray-300 min-h-[200px] resize-y focus:outline-none focus:border-blue-500"></textarea>
-                <div class="flex justify-between items-center mt-3">
-                    <span class="text-xs text-gray-500" id="charCount">0 chars</span>
-                    <button type="submit" class="bg-green-700 hover:bg-green-600 text-white px-5 py-2 rounded text-sm font-medium transition">Run Analysis</button>
+                    <!-- Tabs -->
+                    <div class="flex border-b mb-4" style="border-color:var(--border)">
+                        <button data-tab="paste" class="tab active" onclick="switchTab('paste')">Paste Code</button>
+                        <button data-tab="upload" class="tab" onclick="switchTab('upload')">Upload File</button>
+                        <button data-tab="diff" class="tab" onclick="switchTab('diff')">Diff Auditor</button>
+                    </div>
+
+                    <form id="uploadForm">
+                        <div class="mb-4">
+                            <select name="analysis_type" id="analysisType" class="w-full max-w-xs">
+                                <option value="audit">Full Audit</option>
+                                <option value="quick">Quick Scan</option>
+                                <option value="deep">Deep Analysis</option>
+                            </select>
+                        </div>
+
+                        <!-- Paste Tab -->
+                        <div id="tab-paste" class="tab-content active">
+                            <textarea id="codeInput" placeholder="Paste your Solidity/Vyper/Rust code here..." class="w-full min-h-[200px] resize-y font-mono text-sm" style="background:var(--bg-primary);border:1px solid var(--border);color:var(--text-primary);border-radius:8px;padding:0.75rem"></textarea>
+                            <div class="flex justify-between items-center mt-3">
+                                <span class="text-xs" id="fileMeta" style="color:var(--text-secondary)"></span>
+                                <button type="submit" class="btn-green px-5 py-2 rounded text-sm font-medium">Run Analysis</button>
+                            </div>
+                        </div>
+
+                        <!-- Upload Tab -->
+                        <div id="tab-upload" class="tab-content hidden">
+                            <div class="drop-zone" id="dropZone">
+                                <p style="color:var(--text-secondary)">Drag & drop a contract file here, or click to browse</p>
+                                <p class="text-xs mt-1" style="color:var(--text-secondary);opacity:0.6">Supported: .sol, .vy, .move, .clsp, .clib</p>
+                                <input type="file" id="fileInput" accept=".sol,.vy,.move,.clsp,.clib" class="hidden" onchange="handleFile(event)">
+                            </div>
+                            <div id="fileMeta" class="hidden text-sm mt-2" style="color:var(--text-secondary)"></div>
+                            <div id="contractInfo" class="hidden text-xs mt-1" style="color:var(--text-secondary)"></div>
+                            <button type="submit" class="btn-green px-5 py-2 rounded text-sm font-medium mt-4">Run Analysis</button>
+                        </div>
+
+                        <!-- Diff Tab -->
+                        <div id="tab-diff" class="tab-content hidden">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-sm font-medium mb-1 block" style="color:var(--text-secondary)">Old Version</label>
+                                    <textarea id="oldCodeInput" placeholder="Paste original contract code..." class="w-full min-h-[180px] resize-y font-mono text-sm" style="background:var(--bg-primary);border:1px solid var(--border);color:var(--text-primary);border-radius:8px;padding:0.75rem"></textarea>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium mb-1 block" style="color:var(--text-secondary)">New Version</label>
+                                    <textarea id="newCodeInput" placeholder="Paste updated contract code..." class="w-full min-h-[180px] resize-y font-mono text-sm" style="background:var(--bg-primary);border:1px solid var(--border);color:var(--text-primary);border-radius:8px;padding:0.75rem"></textarea>
+                                </div>
+                            </div>
+                            <button type="button" onclick="runDiffAudit()" class="btn-green px-5 py-2 rounded text-sm font-medium mt-4">Compare Versions</button>
+                            <div id="diffResult" class="hidden mt-4 p-4 rounded font-mono text-sm whitespace-pre-wrap max-h-[50vh] overflow-y-auto" style="background:var(--bg-primary);border:1px solid var(--border)"></div>
+                        </div>
+                    </form>
                 </div>
             </div>
 
-            <!-- Upload Tab -->
-            <div id="tab-upload" class="tab-content hidden">
-                <div class="drop-zone rounded-lg p-10 text-center" id="dropZone">
-                    <p class="text-gray-400 text-sm">Drag & drop a contract file here, or click to browse</p>
-                    <p class="text-gray-600 text-xs mt-1">Supported: .sol, .vy, .move, .clsp, .clib, .rs, .py</p>
-                    <input type="file" id="fileInput" accept=".sol,.vy,.move,.clsp,.clib,.rs,.py" class="hidden" onchange="handleFile(event)">
+            <!-- Progress Steps -->
+            <div id="loading" class="hidden card mb-6">
+                <div class="card-body text-center">
+                    <div class="w-10 h-10 rounded-full animate-spin mx-auto mb-4" style="border:3px solid var(--border);border-top-color:var(--accent)"></div>
+                    <p id="loadingText" class="text-sm" style="color:var(--text-secondary)">Processing...</p>
+                    <div class="flex flex-col gap-1 mt-4 text-sm" id="loadingSteps">
+                        <span class="step" data-step="1">1. Pre-scan</span>
+                        <span class="step" data-step="2">2. AI Analysis</span>
+                        <span class="step" data-step="3">3. Validation</span>
+                        <span class="step" data-step="4">4. Scoring</span>
+                        <span class="step" data-step="5">5. Complete</span>
+                    </div>
                 </div>
-                <div id="fileInfo" class="hidden text-blue-400 text-sm mt-2"></div>
-                <button type="submit" class="bg-green-700 hover:bg-green-600 text-white px-5 py-2 rounded text-sm font-medium mt-4 transition">Run Analysis</button>
             </div>
-        </form>
-    </div>
 
-    <!-- Progress Steps -->
-    <div id="loading" class="hidden bg-[#161b22] border border-gray-800 rounded-lg p-6 mb-6 text-center">
-        <div class="w-10 h-10 border-3 border-gray-700 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
-        <p id="loadingText" class="text-gray-400 text-sm">Processing...</p>
-        <div class="flex flex-col gap-1 mt-4 text-sm text-gray-500" id="loadingSteps">
-            <span class="step" data-step="1">1. Reading AST</span>
-            <span class="step" data-step="2">2. Pre-scan</span>
-            <span class="step" data-step="3">3. AI Analysis</span>
-            <span class="step" data-step="4">4. Validation</span>
-            <span class="step" data-step="5">5. Scoring</span>
+            <!-- Results Dashboard -->
+            <div id="results" class="hidden card mb-6">
+                <div class="card-header flex flex-wrap justify-between items-center">
+                    <span id="resultTitle">Audit Results</span>
+                    <div class="flex flex-wrap gap-2" id="exportButtons">
+                        <button onclick="downloadMarkdown(currentCode)" class="btn text-xs">Download Markdown</button>
+                        <button onclick="downloadSarif(currentCode, currentCode)" class="btn text-xs">Download SARIF</button>
+                        <button onclick="formatGithubDiscussion()" class="btn text-xs">GitHub Discussion</button>
+                        <button id="copyBtn" onclick="copyToClipboard(currentCode)" class="btn text-xs">Copy</button>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <div class="flex flex-wrap gap-6 mb-6">
+                        <div class="w-44 h-44">
+                            <canvas id="severityChart"></canvas>
+                        </div>
+                        <div class="flex flex-col gap-1 text-sm" id="severityCounts">
+                            <span class="severity-critical">Critical: <span id="count-critical">0</span></span>
+                            <span class="severity-high">High: <span id="count-high">0</span></span>
+                            <span class="severity-medium">Medium: <span id="count-medium">0</span></span>
+                            <span class="severity-low">Low: <span id="count-low">0</span></span>
+                            <span class="severity-info">Info: <span id="count-info">0</span></span>
+                        </div>
+                    </div>
+
+                    <div id="reportContent" class="rounded p-4 font-mono text-sm whitespace-pre-wrap max-h-[70vh] overflow-y-auto" style="background:var(--bg-primary);border:1px solid var(--border)"></div>
+                </div>
+            </div>
+
         </div>
-    </div>
 
-    <!-- Results Dashboard -->
-    <div id="results" class="hidden bg-[#161b22] border border-gray-800 rounded-lg p-6 mb-6">
-        <div class="flex flex-wrap justify-between items-center mb-4">
-            <h2 class="text-lg font-semibold flex items-center gap-2">
-                <span id="resultIcon"></span>
-                <span id="resultTitle">Audit Results</span>
-            </h2>
-            <div class="flex flex-wrap gap-2">
-                <button onclick="downloadMarkdown(document.getElementById('reportContent').textContent)" class="px-3 py-1.5 text-xs rounded border border-gray-700 text-gray-300 hover:border-gray-500 transition">Download Markdown</button>
-                <button onclick="downloadSarif(document.getElementById('reportContent').textContent, currentCode)" class="px-3 py-1.5 text-xs rounded border border-gray-700 text-gray-300 hover:border-gray-500 transition">Download SARIF</button>
-                <button onclick="downloadPDF()" class="px-3 py-1.5 text-xs rounded border border-gray-700 text-gray-300 hover:border-gray-500 transition">Download PDF</button>
-                <button id="copyBtn" onclick="copyToClipboard(document.getElementById('reportContent').textContent)" class="px-3 py-1.5 text-xs rounded border border-gray-700 text-gray-300 hover:border-gray-500 transition">Copy to Clipboard</button>
-            </div>
-        </div>
-
-        <!-- Chart -->
-        <div class="flex flex-wrap gap-6 mb-6">
-            <div class="w-48 h-48">
-                <canvas id="severityChart"></canvas>
-            </div>
-            <div class="flex flex-col gap-2 text-sm" id="severityCounts">
-                <span class="severity-critical">Critical: <span id="count-critical">0</span></span>
-                <span class="severity-high">High: <span id="count-high">0</span></span>
-                <span class="severity-medium">Medium: <span id="count-medium">0</span></span>
-                <span class="severity-low">Low: <span id="count-low">0</span></span>
-                <span class="severity-info">Info: <span id="count-info">0</span></span>
+        <!-- History Sidebar -->
+        <div class="sidebar w-full lg:w-64 shrink-0">
+            <div class="card">
+                <div class="card-header text-sm">Recent Audits</div>
+                <div class="card-body p-2" id="historyList">
+                    <p class="text-xs" style="color:var(--text-secondary)">No history yet</p>
+                </div>
             </div>
         </div>
 
-        <!-- Report Content -->
-        <div id="reportContent" class="bg-[#0d1117] border border-gray-800 rounded p-4 text-sm font-mono whitespace-pre-wrap max-h-[70vh] overflow-y-auto"></div>
     </div>
 
     <!-- Footer -->
-    <footer class="text-center py-6 border-t border-gray-800 text-gray-500 text-xs">
-        <a href="https://github.com" class="text-blue-400 hover:underline">GitHub</a> &middot;
+    <footer class="text-center py-6 mt-6 border-t text-xs" style="border-color:var(--border);color:var(--text-secondary)">
+        <a href="https://github.com/amino007dz-web/auditor-bot" style="color:var(--text-link)" class="hover:underline">GitHub</a> &middot;
         v2.1.0 &middot;
-        Powered by Ollama
+        Powered by Ollama Cloud
     </footer>
 </div>
 
@@ -150,42 +177,59 @@ body { background-color: #0d1117; color: #c9d1d9; font-family: 'Segoe UI', syste
 let uploadedFile = null;
 let currentCode = '';
 
+function toggleTheme() {
+    const html = document.documentElement;
+    const current = html.getAttribute('data-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+}
+
 function switchTab(tab) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active', 'border-blue-500', 'text-blue-400'));
-    document.querySelectorAll('.tab').forEach(t => t.classList.add('text-gray-400', 'border-transparent'));
+    document.querySelectorAll('.tab').forEach(t => {
+        t.classList.remove('active');
+        t.style.borderBottomColor = 'transparent';
+        t.style.color = 'var(--text-secondary)';
+    });
     document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     const tabBtn = document.querySelector(`[data-tab="${tab}"]`);
     if (tabBtn) {
-        tabBtn.classList.add('active', 'border-blue-500', 'text-blue-400');
-        tabBtn.classList.remove('border-transparent', 'text-gray-400');
+        tabBtn.classList.add('active');
+        tabBtn.style.borderBottomColor = 'var(--accent)';
+        tabBtn.style.color = 'var(--accent)';
     }
-    document.getElementById('tab-' + tab).classList.remove('hidden');
-    document.getElementById('tab-' + tab).classList.add('active');
+    const tabEl = document.getElementById('tab-' + tab);
+    if (tabEl) {
+        tabEl.classList.remove('hidden');
+        tabEl.classList.add('active');
+    }
 }
 
 function handleFile(e) {
     uploadedFile = e.target.files[0];
     if (uploadedFile) {
-        document.getElementById('fileInfo').textContent = uploadedFile.name + ' (' + (uploadedFile.size / 1024).toFixed(1) + ' KB)';
-        document.getElementById('fileInfo').classList.remove('hidden');
+        document.getElementById('fileMeta').textContent = uploadedFile.name + ' (' + (uploadedFile.size / 1024).toFixed(1) + ' KB)';
+        document.getElementById('fileMeta').classList.remove('hidden');
+        detectContractInfo(uploadedFile);
     }
 }
 
-function updateCharCount() {
-    const ta = document.getElementById('codeInput');
-    document.getElementById('charCount').textContent = ta.value.length + ' chars';
-}
-
-function parseSeverityCounts(text) {
-    const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
-    const lower = text.toLowerCase();
-    for (const sev of ['critical', 'high', 'medium', 'low', 'info']) {
-        const regex = new RegExp(`\\b${sev}\\b`, 'gi');
-        const matches = lower.match(regex);
-        counts[sev] = matches ? matches.length : 0;
-    }
-    return counts;
+function detectContractInfo(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const lines = text.split('\n');
+        const charCount = text.length;
+        const contractCount = (text.match(/\bcontract\s+\w+/g) || []).length;
+        const lang = text.includes('pragma solidity') ? 'Solidity' :
+                     text.includes('pragma vyper') || text.includes('@version') ? 'Vyper' :
+                     text.includes('module ') && text.includes('fun ') ? 'Move' : 'Unknown';
+        const el = document.getElementById('contractInfo');
+        el.textContent = lang + ' \u2022 ' + charCount.toLocaleString() + ' chars \u2022 ' + contractCount + ' contract(s) detected';
+        el.classList.remove('hidden');
+    };
+    reader.readAsText(file);
 }
 
 async function runAnalysis(e) {
@@ -196,79 +240,82 @@ async function runAnalysis(e) {
     results.classList.add('hidden');
     loading.classList.remove('hidden');
     document.getElementById('loadingText').textContent = 'Starting...';
-    document.querySelectorAll('.step').forEach(s => { s.className = 'step'; });
-    document.querySelector('[data-step="1"]').classList.add('step-active');
 
     let code = '';
     const isPaste = document.getElementById('tab-paste').classList.contains('active');
     if (isPaste) {
         code = document.getElementById('codeInput').value.trim();
         if (!code) { alert('Please paste code first.'); loading.classList.add('hidden'); return; }
-    } else {
+    } else if (document.getElementById('tab-upload').classList.contains('active')) {
         if (!uploadedFile) { alert('Please select a file first.'); loading.classList.add('hidden'); return; }
         code = await uploadedFile.text();
-    }
-
-    document.querySelector('[data-step="1"]').classList.remove('step-active');
-    document.querySelector('[data-step="1"]').classList.add('step-done');
-    document.querySelector('[data-step="2"]').classList.add('step-active');
-    document.getElementById('loadingText').textContent = 'Pre-scanning...';
-
-    const formData = new FormData();
-    if (isPaste) {
-        const blob = new Blob([code], { type: 'text/plain' });
-        formData.append('file', blob, 'contract.sol');
     } else {
-        formData.append('file', uploadedFile);
-    }
-    formData.append('analysis_type', analysisType);
-
-    try {
-        document.querySelector('[data-step="2"]').classList.remove('step-active');
-        document.querySelector('[data-step="2"]').classList.add('step-done');
-        document.querySelector('[data-step="3"]').classList.add('step-active');
-        document.getElementById('loadingText').textContent = 'Analyzing with AI...';
-
-        const response = await fetch('/api/analyze', { method: 'POST', body: formData });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Analysis failed');
-
-        document.querySelector('[data-step="3"]').classList.remove('step-active');
-        document.querySelector('[data-step="3"]').classList.add('step-done');
-        document.querySelector('[data-step="4"]').classList.add('step-active');
-        document.getElementById('loadingText').textContent = 'Validating results...';
-        await new Promise(r => setTimeout(r, 400));
-
-        document.querySelector('[data-step="4"]').classList.remove('step-active');
-        document.querySelector('[data-step="4"]').classList.add('step-done');
-        document.querySelector('[data-step="5"]').classList.add('step-active');
-        document.getElementById('loadingText').textContent = 'Scoring...';
-        await new Promise(r => setTimeout(r, 300));
-
-        document.getElementById('loadingText').textContent = 'Complete!';
         loading.classList.add('hidden');
-
-        currentCode = data.report;
-        document.getElementById('reportContent').textContent = data.report;
-        document.getElementById('reportContent').innerHTML = renderReport(data.report);
-        document.getElementById('resultTitle').textContent = 'Analysis Results — ' + analysisType;
-
-        const counts = parseSeverityCounts(data.report);
-        for (const [sev, count] of Object.entries(counts)) {
-            document.getElementById('count-' + sev).textContent = count;
-        }
-        renderChart(counts);
-
-        results.classList.remove('hidden');
-        results.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch (err) {
-        document.getElementById('loadingText').textContent = 'Error: ' + err.message;
-        console.error(err);
+        return;
     }
+
+    currentCode = '';
+    startAnalysis(code);
 }
 
+function runDiffAudit() {
+    const oldCode = document.getElementById('oldCodeInput').value.trim();
+    const newCode = document.getElementById('newCodeInput').value.trim();
+    if (!oldCode || !newCode) { alert('Please enter both old and new contract code.'); return; }
+
+    const resultEl = document.getElementById('diffResult');
+    resultEl.classList.remove('hidden');
+    resultEl.textContent = 'Running diff analysis...';
+
+    fetch('/api/analyze/diff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ old_code: oldCode, new_code: newCode })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { resultEl.textContent = 'Error: ' + data.error; return; }
+        let out = '# Diff Analysis\n\n## Summary\n' + (data.summary || 'N/A') + '\n\n## Changes\n';
+        if (data.diff) {
+            for (const change of data.diff) {
+                out += `- ${change.type}: ${change.line || ''}\n  ${change.content || ''}\n`;
+            }
+        }
+        out += '\n## Analysis\n' + (data.analysis || 'N/A');
+        resultEl.textContent = out;
+        resultEl.innerHTML = (typeof marked !== 'undefined') ? marked.parse(out) : out.replace(/\n/g, '<br>');
+    })
+    .catch(err => { resultEl.textContent = 'Error: ' + err.message; });
+}
+
+function formatGithubDiscussion() {
+    if (!currentCode) return;
+    const intro = '## Security Audit Report\n\n_Generated by Smart Contract Auditor_\n\n---\n\n';
+    const footer = '\n\n---\n_Copy and paste this report into a GitHub Code Review comment or Discussion._';
+    const blob = new Blob([intro + currentCode + footer], { type: 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'github_audit_discussion.md';
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+function updateCharCount() {
+    const ta = document.getElementById('codeInput');
+    const meta = document.getElementById('fileMeta');
+    const text = ta.value;
+    const contractCount = (text.match(/\bcontract\s+\w+/g) || []).length;
+    const lang = text.includes('pragma solidity') ? 'Solidity' :
+                 text.includes('@version') || text.includes('pragma vyper') ? 'Vyper' : 'Unknown';
+    meta.textContent = lang + ' \u2022 ' + text.length.toLocaleString() + ' chars \u2022 ' + contractCount + ' contract(s)';
+}
+
+// Init
 document.getElementById('codeInput').addEventListener('input', updateCharCount);
-updateCharCount();
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+document.getElementById('uploadForm').addEventListener('submit', runAnalysis);
+loadHistory();
 </script>
 </body>
 </html>

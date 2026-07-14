@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 from typing import Optional
@@ -200,12 +201,7 @@ def _has_solc() -> bool:
         return False
 
 
-def _has_forge() -> bool:
-    try:
-        r = subprocess.run(["forge", "--version"], capture_output=True, text=True, timeout=10)
-        return r.returncode == 0
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False
+_has_forge = shutil.which("forge") is not None
 
 
 def compile_and_disassemble(code: str) -> Optional[dict]:
@@ -240,8 +236,8 @@ def compile_and_disassemble(code: str) -> Optional[dict]:
     return contracts if contracts else None
 
 
-def run_forge_gas_report(code: str) -> Optional[str]:
-    if not _has_forge():
+def _run_forge_gas_report_from_source(code: str) -> Optional[str]:
+    if not _has_forge:
         return None
     with tempfile.TemporaryDirectory(prefix="forge_gas_") as tmp:
         os.makedirs(os.path.join(tmp, "src"), exist_ok=True)
@@ -267,7 +263,39 @@ def run_forge_gas_report(code: str) -> Optional[str]:
     return None
 
 
-def estimate_gas(code: str) -> str:
+def run_forge_gas_report(project_path: str) -> str:
+    if shutil.which("forge") is None:
+        return ""
+    try:
+        r = subprocess.run(
+            ["forge", "test", "--gas-report", "--json"],
+            capture_output=True, text=True, timeout=120,
+            cwd=project_path,
+        )
+    except subprocess.TimeoutExpired:
+        logger.warning("forge test --gas-report timed out")
+        return ""
+    if r.returncode != 0:
+        logger.debug(f"forge test failed: {r.stderr[:300]}")
+        return ""
+    try:
+        data = json.loads(r.stdout)
+    except json.JSONDecodeError:
+        return r.stdout[:5000]
+    if isinstance(data, dict):
+        lines = ["### Forge Gas Report\n"]
+        for contract, methods in data.items():
+            lines.append(f"**{contract}**")
+            if isinstance(methods, dict):
+                for method, info in methods.items():
+                    gas = info.get("gasUsed", "?")
+                    lines.append(f"  {method}: {gas}")
+            lines.append("")
+        return "\n".join(lines)
+    return ""
+
+
+def estimate_gas(code: str, project_path: Optional[str] = None) -> str:
     parts = ["## Gas Profiling (Compilation-based)\n"]
 
     deployment = compile_and_disassemble(code)
@@ -281,12 +309,24 @@ def estimate_gas(code: str) -> str:
     else:
         parts.append("solc not available — install with: `pip install solc-select && solc-select install 0.8.26`")
 
-    forge_report = run_forge_gas_report(code)
+    forge_report = _run_forge_gas_report_from_source(code)
     if forge_report:
-        parts.append("### Foundry Gas Report")
+        parts.append("### Foundry Gas Report (from source)")
         parts.append(f"```\n{forge_report}\n```")
     else:
         parts.append("Forge (foundry) not available — install from https://book.getfoundry.sh/")
         parts.append("or use `cargo install --git https://github.com/foundry-rs/foundry --bins foundry-cli`")
+
+    if project_path and _has_forge:
+        is_foundry = os.path.isfile(os.path.join(project_path, "foundry.toml"))
+        if not is_foundry:
+            parent = os.path.dirname(project_path)
+            if parent and os.path.isdir(os.path.join(parent, ".git")):
+                is_foundry = True
+        if is_foundry:
+            report = run_forge_gas_report(project_path)
+            if report:
+                parts.append("### Foundry Gas Report (forge test --gas-report)")
+                parts.append(f"```\n{report}\n```")
 
     return "\n".join(parts)

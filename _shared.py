@@ -194,6 +194,20 @@ def _handle_zip_upload(file_storage):
     file_storage.save(zippath)
     try:
         with zipfile.ZipFile(zippath, 'r') as zf:
+            file_size = os.path.getsize(zippath)
+            if file_size > 50 * 1024 * 1024:
+                return {"error": "Zip file exceeds maximum size of 50 MB"}
+            rejected = []
+            for name in zf.namelist():
+                parts = name.replace('\\', '/').split('/')
+                if '..' in parts or '__pycache__' in parts or 'node_modules' in parts:
+                    rejected.append(name)
+                elif name.endswith(('.exe', '.sh', '.bat', '.cmd', '.dll', '.so', '.dylib')):
+                    rejected.append(name)
+                if len(rejected) >= 3:
+                    break
+            if rejected:
+                return {"error": f"Zip contains rejected files: {', '.join(rejected)}"}
             zf.extractall(tmpdir)
         items = os.listdir(tmpdir)
         root = tmpdir
