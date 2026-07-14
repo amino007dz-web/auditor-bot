@@ -160,12 +160,11 @@ def format_sbom_text(result: SBOMResult) -> str:
         return "\n".join(parts)
 
     parts.append(f"### Dependencies ({len(result.dependencies)})\n")
-    parts.append("| # | Import Path | Known Package | CVEs |")
-    parts.append("|---|------------|--------------|------|")
+    parts.append("| # | Import Path | Known Package |")
+    parts.append("|---|------------|--------------|")
     for i, dep in enumerate(result.dependencies, 1):
         pkg = dep.known_package or "-"
-        cve_str = ", ".join(dep.cves) if dep.cves else "None"
-        parts.append(f"| {i} | `{dep.name}` | {pkg} | {cve_str} |")
+        parts.append(f"| {i} | `{dep.name}` | {pkg} |")
     parts.append("")
 
     if result.compiler_cves:

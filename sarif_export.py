@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Optional
 
 FINDING_RE = re.compile(
-    r'(?:#{1,3}\s*)?(Critical|High|Medium|Low|Info)[:\s-]*\s*(.+?)$',
+    r'^(?:\s*[\d\-\*\.\)]+\s*)?(?:#{1,3}\s*)?(Critical|High|Medium|Low|Info)\s*[:\-\—]\s*(.+?)$',
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -190,10 +190,11 @@ def generate_sarif(findings: list, output_path: str = "") -> str:
         if f.agent_name not in rules:
             rules[f.agent_name] = _make_rule(f)
     rules_list = list(rules.values())
+    rules_index = {r["id"]: i for i, r in enumerate(rules_list)}
 
     results = []
     for f in findings:
-        rule_idx = rules_list.index(rules[f.agent_name])
+        rule_idx = rules_index.get(f.agent_name, 0)
         results.append(_make_result(f, rule_idx))
 
     doc = {

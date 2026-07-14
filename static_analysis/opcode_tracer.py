@@ -27,7 +27,7 @@ OPCODE_PATTERNS = {
         "fix": "Use msg.sender instead of tx.origin"
     },
     "unchecked_loop": {
-        "pattern": r"unchecked\s*\{[^}]*\+\+[^}]*\}",
+        "pattern": r"unchecked\s*\{[\s\S]*?\+\+[\s\S]*?\}",
         "severity": "LOW",
         "description": "unchecked increment in loop — may hide overflow",
         "fix": "Ensure counter does not reach max uint256"

@@ -52,11 +52,14 @@ function renderReport(markdown) {
     return html;
 }
 
+let severityChartInstance = null;
+
 function renderChart(severityCounts) {
     const ctx = document.getElementById('severityChart');
     if (!ctx) return;
     if (typeof Chart === 'undefined') return;
-    new Chart(ctx, {
+    if (severityChartInstance) severityChartInstance.destroy();
+    severityChartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: ['Critical', 'High', 'Medium', 'Low', 'Info'],
@@ -129,7 +132,7 @@ function countSeverities(text) {
 
 function saveToHistory(report, label) {
     let history = JSON.parse(localStorage.getItem('auditHistory') || '[]');
-    history.unshift({ report: report.slice(0, 500), full: report, label: label || 'Audit', date: new Date().toISOString() });
+    history.unshift({ report: report.slice(0, 500), label: label || 'Audit', date: new Date().toISOString() });
     if (history.length > 5) history = history.slice(0, 5);
     localStorage.setItem('auditHistory', JSON.stringify(history));
     renderHistory();
@@ -155,11 +158,11 @@ function loadHistoryItem(index) {
     const history = JSON.parse(localStorage.getItem('auditHistory') || '[]');
     const item = history[index];
     if (!item) return;
-    currentCode = item.full;
-    document.getElementById('reportContent').innerHTML = renderReport(currentCode);
+    const fullReport = item.report + '\n\n*Report truncated. Re-run analysis for full text.*';
+    document.getElementById('reportContent').innerHTML = renderReport(fullReport);
     document.getElementById('results').classList.remove('hidden');
-    document.getElementById('resultTitle').textContent = item.label;
-    const sev = countSeverities(currentCode);
+    document.getElementById('resultTitle').textContent = item.label + ' (cached)';
+    const sev = countSeverities(fullReport);
     renderChart(sev);
     document.getElementById('severityCounts').textContent =
         'Critical: ' + sev.critical + ' | High: ' + sev.high + ' | Medium: ' + sev.medium + ' | Low: ' + sev.low + ' | Info: ' + sev.info;
