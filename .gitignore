@@ -23,6 +23,7 @@ audit_report*.json
 *.db-wal
 reports/
 verified_report.md
+report_*.md
 .pytest_cache/
 dist/
 *.egg-info/

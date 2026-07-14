@@ -24,6 +24,10 @@ def rate_limit(max_per_minute: int = 10):
             key = f"{request.remote_addr}:{request.path}"
             now = time.time()
             with _rate_limit_lock:
+                if len(_rate_limit_store) > 1000:
+                    expired = [k for k, (t, _) in _rate_limit_store.items() if now - t > 120]
+                    for k in expired:
+                        del _rate_limit_store[k]
                 entry = _rate_limit_store.get(key)
                 if entry is None:
                     _rate_limit_store[key] = (now, 1)
