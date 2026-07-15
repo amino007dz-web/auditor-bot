@@ -454,6 +454,55 @@ def api_analyze_project():
         except: pass
 
 
+@api_bp.route('/analyze/malware', methods=['POST'])
+@rate_limit(10)
+@require_api_key
+def api_malware_scan():
+    data = request.get_json()
+    if not data or 'code' not in data:
+        return jsonify({"error": "Field 'code' is required"}), 400
+    from analyzers.malware_scanner import scan
+    result = scan(data['code'], data.get('bytecode', ''))
+    return jsonify(result)
+
+
+@api_bp.route('/analyze/fuzz', methods=['POST'])
+@rate_limit(5)
+@require_api_key
+def api_fuzz():
+    data = request.get_json()
+    if not data or 'code' not in data:
+        return jsonify({"error": "Field 'code' is required"}), 400
+    code = data['code'][:4000]
+    try:
+        from agents.llm_client import call_model
+        prompt = "Generate a Foundry fuzz test for this Solidity contract. Include invariant tests and edge cases. Return ONLY the Solidity code in a code block.\n\n```solidity\n{}\n```".format(code)
+        fuzz = call_model(prompt)
+        return jsonify({"fuzz_test": fuzz})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api_bp.route('/plugins', methods=['GET'])
+@require_api_key
+def api_plugins_list():
+    from analyzers.plugin_system import list_plugins
+    return jsonify({"plugins": list_plugins()})
+
+
+@api_bp.route('/plugins/run', methods=['POST'])
+@rate_limit(10)
+@require_api_key
+def api_plugins_run():
+    data = request.get_json()
+    if not data or 'code' not in data:
+        return jsonify({"error": "Field 'code' is required"}), 400
+    from analyzers.plugin_system import run_plugins
+    from dataclasses import asdict
+    results = run_plugins(data['code'])
+    return jsonify({"results": [asdict(r) for r in results]})
+
+
 @api_bp.route('/analyze/fix', methods=['POST'])
 @rate_limit(5)
 @require_api_key
@@ -472,10 +521,12 @@ def api_fix():
         return jsonify({"error": str(e)}), 500
 
 
-@api_bp.route('/hackerone', methods=['POST'])
+@api_bp.route('/hackerone', methods=['GET', 'POST'])
 @rate_limit(10)
 @require_api_key
 def api_hackerone():
+    if request.method == 'GET':
+        return jsonify({"status": "ready", "description": "Submit audit reports to HackerOne format"})
     data = request.get_json()
     if not data or 'report' not in data:
         return jsonify({"error": "Field 'report' is required"}), 400

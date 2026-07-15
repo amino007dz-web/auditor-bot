@@ -1,12 +1,40 @@
 {
   "name": "smart-contract-auditor",
   "displayName": "Smart Contract Auditor",
-  "description": "Live audit of Solidity/Vyper/Move code using the Smart Contract Auditor API",
-  "version": "0.1.0",
+  "description": "AI-powered security audit for Solidity, Vyper, and Move smart contracts. Detects reentrancy, CEI violations, and 100+ vulnerability patterns with multi-pass LLM validation.",
+  "version": "1.0.0",
   "publisher": "amino007dz",
-  "engines": { "vscode": "^1.85.0" },
-  "categories": ["Linters", "Security"],
-  "activationEvents": ["onLanguage:solidity", "onLanguage:vyper"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/amino007dz-web/auditor-bot"
+  },
+  "bugs": {
+    "url": "https://github.com/amino007dz-web/auditor-bot/issues"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Security",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "solidity",
+    "smart contract",
+    "security",
+    "audit",
+    "blockchain",
+    "ethereum",
+    "vyper",
+    "reentrancy",
+    "smart-contract-security"
+  ],
+  "activationEvents": [
+    "onLanguage:solidity",
+    "onLanguage:vyper"
+  ],
   "main": "./extension.js",
   "contributes": {
     "commands": [
@@ -30,16 +58,16 @@
           "default": "https://auditor-bot.onrender.com",
           "description": "Auditor API base URL"
         },
-        "sca.lang": {
-          "type": "string",
-          "enum": ["english"],
-          "default": "english",
-          "description": "Report language"
-        },
         "sca.apiKey": {
           "type": "string",
           "default": "",
-          "description": "API key for authenticated access (leave empty if server has no auth)"
+          "description": "API key for authenticated access"
+        },
+        "sca.language": {
+          "type": "string",
+          "enum": ["en", "ar", "zh"],
+          "default": "en",
+          "description": "Report language (en=English, ar=Arabic, zh=Chinese)"
         }
       }
     }

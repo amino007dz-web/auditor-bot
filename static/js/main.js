@@ -36,6 +36,9 @@ const el = {
   uploadKnowledgeBtn: $('uploadKnowledgeBtn'),
   gasBtn: $('gasBtn'),
   fixBtn: $('fixBtn'),
+  malwareBtn: $('malwareBtn'),
+  fuzzBtn: $('fuzzBtn'),
+  hackeroneBtn: $('hackeroneBtn'),
   entryContract: $('entryContract'),
   langSelect: $('langSelect'),
   githubSection: $('githubSection'),
@@ -116,6 +119,9 @@ document.addEventListener('DOMContentLoaded', function () {
   el.downloadPdf.addEventListener('click', function () { downloadReport('pdf'); });
   el.gasBtn.addEventListener('click', fetchGasReport);
   el.fixBtn.addEventListener('click', suggestFix);
+  el.malwareBtn.addEventListener('click', scanMalware);
+  el.fuzzBtn.addEventListener('click', generateFuzzTest);
+  el.hackeroneBtn.addEventListener('click', exportHackerone);
   el.langSelect.addEventListener('change', function () { applyLang(el.langSelect.value); });
   el.toggleChart.addEventListener('click', function () { showChart(); });
   el.exportGithub.addEventListener('click', exportToGithub);
@@ -360,6 +366,59 @@ function suggestFix() {
   }).catch(function (err) {
     el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + err.message + '</p>';
   });
+}
+
+function scanMalware() {
+  var code = window.editor.getValue();
+  if (!code) { el.resultsBody.innerHTML = '<p style="color:var(--red);">No code to scan.</p>'; return; }
+  el.resultsTitle.textContent = 'Scanning for malware...';
+  el.resultsBody.innerHTML = '<div class="skeleton w-75"></div>';
+  fetch('/api/analyze/malware', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code })
+  }).then(function (r) { return r.json(); }).then(function (data) {
+    var findings = (data.source_findings || []).concat(data.bytecode_findings || []);
+    var md = '# Malware Scan Report\n\n**Risk Score**: ' + data.risk_score + '/10\n\n';
+    if (findings.length === 0) { md += '*No malicious patterns detected.*\n'; }
+    else {
+      findings.forEach(function (f) {
+        md += '### ' + (f.severity || 'Info') + ': ' + (f.name || f.type || 'Suspicious') + '\n';
+        md += '- ' + (f.description || f.pattern || '') + '\n';
+        if (f.count) md += '- Matches: ' + f.count + '\n';
+        md += '\n';
+      });
+    }
+    currentReportText = md; renderFinalReport(md);
+  }).catch(function (err) { el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + err.message + '</p>'; });
+}
+
+function generateFuzzTest() {
+  var code = window.editor.getValue();
+  if (!code) { el.resultsBody.innerHTML = '<p style="color:var(--red);">No code to fuzz.</p>'; return; }
+  el.resultsTitle.textContent = 'Generating fuzz test...';
+  el.resultsBody.innerHTML = '<div class="skeleton w-75"></div>';
+  fetch('/api/analyze/fuzz', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code })
+  }).then(function (r) { return r.json(); }).then(function (data) {
+    var md = '# Generated Foundry Fuzz Test\n\n```solidity\n' + (data.fuzz_test || 'Error generating test') + '\n```';
+    currentReportText = md; renderFinalReport(md);
+  }).catch(function (err) { el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + err.message + '</p>'; });
+}
+
+function exportHackerone() {
+  if (!currentReportText) return;
+  var code = window.editor.getValue();
+  fetch('/api/hackerone', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ report: currentReportText, code: code, label: 'Smart Contract' })
+  }).then(function (r) { return r.json(); }).then(function (data) {
+    if (data.report) {
+      navigator.clipboard.writeText(data.report).then(function () {
+        alert('HackerOne report copied to clipboard!');
+      });
+    }
+  }).catch(function (err) { alert('Error: ' + err.message); });
 }
 
 function applyLang(lang) {
