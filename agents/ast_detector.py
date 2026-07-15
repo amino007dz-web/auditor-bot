@@ -15,9 +15,15 @@ import re
 logger = logging.getLogger(__name__)
 
 _has_ast = False
+_has_cfg = False
 try:
     from analyzers.solidity_ast import compile_to_ast, analyze_contracts, _get_name, _get_node_type
     _has_ast = True
+except ImportError:
+    pass
+try:
+    from analyzers.cfg_analyzer import analyze_flow as _run_cfg
+    _has_cfg = True
 except ImportError:
     pass
 
@@ -225,6 +231,15 @@ def analyze_ast(code: str) -> str:
         ok, msg = _cross_function_reentrancy(contract)
         if ok:
             findings.append(f"- [Critical] Cross-function Reentrancy: {msg}")
+
+    # Level 3 CFG flow analysis
+    if _has_cfg:
+        try:
+            cfg_findings = _run_cfg(code)
+            if cfg_findings:
+                findings.extend(cfg_findings)
+        except Exception as e:
+            logger.debug(f"CFG analysis skipped: {e}")
 
     if not findings:
         return ""
