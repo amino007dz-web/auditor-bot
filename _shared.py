@@ -6,7 +6,7 @@ import logging
 import threading
 import hmac
 from functools import wraps
-from flask import request, jsonify
+from flask import request, jsonify, session
 
 from config import REPORT_DIR
 from orchestrator import dispatch_analysis
@@ -81,6 +81,8 @@ def require_api_key(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         if not _EXPECTED_API_KEY:
+            return f(*args, **kwargs)
+        if session.get('authenticated'):
             return f(*args, **kwargs)
         auth = request.headers.get("Authorization", "")
         if not auth.startswith("Bearer "):
