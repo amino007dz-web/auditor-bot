@@ -40,7 +40,7 @@ API_PROVIDER: str = os.getenv("API_PROVIDER", "openrouter")
 
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_API_KEY: str = os.getenv("OLLAMA_API_KEY", "")
-OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen3-coder:480b")
+OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "deepseek-v4-pro")
 OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", "300"))
 
 GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")

@@ -26,7 +26,7 @@ services:
       - key: OLLAMA_BASE_URL
         value: https://ollama.com
       - key: OLLAMA_MODEL
-        value: qwen3-coder:480b
+        value: deepseek-v4-pro
       - key: OLLAMA_API_KEY
         sync: false
       - key: AUDITOR_API_KEY
