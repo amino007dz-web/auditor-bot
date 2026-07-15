@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="dark" dir="auto">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -161,25 +161,41 @@
 </div>
 
 <script>
-window.editor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
-  lineNumbers: true,
-  mode: 'javascript',
-  theme: 'dracula',
-  matchBrackets: true,
-  styleActiveLine: true,
-  indentUnit: 2,
-  tabSize: 2,
-  autoCloseBrackets: true
-});
-
-window.editor.on('change', function() {
-  const val = window.editor.getValue();
-  const charCount = val.length;
-  const contractCount = (val.match(/contract\s+\w+|library\s+\w+|interface\s+\w+|module\s+\w+/g) || []).length;
-  document.getElementById('fileInfo').textContent = charCount > 0
-    ? `📄 ${charCount.toLocaleString()} chars | ${contractCount} contract${contractCount !== 1 ? 's' : ''}`
-    : '';
-});
+(function() {
+  var ta = document.getElementById('codeEditor');
+  if (typeof CodeMirror !== 'undefined') {
+    window.editor = CodeMirror.fromTextArea(ta, {
+      lineNumbers: true,
+      mode: 'javascript',
+      theme: 'dracula',
+      matchBrackets: true,
+      styleActiveLine: true,
+      indentUnit: 2,
+      tabSize: 2,
+      autoCloseBrackets: true
+    });
+    window.editor.on('change', function() {
+      var val = window.editor.getValue();
+      var charCount = val.length;
+      var contractCount = (val.match(/contract\s+\w+|library\s+\w+|interface\s+\w+|module\s+\w+/g) || []).length;
+      document.getElementById('fileInfo').textContent = charCount > 0
+        ? charCount.toLocaleString() + ' chars | ' + contractCount + ' contract' + (contractCount !== 1 ? 's' : '')
+        : '';
+    });
+  } else {
+    ta.style.display = 'block';
+    ta.style.width = '100%';
+    ta.style.height = '100%';
+    ta.style.background = 'var(--bg-primary)';
+    ta.style.color = 'var(--text-primary)';
+    ta.style.border = 'none';
+    ta.style.padding = '1rem';
+    ta.style.fontFamily = 'monospace';
+    ta.style.fontSize = '13px';
+    ta.style.resize = 'none';
+    window.editor = { getValue: function() { return ta.value; }, setValue: function(v) { ta.value = v; }, refresh: function() {} };
+  }
+})();
 </script>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>

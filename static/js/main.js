@@ -1,3 +1,19 @@
+// CDN health check
+(function() {
+  var errors = [];
+  if (typeof CodeMirror === 'undefined') errors.push('CodeMirror');
+  if (typeof marked === 'undefined') errors.push('marked');
+  if (typeof DOMPurify === 'undefined') errors.push('DOMPurify');
+  if (typeof Chart === 'undefined') errors.push('Chart.js');
+  if (errors.length) {
+    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0d1117;color:#e6edf3;font-family:sans-serif;flex-direction:column;gap:1rem;text-align:center;padding:2rem;">' +
+      '<h1 style="color:#da3633;">⚠️ Failed to load: ' + errors.join(', ') + '</h1>' +
+      '<p style="color:#8b949e;max-width:500px;">The page requires external libraries. Try disabling ad-blockers or VPN, or use a different browser.</p>' +
+      '<p style="color:#8b949e;font-size:0.85rem;">If the issue persists, contact support.</p></div>';
+    throw new Error('CDN resources failed to load: ' + errors.join(', '));
+  }
+})();
+
 let abortController = null;
 let currentReportText = '';
 let chartInstance = null;
