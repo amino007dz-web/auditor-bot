@@ -168,24 +168,28 @@ def analyze_sbom(code: str) -> SBOMResult:
 
     result.compiler_cves = check_version_cves(result.compiler_version)
 
-    result.dependencies = []
     seen = set()
-    for imp in parse_imports(code):
-        if imp in seen:
-            continue
-        seen.add(imp)
-        dep = Dependency(name=imp)
-        dep.known_package = identify_package(imp)
-        try:
-            osv_results = query_osv(imp)
-            for v in osv_results:
-                cve_id = v.get("id", "")
-                if cve_id:
-                    dep.cves.append(cve_id)
-        except Exception:
-            pass
-        result.dependencies.append(dep)
+    imports = [imp for imp in parse_imports(code) if not (imp in seen or seen.add(imp))]
 
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    dep_map = {}
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        fut_map = {pool.submit(query_osv, imp): imp for imp in imports}
+        for fut in as_completed(fut_map):
+            imp = fut_map[fut]
+            dep = Dependency(name=imp)
+            dep.known_package = identify_package(imp)
+            try:
+                osv_results = fut.result()
+                for v in osv_results:
+                    cve_id = v.get("id", "")
+                    if cve_id:
+                        dep.cves.append(cve_id)
+            except Exception:
+                pass
+            dep_map[imp] = dep
+
+    result.dependencies = [dep_map[imp] for imp in imports]
     return result
 
 

@@ -316,12 +316,26 @@ def api_knowledge_ingest():
     f = request.files['file']
     if not f.filename.lower().endswith('.pdf'):
         return jsonify({"error": "Only PDF files accepted"}), 400
+    f.seek(0, 2)
+    size = f.tell()
+    f.seek(0)
+    if size > 5 * 1024 * 1024:
+        return jsonify({"error": "File too large. Maximum size is 5MB."}), 400
     try:
         from pypdf import PdfReader
-        reader = PdfReader(f)
-        text = ""
-        for page in reader.pages:
-            text += page.extract_text() or ""
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+        def _read_pdf():
+            reader = PdfReader(f)
+            text = ""
+            for page in reader.pages:
+                text += page.extract_text() or ""
+            return reader, text
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            try:
+                fut = pool.submit(_read_pdf)
+                reader, text = fut.result(timeout=30)
+            except FuturesTimeout:
+                return jsonify({"error": "PDF processing timed out (max 30s)"}), 408
         if not text.strip():
             return jsonify({"error": "No extractable text found in PDF"}), 400
         from agents.pipeline import _kb_manager

@@ -59,29 +59,46 @@ pre { background: #161b22; padding: 1rem; border-radius: 6px; overflow-x: auto; 
 <p class="status" id="status">Analyzing...</p>
 <pre id="report"><i>Waiting for results...</i></pre>
 <script>
-const evtSource = new EventSource('${apiUrl}/api/analyze/stream?key=${apiKey}&code=${encodeURIComponent(code.slice(0, 4000))}');
-const reportEl = document.getElementById('report');
-const statusEl = document.getElementById('status');
-evtSource.onmessage = function(e) {
+(async function() {
+  const reportEl = document.getElementById('report');
+  const statusEl = document.getElementById('status');
   try {
-    const data = JSON.parse(e.data);
-    if (data.type === 'progress') {
-      statusEl.textContent = data.text || 'Analyzing...';
-    } else if (data.type === 'final') {
-      reportEl.textContent = data.text || data.report || '';
-      statusEl.textContent = 'Analysis complete. ' + (data.cvss_summary || '');
-      evtSource.close();
-    } else if (data.type === 'error') {
-      reportEl.textContent = 'Error: ' + (data.text || 'Unknown error');
-      statusEl.textContent = 'Failed';
-      evtSource.close();
+    const resp = await fetch('${apiUrl}/api/analyze/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json'${apiKey ? ", 'Authorization': 'Bearer " + apiKey + "'" : ""} },
+      body: JSON.stringify({ code: ${JSON.stringify(code.slice(0, 4000))}, type: 'audit' })
+    });
+    if (!resp.ok) { reportEl.textContent = 'Error: ' + resp.status; statusEl.textContent = 'Failed'; return; }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\\n\\n');
+      buffer = parts.pop();
+      for (const part of parts) {
+        if (!part.startsWith('data: ')) continue;
+        const data = JSON.parse(part.slice(6).trim());
+        if (data.type === 'progress') {
+          statusEl.textContent = data.text || 'Analyzing...';
+        } else if (data.type === 'token') {
+          reportEl.textContent += data.text || '';
+        } else if (data.type === 'final') {
+          reportEl.textContent = data.report || data.text || '';
+          statusEl.textContent = 'Analysis complete.';
+        } else if (data.type === 'error') {
+          reportEl.textContent = 'Error: ' + (data.text || 'Unknown');
+          statusEl.textContent = 'Failed';
+        }
+      }
     }
-  } catch(e) { reportEl.textContent += e.data; }
-};
-evtSource.onerror = function() {
-  statusEl.textContent = 'Connection closed';
-  evtSource.close();
-};
+  } catch(e) {
+    reportEl.textContent = 'Error: ' + e.message;
+    statusEl.textContent = 'Connection failed';
+  }
+})();
 <\/script>
 </body></html>`;
   });

@@ -392,16 +392,19 @@ function updateStep(step) {
 }
 
 let typewriterTimer = null;
+let _streamingMd = '';
 
 function renderStreamingReport(text) {
   if (typewriterTimer) { clearTimeout(typewriterTimer); }
   typewriterTimer = setTimeout(function () {
-    el.resultsBody.innerHTML = buildAccordion(text);
+    _streamingMd = text;
+    el.resultsBody.innerHTML = DOMPurify.sanitize(marked.parse(text));
     el.resultsBody.scrollTop = el.resultsBody.scrollHeight;
   }, 50);
 }
 
 function renderFinalReport(report) {
+  _streamingMd = report;
   el.resultsBody.innerHTML = buildAccordion(report);
   el.resultsActions.style.display = 'flex';
   el.resultsTabs.style.display = 'flex';
