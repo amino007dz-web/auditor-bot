@@ -3,7 +3,7 @@ import sys
 import json
 import time
 import logging
-from flask import Blueprint, request, jsonify, Response, stream_with_context
+from flask import Blueprint, request, jsonify, Response, stream_with_context, session
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -16,13 +16,14 @@ from _shared import (
     _handle_zip_upload,
 )
 from main import ensure_report_dir, save_report_txt, load_local_contract
-from config import OLLAMA_MODEL, GITHUB_TOKEN
+from config import OLLAMA_MODEL, GITHUB_TOKEN, SECRET_KEY
 from agents.pipeline import truncate_code
 from agents.llm_client import _stream_ollama
 from agents.prompts import SYSTEM_PROMPT
 from agents.pre_scan import run_pre_scan
 from werkzeug.utils import secure_filename
 from orchestrator import dispatch_analysis
+from auth import save_history, get_history, get_history_item, check_quota, requires_auth
 
 logger = logging.getLogger(__name__)
 
@@ -285,6 +286,44 @@ def api_github_stream():
         return jsonify({"error": "PyGithub not installed"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@api_bp.route('/history', methods=['GET'])
+@requires_auth
+def api_history_list():
+    code = session.get('access_code', '')
+    items = get_history(code)
+    return jsonify({"items": items})
+
+
+@api_bp.route('/history/<int:history_id>', methods=['GET'])
+@requires_auth
+def api_history_detail(history_id):
+    code = session.get('access_code', '')
+    item = get_history_item(history_id, code)
+    if not item:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(item)
+
+
+@api_bp.route('/history', methods=['POST'])
+@requires_auth
+def api_history_save():
+    data = request.get_json()
+    if not data or 'report' not in data:
+        return jsonify({"error": "Field 'report' is required"}), 400
+    code = session.get('access_code', '')
+    title = data.get('title', 'Audit ' + time.strftime('%Y-%m-%d %H:%M'))
+    snippet = data['report'][:500]
+    save_history(code, title, snippet, data['report'], data.get('severity_counts', ''))
+    return jsonify({"success": True})
+
+
+@api_bp.route('/quota', methods=['GET'])
+@requires_auth
+def api_quota():
+    code = session.get('access_code', '')
+    return jsonify(check_quota(code))
 
 
 @api_bp.route('/gas', methods=['POST'])

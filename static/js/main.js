@@ -117,6 +117,7 @@ document.addEventListener('DOMContentLoaded', function () {
   el.githubUrl.addEventListener('keydown', function (e) { if (e.key === 'Enter') startAnalysis(); });
 
   loadHistory();
+  loadQuota();
 });
 
 function switchCodeTab(tab) {
@@ -523,40 +524,49 @@ function showChart() {
 }
 
 function saveToHistory(report) {
-  let history = [];
-  try { history = JSON.parse(localStorage.getItem('auditor-history') || '[]'); } catch (e) {}
-  const snippet = report.slice(0, 500);
-  history.unshift({ snippet: snippet, date: new Date().toISOString(), full: report });
-  if (history.length > 5) history = history.slice(0, 5);
-  localStorage.setItem('auditor-history', JSON.stringify(history.map(function (h) { return { snippet: h.snippet, date: h.date }; })));
-  loadHistory();
+  fetch('/api/history', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ report: report, title: 'Audit ' + new Date().toLocaleString(), severity_counts: countSeverities(report) })
+  }).then(function () { loadHistory(); });
 }
 
 function loadHistory() {
-  let history = [];
-  try { history = JSON.parse(localStorage.getItem('auditor-history') || '[]'); } catch (e) {}
-  el.historyList.innerHTML = history.length === 0
-    ? '<p style="color:var(--text-secondary);font-size:0.8rem;">No previous audits.</p>'
-    : history.map(function (h, i) {
-        return '<div class="history-item" data-idx="' + i + '" style="padding:0.6rem;border:1px solid var(--border);border-radius:6px;margin-bottom:0.5rem;cursor:pointer;font-size:0.8rem;">' +
-          '<div style="color:var(--text-primary);margin-bottom:0.25rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + h.snippet.slice(0, 80) + '...</div>' +
-          '<div style="color:var(--text-secondary);font-size:0.7rem;">' + new Date(h.date).toLocaleString() + '</div></div>';
-      }).join('');
-  el.historyList.querySelectorAll('.history-item').forEach(function (item) {
-    item.addEventListener('click', function () { loadHistoryItem(parseInt(item.dataset.idx)); });
+  fetch('/api/history').then(function (r) { return r.json(); }).then(function (data) {
+    var items = data.items || [];
+    el.historyList.innerHTML = items.length === 0
+      ? '<p style="color:var(--text-secondary);font-size:0.8rem;">No previous audits.</p>'
+      : items.map(function (h, i) {
+          var date = new Date(h.created_at * 1000).toLocaleString();
+          return '<div class="history-item" data-id="' + h.id + '" style="padding:0.6rem;border:1px solid var(--border);border-radius:6px;margin-bottom:0.5rem;cursor:pointer;font-size:0.8rem;">' +
+            '<div style="color:var(--text-primary);margin-bottom:0.25rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (h.title || h.snippet.slice(0, 80)) + '...</div>' +
+            '<div style="color:var(--text-secondary);font-size:0.7rem;">' + date + '</div></div>';
+        }).join('');
+    el.historyList.querySelectorAll('.history-item').forEach(function (item) {
+      item.addEventListener('click', function () { loadHistoryItem(parseInt(item.dataset.id)); });
+    });
   });
 }
 
-function loadHistoryItem(idx) {
-  let history = [];
-  try { history = JSON.parse(localStorage.getItem('auditor-history') || '[]'); } catch (e) {}
-  if (history[idx]) {
+function loadHistoryItem(id) {
+  fetch('/api/history/' + id).then(function (r) { return r.json(); }).then(function (item) {
+    if (!item) return;
     el.historyPanel.style.display = 'none';
-    el.resultsBody.innerHTML = buildAccordion(history[idx].full || history[idx].snippet);
+    el.resultsBody.innerHTML = buildAccordion(item.full_report || item.snippet);
     el.resultsActions.style.display = 'flex';
     el.resultsTabs.style.display = 'flex';
-    el.resultsTitle.textContent = 'History - ' + new Date(history[idx].date).toLocaleString();
-  }
+    el.resultsTitle.textContent = 'History - ' + new Date(item.created_at * 1000).toLocaleString();
+  });
+}
+
+function loadQuota() {
+  fetch('/api/quota').then(function (r) { return r.json(); }).then(function (data) {
+    var el2 = document.getElementById('quotaDisplay');
+    if (el2 && data) {
+      el2.textContent = 'Quota: ' + data.used + '/' + data.allowed;
+      if (data.remaining <= 5) el2.style.color = 'var(--red)';
+    }
+  });
 }
 
 function downloadReport(format) {
