@@ -42,7 +42,7 @@ function activate(context) {
         try {
           const headers = { "Content-Type": "application/json" };
           if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-          const resp = await fetch(`${apiUrl}/analyze`, {
+          const resp = await fetch(`${apiUrl}/api/analyze/json`, {
             method: "POST",
             headers,
             body: JSON.stringify({ code: code.slice(0, 4000), type: "audit" }),

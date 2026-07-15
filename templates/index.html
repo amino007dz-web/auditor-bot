@@ -1,322 +1,136 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smart Contract Auditor</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-<link rel="stylesheet" href="/static/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/theme/dracula.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/selection/active-line.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.0/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
-<body class="min-h-screen">
-<div class="max-w-7xl mx-auto px-4 py-6">
+<body>
 
-    <!-- Header -->
-    <header class="flex items-center justify-between pb-4 mb-6 border-b border-[var(--border)]">
-        <div>
-            <h1 class="text-3xl font-bold" style="background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Smart Contract Auditor</h1>
-            <p class="text-sm" style="color:var(--text-secondary)">Multi-language security analysis engine</p>
-        </div>
-        <div class="flex items-center gap-3">
-            <button id="themeToggle" onclick="toggleTheme()" class="btn" title="Toggle theme">&#9790;</button>
-        </div>
-    </header>
-
-    <!-- Nav -->
-    <nav class="flex flex-wrap gap-2 justify-center mb-8">
-        <a href="/" class="px-4 py-2 text-sm rounded border border-[var(--accent)]" style="color:var(--accent);background:rgba(88,166,255,0.1)">Home</a>
-        <a href="/dashboard" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Dashboard</a>
-        <a href="/explorer" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Chain Loader</a>
-        <a href="/batch" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Batch</a>
-        <a href="/project" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Project</a>
-        <a href="/gas" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Gas</a>
-        <a href="/testgen" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Tests</a>
-        <a href="/inhgraph" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Inheritance</a>
-        <a href="/permissions" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Permissions</a>
-        <a href="/rules" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Rules</a>
-        <a href="/cvss" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">CVSS</a>
-        <a href="/report/list" class="px-4 py-2 text-sm rounded border" style="border-color:var(--border);color:var(--text-secondary)">Reports</a>
-    </nav>
-
-    <div class="flex flex-col lg:flex-row gap-6">
-
-        <!-- Main Content -->
-        <div class="flex-1 min-w-0">
-
-            <!-- Input Section -->
-            <div class="card mb-6">
-                <div class="card-header">Smart Contract Analysis</div>
-                <div class="card-body">
-
-                    <!-- Tabs -->
-                    <div class="flex border-b mb-4" style="border-color:var(--border)">
-                        <button data-tab="paste" class="tab active" onclick="switchTab('paste')">Paste Code</button>
-                        <button data-tab="upload" class="tab" onclick="switchTab('upload')">Upload File</button>
-                        <button data-tab="diff" class="tab" onclick="switchTab('diff')">Diff Auditor</button>
-                    </div>
-
-                    <form id="uploadForm">
-                        <div class="mb-4">
-                            <select name="analysis_type" id="analysisType" class="w-full max-w-xs">
-                                <option value="audit">Full Audit</option>
-                                <option value="quick">Quick Scan</option>
-                                <option value="deep">Deep Analysis</option>
-                            </select>
-                        </div>
-
-                        <!-- Paste Tab -->
-                        <div id="tab-paste" class="tab-content active">
-                            <textarea id="codeInput" placeholder="Paste your Solidity/Vyper/Rust code here..." class="w-full min-h-[200px] resize-y font-mono text-sm" style="background:var(--bg-primary);border:1px solid var(--border);color:var(--text-primary);border-radius:8px;padding:0.75rem"></textarea>
-                            <div class="flex justify-between items-center mt-3">
-                                <span class="text-xs" id="fileMeta" style="color:var(--text-secondary)"></span>
-                                <button type="submit" class="btn-green px-5 py-2 rounded text-sm font-medium">Run Analysis</button>
-                            </div>
-                        </div>
-
-                        <!-- Upload Tab -->
-                        <div id="tab-upload" class="tab-content hidden">
-                            <div class="drop-zone" id="dropZone">
-                                <p style="color:var(--text-secondary)">Drag & drop a contract file here, or click to browse</p>
-                                <p class="text-xs mt-1" style="color:var(--text-secondary);opacity:0.6">Supported: .sol, .vy, .move, .clsp, .clib</p>
-                                <input type="file" id="fileInput" accept=".sol,.vy,.move,.clsp,.clib" class="hidden" onchange="handleFile(event)">
-                            </div>
-                            <div id="fileMeta" class="hidden text-sm mt-2" style="color:var(--text-secondary)"></div>
-                            <div id="contractInfo" class="hidden text-xs mt-1" style="color:var(--text-secondary)"></div>
-                            <button type="submit" class="btn-green px-5 py-2 rounded text-sm font-medium mt-4">Run Analysis</button>
-                        </div>
-
-                        <!-- Diff Tab -->
-                        <div id="tab-diff" class="tab-content hidden">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="text-sm font-medium mb-1 block" style="color:var(--text-secondary)">Old Version</label>
-                                    <textarea id="oldCodeInput" placeholder="Paste original contract code..." class="w-full min-h-[180px] resize-y font-mono text-sm" style="background:var(--bg-primary);border:1px solid var(--border);color:var(--text-primary);border-radius:8px;padding:0.75rem"></textarea>
-                                </div>
-                                <div>
-                                    <label class="text-sm font-medium mb-1 block" style="color:var(--text-secondary)">New Version</label>
-                                    <textarea id="newCodeInput" placeholder="Paste updated contract code..." class="w-full min-h-[180px] resize-y font-mono text-sm" style="background:var(--bg-primary);border:1px solid var(--border);color:var(--text-primary);border-radius:8px;padding:0.75rem"></textarea>
-                                </div>
-                            </div>
-                            <button type="button" onclick="runDiffAudit()" class="btn-green px-5 py-2 rounded text-sm font-medium mt-4">Compare Versions</button>
-                            <div id="diffResult" class="hidden mt-4 p-4 rounded font-mono text-sm whitespace-pre-wrap max-h-[50vh] overflow-y-auto" style="background:var(--bg-primary);border:1px solid var(--border)"></div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Progress Steps -->
-            <div id="loading" class="hidden card mb-6">
-                <div class="card-body text-center">
-                    <div class="w-10 h-10 rounded-full animate-spin mx-auto mb-4" style="border:3px solid var(--border);border-top-color:var(--accent)"></div>
-                    <p id="loadingText" class="text-sm" style="color:var(--text-secondary)">Processing...</p>
-                    <div class="flex flex-col gap-1 mt-4 text-sm" id="loadingSteps">
-                        <span class="step" data-step="1">1. Pre-scan</span>
-                        <span class="step" data-step="2">2. AI Analysis</span>
-                        <span class="step" data-step="3">3. Validation</span>
-                        <span class="step" data-step="4">4. Scoring</span>
-                        <span class="step" data-step="5">5. Complete</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Results Dashboard -->
-            <div id="results" class="hidden card mb-6">
-                <div class="card-header flex flex-wrap justify-between items-center">
-                    <span id="resultTitle">Audit Results</span>
-                    <div class="flex flex-wrap gap-2" id="exportButtons">
-                        <button onclick="downloadMarkdown(currentCode)" class="btn text-xs">Download Markdown</button>
-                        <button onclick="downloadSarif(currentCode, currentCode)" class="btn text-xs">Download SARIF</button>
-                        <button onclick="formatGithubDiscussion()" class="btn text-xs">GitHub Discussion</button>
-                        <button id="copyBtn" onclick="copyToClipboard(currentCode)" class="btn text-xs">Copy</button>
-                    </div>
-                </div>
-
-                <div class="card-body">
-                    <div class="flex flex-wrap gap-6 mb-6">
-                        <div class="w-44 h-44">
-                            <canvas id="severityChart"></canvas>
-                        </div>
-                        <div class="flex flex-col gap-1 text-sm" id="severityCounts">
-                            <span class="severity-critical">Critical: <span id="count-critical">0</span></span>
-                            <span class="severity-high">High: <span id="count-high">0</span></span>
-                            <span class="severity-medium">Medium: <span id="count-medium">0</span></span>
-                            <span class="severity-low">Low: <span id="count-low">0</span></span>
-                            <span class="severity-info">Info: <span id="count-info">0</span></span>
-                        </div>
-                    </div>
-
-                    <div id="reportContent" class="rounded p-4 font-mono text-sm whitespace-pre-wrap max-h-[70vh] overflow-y-auto" style="background:var(--bg-primary);border:1px solid var(--border)"></div>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- History Sidebar -->
-        <div class="sidebar w-full lg:w-64 shrink-0">
-            <div class="card">
-                <div class="card-header text-sm">Recent Audits</div>
-                <div class="card-body p-2" id="historyList">
-                    <p class="text-xs" style="color:var(--text-secondary)">No history yet</p>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Footer -->
-    <footer class="text-center py-6 mt-6 border-t text-xs" style="border-color:var(--border);color:var(--text-secondary)">
-        <a href="https://github.com/amino007dz-web/auditor-bot" style="color:var(--text-link)" class="hover:underline">GitHub</a> &middot;
-        v2.1.0 &middot;
-        Powered by Ollama Cloud
-    </footer>
+<div class="top-bar">
+  <h1><span>🛡️</span> Smart Contract Auditor</h1>
+  <div style="display:flex;align-items:center;gap:0.75rem;">
+    <i class="fas fa-history" id="historyBtn" title="History" style="cursor:pointer;color:var(--text-secondary);font-size:1rem;"></i>
+    <i class="fas fa-moon" id="themeToggle" title="Toggle theme" style="cursor:pointer;color:var(--text-secondary);font-size:1rem;"></i>
+  </div>
 </div>
 
-<script src="/static/js/main.js"></script>
+<div class="main-container">
+  <div class="code-pane" id="codePane">
+    <div style="padding:0.5rem 1rem;display:flex;gap:0.5rem;align-items:center;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <div class="btn active-tab" data-tab="paste" style="background:var(--accent);color:#fff;border-color:var(--accent);">Paste</div>
+      <div class="btn" data-tab="upload">Upload</div>
+      <div class="btn" data-tab="diff">Diff</div>
+      <div style="flex:1;"></div>
+      <select id="analysisType">
+        <option value="full">Full Audit</option>
+        <option value="quick">Quick Scan</option>
+        <option value="deep">Deep Analysis</option>
+      </select>
+    </div>
+    <div id="pasteSection" style="flex:1;display:flex;flex-direction:column;">
+      <textarea id="codeEditor" placeholder="Paste your Solidity/Vyper/Move code here..."></textarea>
+    </div>
+    <div id="uploadSection" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;padding:2rem;">
+      <i class="fas fa-cloud-upload-alt" style="font-size:3rem;color:var(--text-secondary);margin-bottom:1rem;"></i>
+      <p style="color:var(--text-secondary);margin-bottom:1rem;">Drop a .sol / .vy / .move file or click to browse</p>
+      <input type="file" id="fileInput" accept=".sol,.vy,.move,.clsp,.clib" style="display:none;">
+      <div class="btn" id="browseBtn">Browse Files</div>
+    </div>
+    <div id="diffSection" style="display:none;flex:1;">
+      <div style="display:flex;flex:1;height:100%;">
+        <div style="flex:1;display:flex;flex-direction:column;border-right:1px solid var(--border);">
+          <div style="padding:0.4rem 0.8rem;font-size:0.75rem;color:var(--text-secondary);border-bottom:1px solid var(--border);">Original</div>
+          <textarea id="diffOriginal" style="flex:1;resize:none;background:var(--bg-primary);color:var(--text-primary);border:none;padding:0.8rem;font-family:monospace;font-size:0.8rem;"></textarea>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;">
+          <div style="padding:0.4rem 0.8rem;font-size:0.75rem;color:var(--text-secondary);border-bottom:1px solid var(--border);">Modified</div>
+          <textarea id="diffModified" style="flex:1;resize:none;background:var(--bg-primary);color:var(--text-primary);border:none;padding:0.8rem;font-family:monospace;font-size:0.8rem;"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="code-toolbar">
+      <span id="fileInfo" style="color:var(--text-secondary);font-size:0.75rem;"></span>
+      <div style="flex:1;"></div>
+      <div class="btn btn-primary" id="analyzeBtn"><i class="fas fa-play"></i> Analyze</div>
+    </div>
+    <div class="drop-zone-overlay"><i class="fas fa-file-upload"></i> Drop file here</div>
+  </div>
+
+  <div class="results-pane" id="resultsPane">
+    <div class="results-header">
+      <span id="resultsTitle">Results</span>
+      <div id="resultsActions" style="display:none;gap:0.35rem;">
+        <i class="fas fa-download" id="downloadMd" title="Download Markdown" style="cursor:pointer;color:var(--text-secondary);"></i>
+        <i class="fas fa-code" id="downloadSarif" title="Download SARIF" style="cursor:pointer;color:var(--text-secondary);"></i>
+        <i class="fas fa-chart-bar" id="toggleChart" title="Toggle chart" style="cursor:pointer;color:var(--text-secondary);"></i>
+        <i class="fas fa-share-alt" id="exportGithub" title="Export to GitHub Discussion" style="cursor:pointer;color:var(--text-secondary);"></i>
+      </div>
+    </div>
+    <div class="results-tabs" id="resultsTabs" style="display:none;">
+      <div class="results-tab active" data-tab="report">Report</div>
+      <div class="results-tab" data-tab="chart">Chart</div>
+    </div>
+    <div class="results-body" id="resultsBody">
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);">
+        <i class="fas fa-shield-alt" style="font-size:3rem;margin-bottom:1rem;"></i>
+        <p>Paste your smart contract code and click Analyze to begin.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="historyPanel" style="display:none;position:fixed;top:0;right:0;width:320px;height:100%;background:var(--bg-secondary);border-left:1px solid var(--border);z-index:100;overflow-y:auto;padding:1rem;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+    <h3 style="font-size:0.9rem;">History</h3>
+    <i class="fas fa-times" id="historyClose" style="cursor:pointer;color:var(--text-secondary);"></i>
+  </div>
+  <div id="historyList"></div>
+</div>
+
+<div id="chartModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:1.5rem;width:500px;max-width:90%;">
+    <div style="display:flex;justify-content:space-between;margin-bottom:1rem;">
+      <h3 style="font-size:0.9rem;">Severity Distribution</h3>
+      <i class="fas fa-times" id="chartClose" style="cursor:pointer;color:var(--text-secondary);"></i>
+    </div>
+    <canvas id="severityChart" width="400" height="300"></canvas>
+  </div>
+</div>
+
 <script>
-let uploadedFile = null;
-let currentCode = '';
+window.editor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
+  lineNumbers: true,
+  mode: 'javascript',
+  theme: 'dracula',
+  matchBrackets: true,
+  styleActiveLine: true,
+  indentUnit: 2,
+  tabSize: 2,
+  autoCloseBrackets: true
+});
 
-function toggleTheme() {
-    const html = document.documentElement;
-    const current = html.getAttribute('data-theme') || 'dark';
-    const next = current === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', next);
-    localStorage.setItem('theme', next);
-}
-
-function switchTab(tab) {
-    document.querySelectorAll('.tab').forEach(t => {
-        t.classList.remove('active');
-        t.style.borderBottomColor = 'transparent';
-        t.style.color = 'var(--text-secondary)';
-    });
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    const tabBtn = document.querySelector(`[data-tab="${tab}"]`);
-    if (tabBtn) {
-        tabBtn.classList.add('active');
-        tabBtn.style.borderBottomColor = 'var(--accent)';
-        tabBtn.style.color = 'var(--accent)';
-    }
-    const tabEl = document.getElementById('tab-' + tab);
-    if (tabEl) {
-        tabEl.classList.remove('hidden');
-        tabEl.classList.add('active');
-    }
-}
-
-function handleFile(e) {
-    uploadedFile = e.target.files[0];
-    if (uploadedFile) {
-        document.getElementById('fileMeta').textContent = uploadedFile.name + ' (' + (uploadedFile.size / 1024).toFixed(1) + ' KB)';
-        document.getElementById('fileMeta').classList.remove('hidden');
-        detectContractInfo(uploadedFile);
-    }
-}
-
-function detectContractInfo(file) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const text = e.target.result;
-        const lines = text.split('\n');
-        const charCount = text.length;
-        const contractCount = (text.match(/\bcontract\s+\w+/g) || []).length;
-        const lang = text.includes('pragma solidity') ? 'Solidity' :
-                     text.includes('pragma vyper') || text.includes('@version') ? 'Vyper' :
-                     text.includes('module ') && text.includes('fun ') ? 'Move' : 'Unknown';
-        const el = document.getElementById('contractInfo');
-        el.textContent = lang + ' \u2022 ' + charCount.toLocaleString() + ' chars \u2022 ' + contractCount + ' contract(s) detected';
-        el.classList.remove('hidden');
-    };
-    reader.readAsText(file);
-}
-
-async function runAnalysis(e) {
-    e.preventDefault();
-    const analysisType = document.getElementById('analysisType').value;
-    const loading = document.getElementById('loading');
-    const results = document.getElementById('results');
-    results.classList.add('hidden');
-    loading.classList.remove('hidden');
-    document.getElementById('loadingText').textContent = 'Starting...';
-
-    let code = '';
-    const isPaste = document.getElementById('tab-paste').classList.contains('active');
-    if (isPaste) {
-        code = document.getElementById('codeInput').value.trim();
-        if (!code) { alert('Please paste code first.'); loading.classList.add('hidden'); return; }
-    } else if (document.getElementById('tab-upload').classList.contains('active')) {
-        if (!uploadedFile) { alert('Please select a file first.'); loading.classList.add('hidden'); return; }
-        code = await uploadedFile.text();
-    } else {
-        loading.classList.add('hidden');
-        return;
-    }
-
-    currentCode = '';
-    startAnalysis(code);
-}
-
-function runDiffAudit() {
-    const oldCode = document.getElementById('oldCodeInput').value.trim();
-    const newCode = document.getElementById('newCodeInput').value.trim();
-    if (!oldCode || !newCode) { alert('Please enter both old and new contract code.'); return; }
-
-    const resultEl = document.getElementById('diffResult');
-    resultEl.classList.remove('hidden');
-    resultEl.textContent = 'Running diff analysis...';
-
-    fetch('/api/analyze/diff', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ old_code: oldCode, new_code: newCode })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.error) { resultEl.textContent = 'Error: ' + data.error; return; }
-        let out = '# Diff Analysis\n\n## Summary\n' + (data.summary || 'N/A') + '\n\n## Changes\n';
-        if (data.diff) {
-            for (const change of data.diff) {
-                out += `- ${change.type}: ${change.line || ''}\n  ${change.content || ''}\n`;
-            }
-        }
-        out += '\n## Analysis\n' + (data.analysis || 'N/A');
-        resultEl.textContent = out;
-        resultEl.innerHTML = (typeof marked !== 'undefined') ? marked.parse(out) : out.replace(/\n/g, '<br>');
-    })
-    .catch(err => { resultEl.textContent = 'Error: ' + err.message; });
-}
-
-function formatGithubDiscussion() {
-    if (!currentCode) return;
-    const intro = '## Security Audit Report\n\n_Generated by Smart Contract Auditor_\n\n---\n\n';
-    const footer = '\n\n---\n_Copy and paste this report into a GitHub Code Review comment or Discussion._';
-    const blob = new Blob([intro + currentCode + footer], { type: 'text/markdown' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'github_audit_discussion.md';
-    a.click();
-    URL.revokeObjectURL(a.href);
-}
-
-function updateCharCount() {
-    const ta = document.getElementById('codeInput');
-    const meta = document.getElementById('fileMeta');
-    const text = ta.value;
-    const contractCount = (text.match(/\bcontract\s+\w+/g) || []).length;
-    const lang = text.includes('pragma solidity') ? 'Solidity' :
-                 text.includes('@version') || text.includes('pragma vyper') ? 'Vyper' : 'Unknown';
-    meta.textContent = lang + ' \u2022 ' + text.length.toLocaleString() + ' chars \u2022 ' + contractCount + ' contract(s)';
-}
-
-// Init
-document.getElementById('codeInput').addEventListener('input', updateCharCount);
-const savedTheme = localStorage.getItem('theme');
-if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
-document.getElementById('uploadForm').addEventListener('submit', runAnalysis);
-loadHistory();
+window.editor.on('change', function() {
+  const val = window.editor.getValue();
+  const charCount = val.length;
+  const contractCount = (val.match(/contract\s+\w+|library\s+\w+|interface\s+\w+|module\s+\w+/g) || []).length;
+  document.getElementById('fileInfo').textContent = charCount > 0
+    ? `📄 ${charCount.toLocaleString()} chars | ${contractCount} contract${contractCount !== 1 ? 's' : ''}`
+    : '';
+});
 </script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

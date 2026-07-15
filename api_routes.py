@@ -67,6 +67,24 @@ def api_analyze():
     })
 
 
+@api_bp.route('/analyze/json', methods=['POST'])
+@rate_limit(10)
+@require_api_key
+def api_analyze_json():
+    """JSON endpoint for VS Code extension and programmatic use."""
+    data = request.get_json()
+    if not data or 'code' not in data:
+        return jsonify({"error": "Field 'code' is required"}), 400
+    code = truncate_code(data['code'])
+    analysis_type = data.get('type', 'audit')
+    try:
+        report = _run_analysis(code, analysis_type)
+        return jsonify({"report": report})
+    except Exception as e:
+        logger.exception("Analysis failed")
+        return jsonify({"error": "An internal error occurred"}), 500
+
+
 @api_bp.route('/analyze/stream', methods=['POST'])
 @rate_limit(3)
 @require_api_key
