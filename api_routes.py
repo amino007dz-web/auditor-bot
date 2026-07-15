@@ -476,8 +476,9 @@ def api_fuzz():
     code = data['code'][:4000]
     try:
         from agents.llm_client import call_model
+        from config import OLLAMA_MODEL
         prompt = "Generate a Foundry fuzz test for this Solidity contract. Include invariant tests and edge cases. Return ONLY the Solidity code in a code block.\n\n```solidity\n{}\n```".format(code)
-        fuzz = call_model(prompt)
+        fuzz = call_model(OLLAMA_MODEL, prompt)
         return jsonify({"fuzz_test": fuzz})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -514,8 +515,9 @@ def api_fix():
     report = (data.get('report') or '')[:2000]
     try:
         from agents.llm_client import call_model
+        from config import OLLAMA_MODEL
         prompt = "You are a Solidity security fixer. Given the vulnerable code and audit findings, provide the FIXED version of the code.\n\nVulnerable code:\n```solidity\n{}\n```\n\nAudit findings:\n{}\n\nReturn ONLY the fixed Solidity code in a code block.".format(code, report)
-        fix = call_model(prompt)
+        fix = call_model(OLLAMA_MODEL, prompt)
         return jsonify({"fix": fix})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
