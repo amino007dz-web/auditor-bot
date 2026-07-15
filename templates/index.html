@@ -21,9 +21,14 @@
 <body>
 
 <div class="top-bar">
-  <h1><span>🛡️</span> Smart Contract Auditor</h1>
+  <h1><span>🛡️</span> <span data-i18n="app.title">Smart Contract Auditor</span></h1>
   <div style="display:flex;align-items:center;gap:0.75rem;">
     <span id="quotaDisplay" style="color:var(--text-secondary);font-size:0.75rem;"></span>
+    <select id="langSelect" style="padding:0.2rem 0.4rem;border-radius:4px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.75rem;">
+      <option value="en">EN</option>
+      <option value="ar">AR</option>
+      <option value="zh">ZH</option>
+    </select>
     <i class="fas fa-book" id="knowledgeBtn" title="Knowledge Base" style="cursor:pointer;color:var(--text-secondary);font-size:1rem;"></i>
     <i class="fas fa-history" id="historyBtn" title="History" style="cursor:pointer;color:var(--text-secondary);font-size:1rem;"></i>
     <i class="fas fa-moon" id="themeToggle" title="Toggle theme" style="cursor:pointer;color:var(--text-secondary);font-size:1rem;"></i>
@@ -75,10 +80,15 @@
     <div id="projectSection" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;padding:2rem;">
       <i class="fas fa-folder-open" style="font-size:3rem;color:var(--text-secondary);margin-bottom:1rem;"></i>
       <p style="color:var(--text-secondary);margin-bottom:0.5rem;">Upload a ZIP project with multiple contracts</p>
-      <p style="color:var(--text-secondary);font-size:0.75rem;margin-bottom:1rem;">All .sol / .vy / .move files in the archive will be audited together</p>
-      <input type="file" id="projectInput" accept=".zip" style="display:none;">
-      <div class="btn" id="browseProjectBtn">Browse ZIP</div>
-      <div id="projectFileInfo" style="color:var(--text-secondary);font-size:0.8rem;margin-top:0.5rem;"></div>
+      <p style="color:var(--text-secondary);font-size:0.75rem;margin-bottom:0.5rem;">The entry contract gets full context; libraries provide additional analysis.</p>
+      <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;justify-content:center;">
+        <input type="file" id="projectInput" accept=".zip" style="display:none;">
+        <div class="btn" id="browseProjectBtn">Browse ZIP</div>
+        <select id="entryContract" style="padding:0.5rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.85rem;display:none;">
+          <option value="">Auto-detect entry contract</option>
+        </select>
+      </div>
+      <div id="projectFileInfo" style="color:var(--text-secondary);font-size:0.8rem;"></div>
     </div>
     <div class="code-toolbar">
       <span id="fileInfo" style="color:var(--text-secondary);font-size:0.75rem;"></span>
@@ -94,6 +104,7 @@
       <div id="resultsActions" style="display:none;gap:0.35rem;">
         <i class="fas fa-download" id="downloadMd" title="Download Markdown" style="cursor:pointer;color:var(--text-secondary);"></i>
         <i class="fas fa-code" id="downloadSarif" title="Download SARIF" style="cursor:pointer;color:var(--text-secondary);"></i>
+        <i class="fas fa-wrench" id="fixBtn" title="Suggest Fix" style="cursor:pointer;color:var(--text-secondary);"></i>
         <i class="fas fa-file-pdf" id="downloadPdf" title="Download PDF" style="cursor:pointer;color:var(--text-secondary);"></i>
         <i class="fas fa-gas-pump" id="gasBtn" title="Gas Report" style="cursor:pointer;color:var(--text-secondary);"></i>
         <i class="fas fa-chart-bar" id="toggleChart" title="Toggle chart" style="cursor:pointer;color:var(--text-secondary);"></i>

@@ -399,8 +399,8 @@ def api_analyze_project():
         return jsonify({"error": "No project ZIP uploaded"}), 400
     import tempfile
     import zipfile
-    from project_detector import analyze_project
     f = request.files['project']
+    entry_contract = request.form.get('entry_contract', '')
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
     try:
         f.save(tmp.name)
@@ -412,16 +412,23 @@ def api_analyze_project():
                     sol_files.append((name, zf.read(name).decode('utf-8', errors='replace')))
         if not sol_files:
             return jsonify({"error": "No Solidity/Vyper/Move files found in ZIP"}), 400
-        combined = "\n\n// ====== " + "=" * 40 + "\n\n".join(
-            f"// File: {path}\n{code[:2000]}" for path, code in sol_files[:10]
-        )[:5000]
+        entry_code = ""
+        lib_code = ""
+        for path, code in sol_files[:20]:
+            is_entry = entry_contract and entry_contract.lower() in path.lower()
+            if is_entry or (not entry_code and not entry_contract):
+                entry_code = code[:4000]
+            else:
+                lib_code += "\n\n// File: {}\n{}".format(path, code[:1500])
+        combined = entry_code + lib_code
+        combined = combined[:8000]
 
         def generate():
             from agents.llm_client import _stream_ollama
             from agents.prompts import SYSTEM_PROMPT
             pre = run_pre_scan(combined)
             pre_json = json.dumps([dict(f) for f in pre.get('findings', [])], indent=2)
-            prompt = "{}\n\nPre-scan findings:\n{}\n\nProject files ({}):\n{}\n\nProvide a comprehensive security audit of this project.".format(
+            prompt = "{}\n\nPre-scan findings:\n{}\n\nProject files ({}):\n{}\n\nProvide a comprehensive security audit of this project. Focus on the entry contract.".format(
                 SYSTEM_PROMPT, pre_json, len(sol_files), combined)
             msg = 'Pre-scan complete: {} files found, {} potential issues'.format(
                 len(sol_files), len(pre.get('findings', [])))
@@ -445,6 +452,24 @@ def api_analyze_project():
     finally:
         try: os.unlink(tmp.name)
         except: pass
+
+
+@api_bp.route('/analyze/fix', methods=['POST'])
+@rate_limit(5)
+@require_api_key
+def api_fix():
+    data = request.get_json()
+    if not data or 'code' not in data:
+        return jsonify({"error": "Field 'code' is required"}), 400
+    code = data['code'][:4000]
+    report = (data.get('report') or '')[:2000]
+    try:
+        from agents.llm_client import call_model
+        prompt = "You are a Solidity security fixer. Given the vulnerable code and audit findings, provide the FIXED version of the code.\n\nVulnerable code:\n```solidity\n{}\n```\n\nAudit findings:\n{}\n\nReturn ONLY the fixed Solidity code in a code block.".format(code, report)
+        fix = call_model(prompt)
+        return jsonify({"fix": fix})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @api_bp.route('/hackerone', methods=['POST'])

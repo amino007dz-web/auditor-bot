@@ -35,6 +35,9 @@ const el = {
   knowledgeResult: $('knowledgeResult'),
   uploadKnowledgeBtn: $('uploadKnowledgeBtn'),
   gasBtn: $('gasBtn'),
+  fixBtn: $('fixBtn'),
+  entryContract: $('entryContract'),
+  langSelect: $('langSelect'),
   githubSection: $('githubSection'),
   githubUrl: $('githubUrl'),
   githubFileInfo: $('githubFileInfo'),
@@ -112,6 +115,8 @@ document.addEventListener('DOMContentLoaded', function () {
   el.downloadSarif.addEventListener('click', function () { downloadReport('sarif'); });
   el.downloadPdf.addEventListener('click', function () { downloadReport('pdf'); });
   el.gasBtn.addEventListener('click', fetchGasReport);
+  el.fixBtn.addEventListener('click', suggestFix);
+  el.langSelect.addEventListener('change', function () { applyLang(el.langSelect.value); });
   el.toggleChart.addEventListener('click', function () { showChart(); });
   el.exportGithub.addEventListener('click', exportToGithub);
   el.githubUrl.addEventListener('keydown', function (e) { if (e.key === 'Enter') startAnalysis(); });
@@ -152,6 +157,18 @@ function handleProjectUpload() {
   const file = el.projectInput.files[0];
   if (!file) return;
   el.projectFileInfo.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+  // Read ZIP and list .sol files for entry contract selector
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    try {
+      var zipData = new Uint8Array(e.target.result);
+      // Simplified: just show the dropdown with an "auto" option
+      el.entryContract.style.display = 'inline-block';
+      // Try to list files using a simple heuristic from the filename
+      el.entryContract.innerHTML = '<option value="">Auto-detect entry contract</option>';
+    } catch (err) { /* ZIP parsing in browser needs JSZip lib; skip */ }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function getCode() {
@@ -190,7 +207,8 @@ function startAnalysis() {
     endpoint = '/api/analyze/project';
     body = new FormData();
     body.append('project', file);
-    // Can't use JSON Content-Type for FormData
+    var entry = el.entryContract.value;
+    if (entry) body.append('entry_contract', entry);
     doProjectAnalysis(endpoint, body);
     return;
   } else if (tab === 'diff') {
@@ -320,6 +338,47 @@ function fetchGasReport() {
     renderFinalReport(md);
   }).catch(function (err) {
     el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + err.message + '</p>';
+  });
+}
+
+function suggestFix() {
+  if (!currentReportText) return;
+  var code = window.editor.getValue();
+  if (!code) { el.resultsBody.innerHTML = '<p style="color:var(--red);">No code to fix.</p>'; return; }
+  el.resultsTitle.textContent = 'Generating fix...';
+  el.resultsBody.innerHTML = '<div class="skeleton w-75"></div><div class="skeleton w-50"></div>';
+  fetch('/api/analyze/fix', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code, report: currentReportText.slice(0, 3000) })
+  }).then(function (r) { return r.json(); }).then(function (data) {
+    if (data.fix) {
+      var md = '# Suggested Fix\n\n' + data.fix;
+      currentReportText = md;
+      renderFinalReport(md);
+    } else { el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + (data.error || 'No fix generated') + '</p>'; }
+  }).catch(function (err) {
+    el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + err.message + '</p>';
+  });
+}
+
+function applyLang(lang) {
+  // Simple i18n: update data-i18n elements
+  document.querySelectorAll('[data-i18n]').forEach(function (el2) {
+    var key = el2.dataset.i18n;
+    var texts = {
+      'app.title': { en: 'Smart Contract Auditor', ar: 'مدقق العقود الذكية', zh: '智能合约审计器' },
+      'tab.paste': { en: 'Paste', ar: 'لصق', zh: '粘贴' },
+      'tab.upload': { en: 'Upload', ar: 'رفع', zh: '上传' },
+      'tab.project': { en: 'Project', ar: 'مشروع', zh: '项目' },
+      'tab.github': { en: 'GitHub', ar: 'جيت هاب', zh: 'GitHub' },
+      'tab.diff': { en: 'Diff', ar: 'مقارنة', zh: '差异' },
+      'btn.analyze': { en: 'Analyze', ar: 'تحليل', zh: '分析' },
+      'results.title': { en: 'Results', ar: 'النتائج', zh: '结果' },
+      'quota.label': { en: 'Quota', ar: 'الحصة', zh: '配额' },
+    };
+    var t = texts[key];
+    if (t && t[lang]) { el2.textContent = t[lang]; }
   });
 }
 

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>API Documentation</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.8/swagger-ui.min.css">
+<style>
+body{background:#0d1117;margin:0;}
+#swagger-ui{max-width:1200px;margin:0 auto;padding:1rem;}
+</style>
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.8/swagger-ui-bundle.min.js"></script>
+<script>
+SwaggerUIBundle({
+  url: '/api/openapi.json',
+  dom_id: '#swagger-ui',
+  presets: [SwaggerUIBundle.presets.apis],
+  layout: "BaseLayout",
+  darkMode: true,
+});
+</script>
+</body>
+</html>

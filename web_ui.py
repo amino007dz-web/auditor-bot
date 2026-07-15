@@ -371,6 +371,105 @@ def download_pdf(filename):
     return send_from_directory(REPORT_DIR, filename, as_attachment=True)
 
 
+@app.route('/privacy')
+def privacy_page():
+    return render_template('privacy.html')
+
+
+@app.route('/docs')
+def api_docs():
+    return render_template('swagger.html')
+
+
+@app.route('/api/openapi.json')
+def api_openapi():
+    return jsonify({
+        "openapi": "3.0.0",
+        "info": {"title": "Smart Contract Auditor API", "version": "2.0.0", "description": "AI-powered smart contract security auditing API"},
+        "servers": [{"url": "/api", "description": "API server"}],
+        "paths": {
+            "/analyze/stream": {
+                "post": {
+                    "summary": "Stream analysis results via SSE",
+                    "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object", "properties": {
+                        "code": {"type": "string", "description": "Source code"},
+                        "type": {"type": "string", "enum": ["audit", "quick", "deep"]}
+                    }}}}},
+                    "responses": {"200": {"description": "SSE stream of analysis progress and results"}}
+                }
+            },
+            "/auth/verify": {
+                "post": {
+                    "summary": "Verify an access code",
+                    "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object", "properties": {
+                        "code": {"type": "string"}
+                    }}}}},
+                    "responses": {"200": {"description": "Authentication result"}}
+                }
+            },
+            "/quota": {
+                "get": {"summary": "Get remaining quota", "responses": {"200": {"description": "Quota info"}}}
+            },
+            "/history": {
+                "get": {"summary": "List audit history", "responses": {"200": {"description": "History list"}}},
+                "post": {
+                    "summary": "Save an audit report",
+                    "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object", "properties": {
+                        "report": {"type": "string"}, "title": {"type": "string"}
+                    }}}}},
+                    "responses": {"200": {"description": "Saved"}}
+                }
+            },
+            "/gas": {
+                "post": {
+                    "summary": "Analyze gas usage",
+                    "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object", "properties": {
+                        "code": {"type": "string"}
+                    }}}}},
+                    "responses": {"200": {"description": "Gas report"}}
+                }
+            },
+            "/knowledge/ingest": {
+                "post": {
+                    "summary": "Upload PDF to knowledge base",
+                    "requestBody": {"required": True, "content": {"multipart/form-data": {"schema": {"type": "object", "properties": {
+                        "file": {"type": "string", "format": "binary"}
+                    }}}}},
+                    "responses": {"200": {"description": "Ingestion result"}}
+                }
+            },
+            "/analyze/fix": {
+                "post": {
+                    "summary": "Suggest a fix for vulnerable code",
+                    "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object", "properties": {
+                        "code": {"type": "string"}, "report": {"type": "string"}
+                    }}}}},
+                    "responses": {"200": {"description": "Suggested fix"}}
+                }
+            },
+            "/analyze/github": {
+                "post": {
+                    "summary": "Audit a GitHub repository",
+                    "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object", "properties": {
+                        "url": {"type": "string"}
+                    }}}}},
+                    "responses": {"200": {"description": "SSE stream of audit results"}}
+                }
+            },
+            "/analyze/project": {
+                "post": {
+                    "summary": "Audit a ZIP project",
+                    "requestBody": {"required": True, "content": {"multipart/form-data": {"schema": {"type": "object", "properties": {
+                        "project": {"type": "string", "format": "binary"},
+                        "entry_contract": {"type": "string"}
+                    }}}}},
+                    "responses": {"200": {"description": "SSE stream of audit results"}}
+                }
+            },
+        }
+    })
+
+
 @app.route('/admin/login')
 def admin_login_page():
     return render_template('admin.html')
