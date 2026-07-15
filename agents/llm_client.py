@@ -144,7 +144,7 @@ def call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
     ctx = info.get("context", 0)
     console.log(f"[bold cyan]{model_id}[/]  [dim]context: {ctx:,}[/]")
     current_key = get_api_key()
-    masked_key = current_key[:8] + "..." if current_key else "missing"
+    masked_key = (current_key[:4] + "..." + current_key[-4:]) if current_key and len(current_key) > 8 else "***"
     last_err = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -252,7 +252,7 @@ async def async_call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
     timeout = timeout or TIMEOUT
     info = FREE_MODELS.get(model_id, {})
     current_key = get_api_key()
-    masked_key = current_key[:8] + "..." if current_key else "missing"
+    masked_key = (current_key[:4] + "..." + current_key[-4:]) if current_key and len(current_key) > 8 else "***"
     last_err = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:

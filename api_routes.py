@@ -212,6 +212,8 @@ def api_analyze_chain():
 
 
 @api_bp.route('/analyze_github', methods=['POST'])
+@rate_limit(5)
+@require_api_key
 def api_analyze_github():
     from github_loader import download_contracts
     data = request.get_json()
@@ -241,15 +243,155 @@ def api_analyze_github():
         return jsonify({"error": str(e)}), 500
 
 
-@api_bp.route('/upload_project', methods=['POST'])
-def api_upload_project():
-    ensure_report_dir()
-    if 'file' not in request.files or not request.files['file'].filename:
+@api_bp.route('/analyze/github', methods=['POST'])
+@rate_limit(5)
+@require_api_key
+def api_github_stream():
+    from github_loader import download_contracts
+    data = request.get_json()
+    if not data or 'url' not in data:
+        return jsonify({"error": "GitHub URL is required"}), 400
+    url = data['url'].strip()
+    try:
+        contracts = download_contracts(url, GITHUB_TOKEN if GITHUB_TOKEN else None)
+        if not contracts:
+            return jsonify({"error": "No Solidity files found in the repository"}), 404
+        combined = "\n\n// ====== " + "=" * 40 + "\n\n".join(
+            f"// File: {c['name']}\n{c['code'][:2000]}" for c in contracts[:10]
+        )[:5000]
+
+        def gen():
+            from agents.llm_client import _stream_ollama
+            from agents.prompts import SYSTEM_PROMPT
+            pre = run_pre_scan(combined)
+            msg = 'GitHub repo: {} files found, {} potential issues'.format(
+                len(contracts), len(pre.get('findings', [])))
+            yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'pre-scan', 'text': msg}))
+            pre_json = json.dumps([dict(f) for f in pre.get('findings', [])], indent=2)
+            prompt = "{}\n\nPre-scan findings:\n{}\n\nGitHub repo ({}) code:\n{}\n\nProvide a comprehensive security audit.".format(
+                SYSTEM_PROMPT, pre_json, url.rsplit('/', 1)[-1], combined)
+            yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'ai', 'text': 'Running AI analysis on repository...'}))
+            full = ""
+            for chunk in _stream_ollama(prompt):
+                full += chunk
+                yield 'data: {}\n\n'.format(json.dumps({'type': 'token', 'text': chunk}))
+            yield 'data: {}\n\n'.format(json.dumps({'type': 'final', 'report': full}))
+            yield "data: [DONE]\n\n"
+
+        return Response(stream_with_context(gen()), mimetype='text/event-stream', headers={
+            'X-Accel-Buffering': 'no', 'Cache-Control': 'no-cache',
+        })
+    except ImportError:
+        return jsonify({"error": "PyGithub not installed"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api_bp.route('/gas', methods=['POST'])
+@rate_limit(10)
+@require_api_key
+def api_gas():
+    data = request.get_json()
+    if not data or 'code' not in data:
+        return jsonify({"error": "Field 'code' is required"}), 400
+    from gas_profiler import estimate_gas
+    from gas_analysis import analyze_gas, estimate_gas_savings
+    code = data['code']
+    gas_report = estimate_gas(code)
+    static_analysis = analyze_gas(code)
+    savings = estimate_gas_savings(static_analysis)
+    return jsonify({
+        "gas_report": gas_report,
+        "static_analysis": static_analysis,
+        "savings_usd": savings,
+    })
+
+
+@api_bp.route('/knowledge/ingest', methods=['POST'])
+@rate_limit(5)
+@require_api_key
+def api_knowledge_ingest():
+    if 'file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
-    result = _handle_zip_upload(request.files['file'])
-    if isinstance(result, dict) and 'error' in result:
-        return jsonify(result), 400
-    return jsonify({"report": str(result)})
+    f = request.files['file']
+    if not f.filename.lower().endswith('.pdf'):
+        return jsonify({"error": "Only PDF files accepted"}), 400
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(f)
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text() or ""
+        if not text.strip():
+            return jsonify({"error": "No extractable text found in PDF"}), 400
+        from agents.pipeline import _kb_manager
+        kb = _kb_manager.kb
+        if kb:
+            title = f.filename.rsplit('.', 1)[0]
+            kb.add_knowledge_entry(title=title, content=text, source=title)
+            return jsonify({"success": True, "pages": len(reader.pages), "chars": len(text)})
+        return jsonify({"error": "Knowledge base not available"}), 500
+    except ImportError:
+        return jsonify({"error": "pypdf not installed. Run: pip install pypdf"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api_bp.route('/analyze/project', methods=['POST'])
+@rate_limit(5)
+@require_api_key
+def api_analyze_project():
+    ensure_report_dir()
+    if 'project' not in request.files or not request.files['project'].filename:
+        return jsonify({"error": "No project ZIP uploaded"}), 400
+    import tempfile
+    import zipfile
+    from project_detector import analyze_project
+    f = request.files['project']
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+    try:
+        f.save(tmp.name)
+        tmp.close()
+        with zipfile.ZipFile(tmp.name, 'r') as zf:
+            sol_files = []
+            for name in zf.namelist():
+                if name.lower().endswith(('.sol', '.vy', '.move')):
+                    sol_files.append((name, zf.read(name).decode('utf-8', errors='replace')))
+        if not sol_files:
+            return jsonify({"error": "No Solidity/Vyper/Move files found in ZIP"}), 400
+        combined = "\n\n// ====== " + "=" * 40 + "\n\n".join(
+            f"// File: {path}\n{code[:2000]}" for path, code in sol_files[:10]
+        )[:5000]
+
+        def generate():
+            from agents.llm_client import _stream_ollama
+            from agents.prompts import SYSTEM_PROMPT
+            pre = run_pre_scan(combined)
+            pre_json = json.dumps([dict(f) for f in pre.get('findings', [])], indent=2)
+            prompt = "{}\n\nPre-scan findings:\n{}\n\nProject files ({}):\n{}\n\nProvide a comprehensive security audit of this project.".format(
+                SYSTEM_PROMPT, pre_json, len(sol_files), combined)
+            msg = 'Pre-scan complete: {} files found, {} potential issues'.format(
+                len(sol_files), len(pre.get('findings', [])))
+            yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'pre-scan', 'text': msg}))
+            yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'ai', 'text': 'Running AI analysis across project...'}))
+            full = ""
+            for chunk in _stream_ollama(prompt):
+                full += chunk
+                yield 'data: {}\n\n'.format(json.dumps({'type': 'token', 'text': chunk}))
+            yield 'data: {}\n\n'.format(json.dumps({'type': 'final', 'report': full}))
+            yield "data: [DONE]\n\n"
+
+        return Response(stream_with_context(generate()), mimetype='text/event-stream', headers={
+            'X-Accel-Buffering': 'no', 'Cache-Control': 'no-cache',
+        })
+    except zipfile.BadZipFile:
+        return jsonify({"error": "Invalid ZIP file"}), 400
+    except Exception as e:
+        logger.exception("Project analysis failed")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        try: os.unlink(tmp.name)
+        except: pass
 
 
 @api_bp.route('/hackerone', methods=['POST'])

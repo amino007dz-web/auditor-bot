@@ -7,6 +7,12 @@ import re
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 
+try:
+    import requests
+    _has_requests = True
+except ImportError:
+    _has_requests = False
+
 logger = logging.getLogger(__name__)
 
 IMPORT_RE = re.compile(
@@ -127,6 +133,32 @@ def check_version_cves(pragma: str) -> List[str]:
     return cves
 
 
+OSV_API = "https://api.osv.dev/v1/query"
+_OSV_CACHE: Dict[str, list] = {}
+
+
+def query_osv(package_name: str, version: str = "") -> List[dict]:
+    """Query OSV.dev API for known vulnerabilities in a package."""
+    cache_key = f"{package_name}@{version}"
+    if cache_key in _OSV_CACHE:
+        return _OSV_CACHE[cache_key]
+    if not _has_requests:
+        return []
+    try:
+        resp = requests.post(OSV_API, json={
+            "package": {"name": package_name, "ecosystem": "npm"},
+            "version": version or "",
+        }, timeout=10)
+        if resp.ok:
+            data = resp.json()
+            vulns = data.get("vulns", [])
+            _OSV_CACHE[cache_key] = vulns
+            return vulns
+    except Exception as e:
+        logger.debug(f"OSV query failed for {package_name}: {e}")
+    return []
+
+
 def analyze_sbom(code: str) -> SBOMResult:
     result = SBOMResult()
     result.pragma = parse_pragma(code)
@@ -144,6 +176,14 @@ def analyze_sbom(code: str) -> SBOMResult:
         seen.add(imp)
         dep = Dependency(name=imp)
         dep.known_package = identify_package(imp)
+        try:
+            osv_results = query_osv(imp)
+            for v in osv_results:
+                cve_id = v.get("id", "")
+                if cve_id:
+                    dep.cves.append(cve_id)
+        except Exception:
+            pass
         result.dependencies.append(dep)
 
     return result

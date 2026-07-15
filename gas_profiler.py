@@ -193,6 +193,9 @@ def _disassemble(bytecode_hex: str) -> list:
     return ops
 
 
+_has_forge = shutil.which("forge") is not None
+
+
 def _has_solc() -> bool:
     try:
         r = subprocess.run(["solc", "--version"], capture_output=True, text=True, timeout=10)
@@ -201,10 +204,42 @@ def _has_solc() -> bool:
         return False
 
 
-_has_forge = shutil.which("forge") is not None
+def _compile_via_solcx(code: str) -> Optional[dict]:
+    """Compile using py-solc-x (solcx) Python API instead of solc CLI."""
+    try:
+        import solcx
+    except ImportError:
+        return None
+    try:
+        ver = solcx.get_installed_solc_versions()
+        if not ver:
+            solcx.install_solc("0.8.25")
+            ver = solcx.get_installed_solc_versions()
+        if ver:
+            solcx.set_solc_version(str(ver[0]))
+    except Exception as e:
+        logger.debug(f"solcx setup: {e}")
+        return None
+    try:
+        result = solcx.compile_source(code, output_values=["bin"])
+    except Exception as e:
+        logger.debug(f"solcx compile failed: {e}")
+        return None
+    contracts = {}
+    for name, data in result.items():
+        bin_hex = data.get("bin", "")
+        if not bin_hex:
+            continue
+        ops = _disassemble(bin_hex)
+        total = sum(_opcode_cost(o["op"]) for o in ops)
+        contracts[name.split(":")[-1]] = {"bytecode_len": len(bin_hex) // 2, "opcodes": len(ops), "estimated_gas": total}
+    return contracts if contracts else None
 
 
 def compile_and_disassemble(code: str) -> Optional[dict]:
+    contracts = _compile_via_solcx(code)
+    if contracts:
+        return contracts
     if not _has_solc():
         return None
     with tempfile.TemporaryDirectory(prefix="gas_") as tmp:

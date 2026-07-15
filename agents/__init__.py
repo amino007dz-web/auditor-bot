@@ -2,7 +2,7 @@
 # All public symbols re-exported for backward compatibility.
 
 from agents.prompts import SYSTEM_PROMPT, CHUNK_PROMPT
-from agents.cache import _cache_get, _cache_set, cache_stats, _has_redis, _redis_client, _cache_lock, _init_cache, _cache_cleanup
+from agents.cache import _cache_get, _cache_set, cache_stats, _has_redis, _init_cache, _cache_cleanup
 from agents.llm_client import (
     _call_ollama, call_model, call_model_with_fallback,
     call_model_parallel, run_parallel, async_call_model,

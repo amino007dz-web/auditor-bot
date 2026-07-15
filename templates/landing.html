@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Contract Auditor</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root {
+  --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+  --border: #30363d; --text: #e6edf3; --text2: #8b949e;
+  --accent: #58a6ff; --green: #3fb950; --red: #da3633;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+  display: flex; flex-direction: column;
+}
+.container { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; flex: 1; }
+header { text-align: center; padding: 3rem 0 2rem; }
+header h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+header h1 span { color: var(--accent); }
+header p { color: var(--text2); font-size: 1.05rem; max-width: 600px; margin: 0 auto; line-height: 1.6; }
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin: 2rem 0; }
+.feature-card {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+  padding: 1.25rem; text-align: center;
+}
+.feature-card i { font-size: 1.8rem; color: var(--accent); margin-bottom: 0.6rem; }
+.feature-card h3 { font-size: 0.95rem; margin-bottom: 0.4rem; }
+.feature-card p { font-size: 0.8rem; color: var(--text2); }
+.actions { display: flex; gap: 1rem; justify-content: center; margin: 2.5rem 0; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.8rem 2rem; border-radius: 8px; border: none;
+  font-size: 1rem; font-weight: 600; cursor: pointer;
+  text-decoration: none; transition: all 0.2s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--accent); }
+.modal {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  z-index: 100; align-items: center; justify-content: center;
+}
+.modal.show { display: flex; }
+.modal-box {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+  padding: 2rem; width: 400px; max-width: 90%;
+}
+.modal-box h2 { margin-bottom: 1rem; font-size: 1.1rem; }
+.modal-box input {
+  width: 100%; padding: 0.7rem 1rem; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg3);
+  color: var(--text); font-size: 1rem; margin-bottom: 1rem;
+}
+.modal-box input:focus { outline: none; border-color: var(--accent); }
+.error-msg { color: var(--red); font-size: 0.85rem; margin-bottom: 0.5rem; display: none; }
+.success-msg { color: var(--green); font-size: 0.85rem; margin-bottom: 0.5rem; display: none; }
+footer { text-align: center; padding: 1.5rem; color: var(--text2); font-size: 0.8rem; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1><span>🛡️</span> Smart Contract Auditor</h1>
+    <p>Advanced AI-powered platform for auditing Solidity, Vyper, and Move smart contracts. Detect vulnerabilities before deployment with multi-pass LLM validation and semantic analysis.</p>
+  </header>
+
+  <div class="features">
+    <div class="feature-card">
+      <i class="fas fa-microchip"></i>
+      <h3>Multi-Pass AI Validation</h3>
+      <p>3-pass pipeline with LLM, validation, and gate scoring for minimal false positives.</p>
+    </div>
+    <div class="feature-card">
+      <i class="fas fa-project-diagram"></i>
+      <h3>CFG/DFG Analysis</h3>
+      <p>Control flow and data flow graphs for precise reentrancy and CEI violation detection.</p>
+    </div>
+    <div class="feature-card">
+      <i class="fas fa-shield-alt"></i>
+      <h3>CVSS 4.0 Scoring</h3>
+      <p>Industry-standard severity scoring with detailed vector explanations.</p>
+    </div>
+    <div class="feature-card">
+      <i class="fas fa-file-export"></i>
+      <h3>Multi-Format Reports</h3>
+      <p>Export to SARIF, GitHub Discussions, Markdown, interactive HTML, and PDF.</p>
+    </div>
+    <div class="feature-card">
+      <i class="fas fa-code-branch"></i>
+      <h3>Diff Auditor</h3>
+      <p>Compare original and modified code to catch regression vulnerabilities.</p>
+    </div>
+    <div class="feature-card">
+      <i class="fas fa-gas-pump"></i>
+      <h3>Gas Profiler</h3>
+      <p>Optimize gas usage with precise foundry-based gas reports.</p>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" onclick="showModal('access')"><i class="fas fa-key"></i> Enter Access Code</button>
+    <button class="btn btn-secondary" onclick="showModal('request')"><i class="fas fa-paper-plane"></i> Request Trial Code</button>
+  </div>
+</div>
+
+<div class="modal" id="accessModal">
+  <div class="modal-box">
+    <h2>Enter Access Code</h2>
+    <div class="error-msg" id="accessError"></div>
+    <input type="text" id="accessCodeInput" placeholder="SCA-XXXX-XXXX" maxlength="20" autocomplete="off">
+    <button class="btn btn-primary" onclick="verifyAccess()" style="width:100%;justify-content:center;">Verify</button>
+  </div>
+</div>
+
+<div class="modal" id="requestModal">
+  <div class="modal-box">
+    <h2>Request Trial Access</h2>
+    <div class="success-msg" id="requestSuccess">Your request has been sent. You will receive an access code shortly.</div>
+    <p style="color:var(--text2);font-size:0.85rem;margin-bottom:1rem;">Contact the administrator to request a trial access code. Include your use case and expected audit volume.</p>
+    <button class="btn btn-secondary" onclick="closeModal('request')" style="width:100%;justify-content:center;">Got it</button>
+  </div>
+</div>
+
+<footer>Powered by Qwen3-Coder:480b &bull; 3-Pass Validation Pipeline &bull; CFG/DFG Level 3 Analysis</footer>
+
+<script>
+function showModal(type) {
+  document.getElementById(type + 'Modal').classList.add('show');
+  document.getElementById('accessCodeInput').focus();
+}
+function closeModal(type) {
+  document.getElementById(type + 'Modal').classList.remove('show');
+}
+document.getElementById('accessModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal('access');
+});
+document.getElementById('requestModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal('request');
+});
+
+document.getElementById('accessCodeInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') verifyAccess();
+});
+
+function verifyAccess() {
+  const code = document.getElementById('accessCodeInput').value.trim();
+  const errEl = document.getElementById('accessError');
+  if (!code) { errEl.textContent = 'Please enter an access code.'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  fetch('/api/auth/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code })
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.success) {
+      window.location.href = '/app';
+    } else {
+      errEl.textContent = data.error || 'Invalid access code.';
+      errEl.style.display = 'block';
+    }
+  }).catch(function() {
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.style.display = 'block';
+  });
+}
+</script>
+</body>
+</html>

@@ -16,12 +16,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.0/purify.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
 <div class="top-bar">
   <h1><span>🛡️</span> Smart Contract Auditor</h1>
   <div style="display:flex;align-items:center;gap:0.75rem;">
+    <i class="fas fa-book" id="knowledgeBtn" title="Knowledge Base" style="cursor:pointer;color:var(--text-secondary);font-size:1rem;"></i>
     <i class="fas fa-history" id="historyBtn" title="History" style="cursor:pointer;color:var(--text-secondary);font-size:1rem;"></i>
     <i class="fas fa-moon" id="themeToggle" title="Toggle theme" style="cursor:pointer;color:var(--text-secondary);font-size:1rem;"></i>
   </div>
@@ -32,6 +34,8 @@
     <div style="padding:0.5rem 1rem;display:flex;gap:0.5rem;align-items:center;border-bottom:1px solid var(--border);flex-shrink:0;">
       <div class="btn active-tab" data-tab="paste" style="background:var(--accent);color:#fff;border-color:var(--accent);">Paste</div>
       <div class="btn" data-tab="upload">Upload</div>
+      <div class="btn" data-tab="project">Project</div>
+      <div class="btn" data-tab="github">GitHub</div>
       <div class="btn" data-tab="diff">Diff</div>
       <div style="flex:1;"></div>
       <select id="analysisType">
@@ -49,6 +53,12 @@
       <input type="file" id="fileInput" accept=".sol,.vy,.move,.clsp,.clib" style="display:none;">
       <div class="btn" id="browseBtn">Browse Files</div>
     </div>
+    <div id="githubSection" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;padding:2rem;">
+      <i class="fab fa-github" style="font-size:3rem;color:var(--text-secondary);margin-bottom:1rem;"></i>
+      <p style="color:var(--text-secondary);margin-bottom:0.5rem;">Audit a public GitHub repository</p>
+      <input type="text" id="githubUrl" placeholder="https://github.com/owner/repo" style="width:400px;max-width:90%;padding:0.7rem 1rem;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.9rem;margin-bottom:1rem;">
+      <div id="githubFileInfo" style="color:var(--text-secondary);font-size:0.8rem;"></div>
+    </div>
     <div id="diffSection" style="display:none;flex:1;">
       <div style="display:flex;flex:1;height:100%;">
         <div style="flex:1;display:flex;flex-direction:column;border-right:1px solid var(--border);">
@@ -60,6 +70,14 @@
           <textarea id="diffModified" style="flex:1;resize:none;background:var(--bg-primary);color:var(--text-primary);border:none;padding:0.8rem;font-family:monospace;font-size:0.8rem;"></textarea>
         </div>
       </div>
+    </div>
+    <div id="projectSection" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;padding:2rem;">
+      <i class="fas fa-folder-open" style="font-size:3rem;color:var(--text-secondary);margin-bottom:1rem;"></i>
+      <p style="color:var(--text-secondary);margin-bottom:0.5rem;">Upload a ZIP project with multiple contracts</p>
+      <p style="color:var(--text-secondary);font-size:0.75rem;margin-bottom:1rem;">All .sol / .vy / .move files in the archive will be audited together</p>
+      <input type="file" id="projectInput" accept=".zip" style="display:none;">
+      <div class="btn" id="browseProjectBtn">Browse ZIP</div>
+      <div id="projectFileInfo" style="color:var(--text-secondary);font-size:0.8rem;margin-top:0.5rem;"></div>
     </div>
     <div class="code-toolbar">
       <span id="fileInfo" style="color:var(--text-secondary);font-size:0.75rem;"></span>
@@ -75,6 +93,8 @@
       <div id="resultsActions" style="display:none;gap:0.35rem;">
         <i class="fas fa-download" id="downloadMd" title="Download Markdown" style="cursor:pointer;color:var(--text-secondary);"></i>
         <i class="fas fa-code" id="downloadSarif" title="Download SARIF" style="cursor:pointer;color:var(--text-secondary);"></i>
+        <i class="fas fa-file-pdf" id="downloadPdf" title="Download PDF" style="cursor:pointer;color:var(--text-secondary);"></i>
+        <i class="fas fa-gas-pump" id="gasBtn" title="Gas Report" style="cursor:pointer;color:var(--text-secondary);"></i>
         <i class="fas fa-chart-bar" id="toggleChart" title="Toggle chart" style="cursor:pointer;color:var(--text-secondary);"></i>
         <i class="fas fa-share-alt" id="exportGithub" title="Export to GitHub Discussion" style="cursor:pointer;color:var(--text-secondary);"></i>
       </div>
@@ -107,6 +127,21 @@
       <i class="fas fa-times" id="chartClose" style="cursor:pointer;color:var(--text-secondary);"></i>
     </div>
     <canvas id="severityChart" width="400" height="300"></canvas>
+  </div>
+</div>
+
+<div id="knowledgeModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:1.5rem;width:450px;max-width:90%;">
+    <div style="display:flex;justify-content:space-between;margin-bottom:1rem;">
+      <h3 style="font-size:0.9rem;">Upload Knowledge (PDF)</h3>
+      <i class="fas fa-times" id="knowledgeClose" style="cursor:pointer;color:var(--text-secondary);"></i>
+    </div>
+    <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:1rem;">Upload security research, audit reports, or vulnerability databases to enrich future analysis.</p>
+    <input type="file" id="knowledgeInput" accept=".pdf" style="display:none;">
+    <div class="btn" id="browseKnowledgeBtn" style="margin-bottom:1rem;">Browse PDF</div>
+    <div id="knowledgeFileInfo" style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:1rem;"></div>
+    <div id="knowledgeResult" style="font-size:0.8rem;margin-bottom:1rem;"></div>
+    <div class="btn btn-primary" id="uploadKnowledgeBtn" style="justify-content:center;width:100%;"><i class="fas fa-upload"></i> Ingest to Knowledge Base</div>
   </div>
 </div>
 

@@ -24,7 +24,6 @@ from cli_display import console
 
 logger = logging.getLogger(__name__)
 _cache_local = threading.local()
-_cache_lock = threading.RLock()
 
 
 def _get_conn() -> sqlite3.Connection:
@@ -40,10 +39,9 @@ def _cache_cleanup(max_age_days: int = 30):
         return
     try:
         cutoff = time.time() - max_age_days * 86400
-        with _cache_lock:
-            conn = _get_conn()
-            deleted = conn.execute("DELETE FROM responses WHERE created_at < ?", (cutoff,)).rowcount
-            conn.commit()
+        conn = _get_conn()
+        deleted = conn.execute("DELETE FROM responses WHERE created_at < ?", (cutoff,)).rowcount
+        conn.commit()
         if deleted:
             logger.info(f"Cache: deleted {deleted} entries older than {max_age_days} days")
     except Exception as e:
@@ -54,16 +52,15 @@ def _init_cache():
     if not CACHE_ENABLED:
         return
     try:
-        with _cache_lock:
-            conn = _get_conn()
-            conn.execute("""CREATE TABLE IF NOT EXISTS responses (
-                model_id TEXT NOT NULL, prompt_hash TEXT NOT NULL,
-                response TEXT NOT NULL, created_at REAL NOT NULL,
-                hits INTEGER DEFAULT 1,
-                PRIMARY KEY (model_id, prompt_hash))""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS stats (
-                key TEXT PRIMARY KEY, value TEXT)""")
-            conn.commit()
+        conn = _get_conn()
+        conn.execute("""CREATE TABLE IF NOT EXISTS responses (
+            model_id TEXT NOT NULL, prompt_hash TEXT NOT NULL,
+            response TEXT NOT NULL, created_at REAL NOT NULL,
+            hits INTEGER DEFAULT 1,
+            PRIMARY KEY (model_id, prompt_hash))""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS stats (
+            key TEXT PRIMARY KEY, value TEXT)""")
+        conn.commit()
         _cache_cleanup()
     except Exception as e:
         logger.warning(f"Cache init failed: {e}")
@@ -82,17 +79,16 @@ def _cache_get(model_id: str, prompt: str) -> Optional[str]:
     except Exception:
         pass
     try:
-        with _cache_lock:
-            conn = _get_conn()
-            row = conn.execute(
-                "SELECT response FROM responses WHERE model_id=? AND prompt_hash=?",
-                (model_id, h)
-            ).fetchone()
-            if row:
-                conn.execute("UPDATE responses SET hits=hits+1 WHERE model_id=? AND prompt_hash=?", (model_id, h))
-                conn.commit()
-                console.log(f"[dim]Cache: {model_id} — from cache[/]")
-                return row[0]
+        conn = _get_conn()
+        row = conn.execute(
+            "SELECT response FROM responses WHERE model_id=? AND prompt_hash=?",
+            (model_id, h)
+        ).fetchone()
+        if row:
+            conn.execute("UPDATE responses SET hits=hits+1 WHERE model_id=? AND prompt_hash=?", (model_id, h))
+            conn.commit()
+            console.log(f"[dim]Cache: {model_id} — from cache[/]")
+            return row[0]
     except Exception as e:
         logger.debug(f"Cache get error: {e}")
     return None
@@ -108,13 +104,12 @@ def _cache_set(model_id: str, prompt: str, response: str):
     except Exception:
         pass
     try:
-        with _cache_lock:
-            conn = _get_conn()
-            conn.execute(
-                "INSERT OR REPLACE INTO responses (model_id, prompt_hash, response, created_at) VALUES (?, ?, ?, ?)",
-                (model_id, h, response, time.time())
-            )
-            conn.commit()
+        conn = _get_conn()
+        conn.execute(
+            "INSERT OR REPLACE INTO responses (model_id, prompt_hash, response, created_at) VALUES (?, ?, ?, ?)",
+            (model_id, h, response, time.time())
+        )
+        conn.commit()
     except Exception as e:
         logger.debug(f"Cache set error: {e}")
 

@@ -3,7 +3,7 @@ import sys
 import json
 import time
 import logging
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -14,7 +14,7 @@ from _shared import (
 )
 from api_routes import api_bp
 from audit_service import AuditService
-from config import KB_ENABLED, CACHE_ENABLED, REPORT_DIR, GITHUB_TOKEN
+from config import KB_ENABLED, CACHE_ENABLED, REPORT_DIR, GITHUB_TOKEN, SECRET_KEY
 from main import ensure_report_dir, save_report_txt, load_local_contract
 from batch_audit import batch_audit
 from gas_analysis import analyze_gas, estimate_gas_savings
@@ -27,6 +27,7 @@ from chain_loader import load_from_explorer, list_supported_chains
 from external_analyzers import TOOL_AVAILABLE
 from _shared import _has_gas_profiler as _has_gas_profiler_local
 from _shared import compile_estimate_gas
+from auth import verify_code, requires_auth, create_access_code, list_codes, deactivate_code, ADMIN_PASSWORD
 
 try:
     from cvss_scorer import score_report, compute_cvss, cvss_explanation
@@ -37,14 +38,38 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+app.secret_key = SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 app.static_folder = 'static'
 app.register_blueprint(api_bp)
 
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
 
 @app.route('/')
+def landing():
+    if 'authenticated' in session:
+        return redirect('/app')
+    return render_template('landing.html')
+
+
+@app.route('/app')
+@requires_auth
 def index():
     return render_template('index.html')
+
+
+@app.route('/api/auth/verify', methods=['POST'])
+def api_auth_verify():
+    data = request.get_json()
+    if not data or 'code' not in data:
+        return jsonify({"success": False, "error": "Code is required"}), 400
+    if verify_code(data['code']):
+        session['authenticated'] = True
+        session['access_code'] = data['code'].strip().upper()
+        return jsonify({"success": True})
+    return jsonify({"success": False, "error": "Invalid or expired access code"}), 403
 
 
 @app.route('/report/interactive/<filename>')
@@ -346,6 +371,50 @@ def download_pdf(filename):
     return send_from_directory(REPORT_DIR, filename, as_attachment=True)
 
 
+@app.route('/admin/login')
+def admin_login_page():
+    return render_template('admin.html')
+
+
+@app.route('/api/admin/login', methods=['POST'])
+def api_admin_login():
+    data = request.get_json()
+    if data and data.get('password') == ADMIN_PASSWORD:
+        session['admin_authenticated'] = True
+        return jsonify({"success": True})
+    return jsonify({"success": False, "error": "Wrong password"}), 403
+
+
+@app.route('/api/admin/check')
+def api_admin_check():
+    return jsonify({"authenticated": 'admin_authenticated' in session})
+
+
+@app.route('/api/admin/codes', methods=['GET', 'POST'])
+def api_admin_codes():
+    if 'admin_authenticated' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        code = create_access_code(
+            created_by=data.get('created_by', ''),
+            max_uses=int(data.get('max_uses', -1))
+        )
+        return jsonify({"code": code})
+    return jsonify({"codes": list_codes()})
+
+
+@app.route('/api/admin/codes/deactivate', methods=['POST'])
+def api_admin_deactivate():
+    if 'admin_authenticated' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    if data and 'code' in data:
+        deactivate_code(data['code'])
+        return jsonify({"success": True})
+    return jsonify({"error": "Code required"}), 400
+
+
 try:
     from telegram_bot import get_bot
     _tg_bot = get_bot()
@@ -358,5 +427,6 @@ except Exception as e:
 if __name__ == '__main__':
     ensure_report_dir()
     port = int(os.environ.get("PORT", 5000))
-    logger.info(f"Starting Web UI on http://0.0.0.0:{port}")
-    app.run(host="0.0.0.0", port=port, debug=True)
+    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+    logger.info(f"Starting Web UI on http://0.0.0.0:{port} (debug={debug})")
+    app.run(host="0.0.0.0", port=port, debug=debug)

@@ -26,6 +26,18 @@ const el = {
   chartModal: $('chartModal'),
   chartClose: $('chartClose'),
   severityChart: $('severityChart'),
+  knowledgeBtn: $('knowledgeBtn'),
+  knowledgeModal: $('knowledgeModal'),
+  knowledgeClose: $('knowledgeClose'),
+  knowledgeInput: $('knowledgeInput'),
+  browseKnowledgeBtn: $('browseKnowledgeBtn'),
+  knowledgeFileInfo: $('knowledgeFileInfo'),
+  knowledgeResult: $('knowledgeResult'),
+  uploadKnowledgeBtn: $('uploadKnowledgeBtn'),
+  gasBtn: $('gasBtn'),
+  githubSection: $('githubSection'),
+  githubUrl: $('githubUrl'),
+  githubFileInfo: $('githubFileInfo'),
   codePane: $('codePane'),
   pasteSection: $('pasteSection'),
   uploadSection: $('uploadSection'),
@@ -34,8 +46,13 @@ const el = {
   diffModified: $('diffModified'),
   downloadMd: $('downloadMd'),
   downloadSarif: $('downloadSarif'),
+  downloadPdf: $('downloadPdf'),
   toggleChart: $('toggleChart'),
   exportGithub: $('exportGithub'),
+  projectInput: $('projectInput'),
+  browseProjectBtn: $('browseProjectBtn'),
+  projectFileInfo: $('projectFileInfo'),
+  projectSection: $('projectSection'),
 };
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -56,6 +73,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
   el.chartClose.addEventListener('click', function () { el.chartModal.style.display = 'none'; });
   el.chartModal.addEventListener('click', function (e) { if (e.target === el.chartModal) el.chartModal.style.display = 'none'; });
+
+  el.knowledgeBtn.addEventListener('click', function () { el.knowledgeModal.style.display = 'flex'; });
+  el.knowledgeClose.addEventListener('click', function () { el.knowledgeModal.style.display = 'none'; });
+  el.knowledgeModal.addEventListener('click', function (e) { if (e.target === el.knowledgeModal) el.knowledgeModal.style.display = 'none'; });
+  el.browseKnowledgeBtn.addEventListener('click', function () { el.knowledgeInput.click(); });
+  el.knowledgeInput.addEventListener('change', handleKnowledgeFile);
+  el.uploadKnowledgeBtn.addEventListener('click', uploadKnowledge);
 
   el.analyzeBtn.addEventListener('click', startAnalysis);
 
@@ -81,19 +105,25 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  el.browseProjectBtn.addEventListener('click', function () { el.projectInput.click(); });
+  el.projectInput.addEventListener('change', handleProjectUpload);
+
   el.downloadMd.addEventListener('click', function () { downloadReport('md'); });
   el.downloadSarif.addEventListener('click', function () { downloadReport('sarif'); });
+  el.downloadPdf.addEventListener('click', function () { downloadReport('pdf'); });
+  el.gasBtn.addEventListener('click', fetchGasReport);
   el.toggleChart.addEventListener('click', function () { showChart(); });
   el.exportGithub.addEventListener('click', exportToGithub);
+  el.githubUrl.addEventListener('keydown', function (e) { if (e.key === 'Enter') startAnalysis(); });
 
   loadHistory();
 });
 
 function switchCodeTab(tab) {
-  qsa('[data-tab^="paste"],[data-tab^="upload"],[data-tab^="diff"]').forEach(function (t) {
+  qsa('[data-tab^="paste"],[data-tab^="upload"],[data-tab^="project"],[data-tab^="github"],[data-tab^="diff"]').forEach(function (t) {
     if (t.dataset.tab === tab) t.style.background = 'var(--accent)'; else t.style.background = '';
   });
-  ['pasteSection', 'uploadSection', 'diffSection'].forEach(function (id) {
+  ['pasteSection', 'uploadSection', 'projectSection', 'githubSection', 'diffSection'].forEach(function (id) {
     el[id].style.display = id.replace('Section', '') === tab ? 'flex' : 'none';
   });
   if (tab === 'paste') window.editor.refresh();
@@ -117,6 +147,12 @@ function handleFileUpload() {
   reader.readAsText(file);
 }
 
+function handleProjectUpload() {
+  const file = el.projectInput.files[0];
+  if (!file) return;
+  el.projectFileInfo.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+}
+
 function getCode() {
   const active = document.querySelector('[data-tab].active-tab');
   if (el.uploadSection && el.uploadSection.style.display !== 'none') return null;
@@ -136,7 +172,27 @@ function startAnalysis() {
   let endpoint = '/api/analyze/stream';
   let body;
 
-  if (tab === 'diff') {
+  if (tab === 'github') {
+    const url = el.githubUrl.value.trim();
+    if (!url) {
+      el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Enter a GitHub repository URL first.</p>';
+      return;
+    }
+    endpoint = '/api/analyze/github';
+    body = JSON.stringify({ url: url });
+  } else if (tab === 'project') {
+    const file = el.projectInput.files[0];
+    if (!file) {
+      el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Select a ZIP project file first.</p>';
+      return;
+    }
+    endpoint = '/api/analyze/project';
+    body = new FormData();
+    body.append('project', file);
+    // Can't use JSON Content-Type for FormData
+    doProjectAnalysis(endpoint, body);
+    return;
+  } else if (tab === 'diff') {
     code = getCode();
     endpoint = '/api/analyze/diff';
     body = JSON.stringify({ old_code: el.diffOriginal.value, new_code: el.diffModified.value });
@@ -210,6 +266,123 @@ function startAnalysis() {
   });
 }
 
+function handleKnowledgeFile() {
+  const file = el.knowledgeInput.files[0];
+  if (!file) return;
+  el.knowledgeFileInfo.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+  el.knowledgeResult.innerHTML = '';
+}
+
+function uploadKnowledge() {
+  const file = el.knowledgeInput.files[0];
+  if (!file) { el.knowledgeResult.innerHTML = '<span style="color:var(--red);">Select a PDF file first.</span>'; return; }
+  el.uploadKnowledgeBtn.disabled = true;
+  el.uploadKnowledgeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+  const fd = new FormData();
+  fd.append('file', file);
+  fetch('/api/knowledge/ingest', {
+    method: 'POST',
+    body: fd,
+  }).then(function (r) { return r.json(); }).then(function (data) {
+    el.uploadKnowledgeBtn.disabled = false;
+    el.uploadKnowledgeBtn.innerHTML = '<i class="fas fa-upload"></i> Ingest to Knowledge Base';
+    if (data.success) {
+      el.knowledgeResult.innerHTML = '<span style="color:var(--green);">Ingested: ' + data.pages + ' pages, ' + data.chars + ' chars.</span>';
+    } else {
+      el.knowledgeResult.innerHTML = '<span style="color:var(--red);">Error: ' + (data.error || 'Unknown') + '</span>';
+    }
+  }).catch(function () {
+    el.uploadKnowledgeBtn.disabled = false;
+    el.uploadKnowledgeBtn.innerHTML = '<i class="fas fa-upload"></i> Ingest to Knowledge Base';
+    el.knowledgeResult.innerHTML = '<span style="color:var(--red);">Network error.</span>';
+  });
+}
+
+function fetchGasReport() {
+  if (!currentReportText) return;
+  const code = window.editor.getValue();
+  if (!code) { el.resultsBody.innerHTML = '<p style="color:var(--red);">No code to analyze for gas.</p>'; return; }
+  el.resultsBody.innerHTML = '<div class="skeleton w-75"></div><div class="skeleton w-50"></div>';
+  el.resultsTitle.textContent = 'Gas Report...';
+  fetch('/api/gas', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code }),
+  }).then(function (r) { return r.json(); }).then(function (data) {
+    var md = '# Gas Report\n\n';
+    if (data.gas_report) md += data.gas_report + '\n\n';
+    if (data.static_analysis) {
+      md += '## Static Pattern Analysis\n\n' + data.static_analysis.map(function (p) { return '- **' + p.pattern + '**: ' + p.msg; }).join('\n') + '\n\n';
+    }
+    if (data.savings_usd) md += '**Estimated Savings**: $' + data.savings_usd + '\n';
+    currentReportText = md;
+    renderFinalReport(md);
+  }).catch(function (err) {
+    el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + err.message + '</p>';
+  });
+}
+
+function doProjectAnalysis(endpoint, formData) {
+  if (abortController) { abortController.abort(); abortController = null; }
+  abortController = new AbortController();
+  el.resultsActions.style.display = 'none';
+  el.resultsTabs.style.display = 'none';
+  el.resultsTitle.textContent = 'Analyzing project...';
+  el.resultsBody.innerHTML = renderSkeleton();
+  el.analyzeBtn.disabled = true;
+  el.analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+  currentReportText = '';
+
+  fetch(endpoint, {
+    method: 'POST',
+    body: formData,
+    signal: abortController.signal
+  }).then(function (resp) {
+    if (!resp.ok) throw new Error('Analysis failed: ' + resp.status);
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    function read() {
+      reader.read().then(function (result) {
+        if (result.done) { finalizeAnalysis(); return; }
+        buffer += decoder.decode(result.value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop();
+        parts.forEach(function (part) {
+          if (part.startsWith('data: ')) {
+            const data = part.slice(6).trim();
+            if (data === '[DONE]') { finalizeAnalysis(); return; }
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.error) throw new Error(parsed.error);
+              if (parsed.step) { updateStep(parsed.step); }
+              if (parsed.type === 'token' && parsed.text) {
+                currentReportText += parsed.text;
+                renderStreamingReport(currentReportText);
+              }
+              if (parsed.type === 'final' && parsed.report) {
+                currentReportText = parsed.report;
+                renderFinalReport(parsed.report);
+              }
+            } catch (e) { if (e.message !== 'Unexpected end of JSON input') throw e; }
+          }
+        });
+        read();
+      }).catch(function (err) {
+        if (err.name !== 'AbortError') { el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p>'; }
+        el.analyzeBtn.disabled = false;
+        el.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Analyze';
+      });
+    }
+    read();
+  }).catch(function (err) {
+    if (err.name !== 'AbortError') { el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p>'; }
+    el.analyzeBtn.disabled = false;
+    el.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Analyze';
+  });
+}
+
 function renderSkeleton() {
   return '<div class="skeleton w-75"></div><div class="skeleton w-50"></div><div class="skeleton w-90"></div><div class="skeleton w-75"></div><div class="skeleton w-50"></div>';
 }
@@ -223,17 +396,13 @@ let typewriterTimer = null;
 function renderStreamingReport(text) {
   if (typewriterTimer) { clearTimeout(typewriterTimer); }
   typewriterTimer = setTimeout(function () {
-    const rendered = marked.parse(text);
-    const sanitized = DOMPurify.sanitize(rendered);
-    el.resultsBody.innerHTML = buildAccordion(sanitized);
+    el.resultsBody.innerHTML = buildAccordion(text);
     el.resultsBody.scrollTop = el.resultsBody.scrollHeight;
   }, 50);
 }
 
 function renderFinalReport(report) {
-  const rendered = marked.parse(report);
-  const sanitized = DOMPurify.sanitize(rendered);
-  el.resultsBody.innerHTML = buildAccordion(sanitized);
+  el.resultsBody.innerHTML = buildAccordion(report);
   el.resultsActions.style.display = 'flex';
   el.resultsTabs.style.display = 'flex';
   el.resultsTitle.textContent = 'Report - ' + countSeverities(report);
@@ -241,7 +410,7 @@ function renderFinalReport(report) {
   saveToHistory(report);
 }
 
-function buildAccordion(html) {
+function buildAccordion(md) {
   const severityMap = {
     'critical': { icon: '🔴', color: 'var(--accent-red)' },
     'high': { icon: '🟠', color: '#d29922' },
@@ -250,36 +419,47 @@ function buildAccordion(html) {
     'info': { icon: 'ℹ️', color: 'var(--text-secondary)' }
   };
 
-  const sections = html.split(/<h[23][^>]*>/gi);
-  if (sections.length < 2) return html;
+  var sev = /^(#{2,4}|##\s*\*\*)\s*(Critical|High|Medium|Low|Info)/gim;
+  var lines = md.split('\n');
+  var sections = [];
+  var current = { heading: '', lines: [] };
 
-  let result = '';
-  for (let i = 0; i < sections.length; i++) {
-    const section = sections[i];
-    const tagStart = section.indexOf('<');
-    const afterClose = tagStart >= 0 ? section.slice(tagStart) : section;
-    const headingText = tagStart >= 0 ? section.slice(0, tagStart).trim() : '';
-
-    let severity = 'info';
-    const lower = (headingText || section).toLowerCase();
-    for (const key in severityMap) {
-      if (lower.includes(key)) { severity = key; break; }
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var m = sev.exec(line);
+    sev.lastIndex = 0;
+    if (m && m[2]) {
+      if (current.lines.length > 0) { sections.push(current); }
+      current = { heading: m[2], lines: [] };
     }
+    current.lines.push(line);
+  }
+  if (current.lines.length > 0) { sections.push(current); }
 
-    const sev = severityMap[severity];
+  if (sections.length < 2) {
+    return '<div class="finding-card"><div class="finding-body open">' +
+      DOMPurify.sanitize(marked.parse(md)) + '</div></div>';
+  }
 
-    if (i === 0) {
+  var result = '';
+  for (var j = 0; j < sections.length; j++) {
+    var s = sections[j];
+    var sevKey = s.heading ? s.heading.toLowerCase() : 'info';
+    if (!severityMap[sevKey]) sevKey = 'info';
+    var sevObj = severityMap[sevKey];
+    var bodyHtml = DOMPurify.sanitize(marked.parse(s.lines.join('\n')));
+    if (j === 0) {
       result += '<div class="finding-card">';
       result += '<div class="finding-header" onclick="this.nextElementSibling.classList.toggle(\'open\')">';
-      result += '<div><span class="severity-icon">📋</span><span class="finding-title">Summary</span></div>';
+      result += '<div><span class="severity-icon">📋</span><span class="finding-title">Summary / Overview</span></div>';
       result += '<span class="chevron">▼</span></div>';
-      result += '<div class="finding-body open">' + section + '</div></div>';
+      result += '<div class="finding-body open">' + bodyHtml + '</div></div>';
     } else {
-      result += '<div class="finding-card" style="border-left:3px solid ' + sev.color + ';">';
+      result += '<div class="finding-card" style="border-left:3px solid ' + sevObj.color + ';">';
       result += '<div class="finding-header" onclick="this.nextElementSibling.classList.toggle(\'open\')">';
-      result += '<div><span class="severity-icon">' + sev.icon + '</span><span class="finding-title">' + headingText + '</span></div>';
+      result += '<div><span class="severity-icon">' + sevObj.icon + '</span><span class="finding-title">' + s.heading + '</span></div>';
       result += '<span class="chevron">▼</span></div>';
-      result += '<div class="finding-body open">' + afterClose + '</div></div>';
+      result += '<div class="finding-body open">' + bodyHtml + '</div></div>';
     }
   }
   return result;
@@ -369,7 +549,7 @@ function loadHistoryItem(idx) {
   try { history = JSON.parse(localStorage.getItem('auditor-history') || '[]'); } catch (e) {}
   if (history[idx]) {
     el.historyPanel.style.display = 'none';
-    el.resultsBody.innerHTML = DOMPurify.sanitize(marked.parse(history[idx].snippet));
+    el.resultsBody.innerHTML = buildAccordion(history[idx].full || history[idx].snippet);
     el.resultsActions.style.display = 'flex';
     el.resultsTabs.style.display = 'flex';
     el.resultsTitle.textContent = 'History - ' + new Date(history[idx].date).toLocaleString();
@@ -378,6 +558,14 @@ function loadHistoryItem(idx) {
 
 function downloadReport(format) {
   if (!currentReportText) return;
+  if (format === 'pdf') {
+    const el = document.createElement('div');
+    el.innerHTML = DOMPurify.sanitize(marked.parse(currentReportText));
+    el.style.padding = '20px'; el.style.fontFamily = 'system-ui'; el.style.fontSize = '12px';
+    document.body.appendChild(el);
+    html2pdf().set({ margin: 10, filename: 'audit-report.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(el).save().then(function () { document.body.removeChild(el); });
+    return;
+  }
   const blob = new Blob([currentReportText], { type: 'text/markdown' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
