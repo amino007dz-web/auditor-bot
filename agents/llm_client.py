@@ -20,12 +20,14 @@ logger = logging.getLogger(__name__)
 
 
 def _validate_text_input(prompt: str) -> str:
-    """Reject non-text content (images, binaries) before sending to model."""
+    """Check if prompt appears to be a binary/image read error rather than valid code."""
     if not prompt:
         return ""
-    binary_indicators = ["Cannot read", "this model does not support image", "image input"]
+    lines = prompt.strip().split('\n')
+    header = '\n'.join(lines[:min(5, len(lines))])
+    binary_indicators = ["cannot read", "this model does not support image", "image input"]
     for indicator in binary_indicators:
-        if indicator.lower() in prompt.lower():
+        if indicator in header.lower():
             logger.warning(f"Rejected prompt containing image/binary reference: {indicator}")
             return ""
     return prompt
