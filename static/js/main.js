@@ -252,52 +252,7 @@ function startAnalysis() {
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: body,
     signal: abortController.signal
-  }).then(function (resp) {
-    if (!resp.ok) throw new Error('Analysis failed: ' + resp.status);
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    function read() {
-      reader.read().then(function (result) {
-        if (result.done) { finalizeAnalysis(); return; }
-        buffer += decoder.decode(result.value, { stream: true });
-        const parts = buffer.split('\n\n');
-        buffer = parts.pop();
-        parts.forEach(function (part) {
-          if (part.startsWith('data: ')) {
-            const data = part.slice(6).trim();
-            if (data === '[DONE]') { finalizeAnalysis(); return; }
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.error) throw new Error(parsed.error);
-              if (parsed.step) { updateStep(parsed.step); }
-              if (parsed.type === 'token' && parsed.text) {
-                currentReportText += parsed.text;
-                renderStreamingReport(currentReportText);
-              }
-              if (parsed.type === 'final' && parsed.report) {
-                currentReportText = parsed.report;
-                renderFinalReport(parsed.report);
-              }
-            } catch (e) { if (e.message !== 'Unexpected end of JSON input') throw e; }
-          }
-        });
-        read();
-      }).catch(function (err) {
-        if (typewriterTimer) { clearTimeout(typewriterTimer); typewriterTimer = null; }
-        if (err.name !== 'AbortError') { el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p>'; }
-        el.analyzeBtn.disabled = false;
-        el.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Analyze';
-      });
-    }
-    read();
-  }).catch(function (err) {
-    if (typewriterTimer) { clearTimeout(typewriterTimer); typewriterTimer = null; }
-    if (err.name !== 'AbortError') { el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p>'; }
-    el.analyzeBtn.disabled = false;
-    el.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Analyze';
-  });
+  }).then(processStream).catch(handleFetchError);
 }
 
 function handleKnowledgeFile() {
@@ -432,15 +387,15 @@ function exportHackerone() {
 }
 
 var i18nTexts = {
-  'app.title': { en: 'Smart Contract Auditor', ar: 'مدقق العقود الذكية', zh: '智能合约审计器' },
-  'tab.paste': { en: 'Paste', ar: 'لصق', zh: '粘贴' },
-  'tab.upload': { en: 'Upload', ar: 'رفع', zh: '上传' },
-  'tab.project': { en: 'Project', ar: 'مشروع', zh: '项目' },
-  'tab.github': { en: 'GitHub', ar: 'جيت هاب', zh: 'GitHub' },
-  'tab.diff': { en: 'Diff', ar: 'مقارنة', zh: '差异' },
-  'btn.analyze': { en: 'Analyze', ar: 'تحليل', zh: '分析' },
-  'results.title': { en: 'Results', ar: 'النتائج', zh: '结果' },
-  'quota.label': { en: 'Quota', ar: 'الحصة', zh: '配额' },
+  'app.title': { en: 'Smart Contract Auditor' },
+  'tab.paste': { en: 'Paste' },
+  'tab.upload': { en: 'Upload' },
+  'tab.project': { en: 'Project' },
+  'tab.github': { en: 'GitHub' },
+  'tab.diff': { en: 'Diff' },
+  'btn.analyze': { en: 'Analyze' },
+  'results.title': { en: 'Results' },
+  'quota.label': { en: 'Quota' },
 };
 
 function applyLang(lang) {
@@ -467,25 +422,36 @@ function doProjectAnalysis(endpoint, formData) {
     headers: authHeaders(),
     body: formData,
     signal: abortController.signal
-  }).then(function (resp) {
-    if (!resp.ok) throw new Error('Analysis failed: ' + resp.status);
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
+  }).then(processStream).catch(handleFetchError);
+}
 
+function renderSkeleton() {
+  return '<div class="skeleton w-75"></div><div class="skeleton w-50"></div><div class="skeleton w-90"></div><div class="skeleton w-75"></div><div class="skeleton w-50"></div>';
+}
+
+function updateStep(step) {
+  el.resultsTitle.textContent = step;
+}
+
+function processStream(resp) {
+  if (!resp.ok) throw new Error('Analysis failed: ' + resp.status);
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  return new Promise(function (resolve, reject) {
     function read() {
       reader.read().then(function (result) {
-        if (result.done) { finalizeAnalysis(); return; }
+        if (result.done) { finalizeAnalysis(); resolve(); return; }
         buffer += decoder.decode(result.value, { stream: true });
         const parts = buffer.split('\n\n');
         buffer = parts.pop();
         parts.forEach(function (part) {
           if (part.startsWith('data: ')) {
             const data = part.slice(6).trim();
-            if (data === '[DONE]') { finalizeAnalysis(); return; }
+            if (data === '[DONE]') { finalizeAnalysis(); resolve(); return; }
             try {
               const parsed = JSON.parse(data);
-              if (parsed.error) throw new Error(parsed.error);
+              if (parsed.error) reject(new Error(parsed.error));
               if (parsed.step) { updateStep(parsed.step); }
               if (parsed.type === 'token' && parsed.text) {
                 currentReportText += parsed.text;
@@ -495,32 +461,24 @@ function doProjectAnalysis(endpoint, formData) {
                 currentReportText = parsed.report;
                 renderFinalReport(parsed.report);
               }
-            } catch (e) { if (e.message !== 'Unexpected end of JSON input') throw e; }
+            } catch (e) { if (e.message !== 'Unexpected end of JSON input') reject(e); }
           }
         });
         read();
       }).catch(function (err) {
         if (typewriterTimer) { clearTimeout(typewriterTimer); typewriterTimer = null; }
-        if (err.name !== 'AbortError') { el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p>'; }
-        el.analyzeBtn.disabled = false;
-        el.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Analyze';
+        reject(err);
       });
     }
     read();
-  }).catch(function (err) {
-    if (typewriterTimer) { clearTimeout(typewriterTimer); typewriterTimer = null; }
-    if (err.name !== 'AbortError') { el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p>'; }
-    el.analyzeBtn.disabled = false;
-    el.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Analyze';
   });
 }
 
-function renderSkeleton() {
-  return '<div class="skeleton w-75"></div><div class="skeleton w-50"></div><div class="skeleton w-90"></div><div class="skeleton w-75"></div><div class="skeleton w-50"></div>';
-}
-
-function updateStep(step) {
-  el.resultsTitle.textContent = step;
+function handleFetchError(err) {
+  if (typewriterTimer) { clearTimeout(typewriterTimer); typewriterTimer = null; }
+  if (err.name !== 'AbortError') { el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p>'; }
+  el.analyzeBtn.disabled = false;
+  el.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Analyze';
 }
 
 let typewriterTimer = null;
