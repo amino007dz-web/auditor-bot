@@ -17,6 +17,7 @@ textarea { width:100%; padding:0.75rem; border:1px solid #30363d; border-radius:
 <p><a href="/">الرئيسية</a></p>
 <div class="card">
 <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <textarea name="code" placeholder="الصق كود Solidity هنا..." required></textarea>
 <button type="submit" class="btn">رسم الوراثة</button>
 </form>

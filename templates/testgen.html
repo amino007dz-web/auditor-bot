@@ -20,6 +20,7 @@ pre { background:#0d1117; border:1px solid #30363d; border-radius:6px; padding:1
 <p><a href="/">الرئيسية</a></p>
 <div class="card">
 <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <textarea name="code" placeholder="كود العقد (Solidity)..." required></textarea>
 <textarea name="report" placeholder="تقرير التدقيق (لتحليل الثغرات)..." required></textarea>
 <input type="text" name="name" placeholder="اسم العقد (مثل: MyContract)" value="Contract">

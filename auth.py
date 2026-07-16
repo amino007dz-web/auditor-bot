@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 AUTH_DB_PATH = os.environ.get("AUTH_DB_PATH", os.path.join(os.path.dirname(__file__), "auth.db"))
 _local = threading.local()
 
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 DEFAULT_QUOTA = int(os.environ.get("DEFAULT_QUOTA", "50"))
 
 def _get_conn():

@@ -17,6 +17,7 @@ pre { background:#0d1117; border:1px solid #30363d; border-radius:6px; padding:1
 <p><a href="/">الرئيسية</a> | <a href="/report/list">التقارير</a></p>
 <div class="card">
 <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <textarea name="code" placeholder="الصق كود Solidity هنا..." required></textarea>
 <button type="submit" class="btn">تحليل الغاز</button>
 </form>

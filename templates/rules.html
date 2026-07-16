@@ -28,6 +28,7 @@ th { background:#161b22; color:#58a6ff; }
 <div class="card">
 <h2>إضافة قاعدة جديدة</h2>
 <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="hidden" name="action" value="add">
 <input type="text" name="name" placeholder="اسم القاعدة" required>
 <input type="text" name="pattern" placeholder="النمط (Regex)" required>
@@ -48,6 +49,7 @@ th { background:#161b22; color:#58a6ff; }
 {% for r in rules %}
 <tr>
 <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="hidden" name="action" value="remove">
 <input type="hidden" name="name" value="{{ r.name }}">
 <td>{{ r.name }}</td><td>{{ r.severity }}</td><td>{{ r.lang }}</td><td>{{ r.description[:50] }}</td>
@@ -62,6 +64,7 @@ th { background:#161b22; color:#58a6ff; }
 <div class="card">
 <h2>اختبار القواعد على كود</h2>
 <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="hidden" name="action" value="scan">
 <textarea name="code" placeholder="الصق الكود لاختبار القواعد..." style="min-height:150px;"></textarea>
 <select name="lang"><option value="solidity">Solidity</option><option value="move">Move</option><option value="chialisp">Chialisp</option></select>

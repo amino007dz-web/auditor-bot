@@ -20,6 +20,7 @@ th { background:#161b22; color:#58a6ff; }
 <p><a href="/">الرئيسية</a></p>
 <div class="card">
 <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <textarea name="code" placeholder="الصق كود Solidity هنا..." required></textarea>
 <button type="submit" class="btn">تحليل الأذونات</button>
 </form>

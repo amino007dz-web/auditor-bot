@@ -4,6 +4,7 @@ import json
 import time
 import logging
 from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect
+from flask_wtf.csrf import CSRFProtect
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -12,6 +13,8 @@ from _shared import (
     _run_analysis, _save_html_report, _fmt_size,
     _has_cvss, _has_gas_profiler, _has_sbom,
 )
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from api_routes import api_bp
 from audit_service import AuditService
 from config import KB_ENABLED, CACHE_ENABLED, REPORT_DIR, GITHUB_TOKEN, SECRET_KEY
@@ -40,11 +43,30 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
+app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 app.static_folder = 'static'
 app.register_blueprint(api_bp)
 
+# CSRF protection: exempt API blueprint (uses Bearer token)
+csrf = CSRFProtect(app)
+csrf.exempt(api_bp)
+
 from werkzeug.middleware.proxy_fix import ProxyFix
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
+# Rate limiter
+limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per hour"])
+
+# CSP + security headers
+@app.after_request
+def add_security_headers(resp):
+    resp.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; connect-src 'self'"
+    resp.headers['X-Content-Type-Options'] = 'nosniff'
+    resp.headers['X-Frame-Options'] = 'DENY'
+    resp.headers['X-XSS-Protection'] = '1; mode=block'
+    resp.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    resp.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return resp
 
 
 @app.route('/')
@@ -61,6 +83,7 @@ def index():
 
 
 @app.route('/api/auth/verify', methods=['POST'])
+@limiter.limit("10 per minute")
 def api_auth_verify():
     data = request.get_json()
     if not data or 'code' not in data:
@@ -70,6 +93,8 @@ def api_auth_verify():
         session['access_code'] = data['code'].strip().upper()
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid or expired access code"}), 403
+
+csrf.exempt(api_auth_verify)
 
 
 @app.route('/report/interactive/<filename>')
@@ -476,6 +501,7 @@ def admin_login_page():
 
 
 @app.route('/api/admin/login', methods=['POST'])
+@limiter.limit("5 per minute")
 def api_admin_login():
     data = request.get_json()
     if data and data.get('password') == ADMIN_PASSWORD:
@@ -483,10 +509,14 @@ def api_admin_login():
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Wrong password"}), 403
 
+csrf.exempt(api_admin_login)
+
 
 @app.route('/api/admin/check')
 def api_admin_check():
     return jsonify({"authenticated": 'admin_authenticated' in session})
+
+csrf.exempt(api_admin_check)
 
 
 @app.route('/api/admin/codes', methods=['GET', 'POST'])
@@ -502,6 +532,8 @@ def api_admin_codes():
         return jsonify({"code": code})
     return jsonify({"codes": list_codes()})
 
+csrf.exempt(api_admin_codes)
+
 
 @app.route('/api/admin/codes/deactivate', methods=['POST'])
 def api_admin_deactivate():
@@ -512,6 +544,8 @@ def api_admin_deactivate():
         deactivate_code(data['code'])
         return jsonify({"success": True})
     return jsonify({"error": "Code required"}), 400
+
+csrf.exempt(api_admin_deactivate)
 
 
 try:

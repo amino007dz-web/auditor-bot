@@ -48,6 +48,7 @@ footer { text-align: center; padding: 2rem; color: #8b949e; border-top: 1px soli
 <div class="card">
 <h2>إدخال عنوان العقد</h2>
 <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="text" name="address" placeholder="0x..." required>
 <select name="chain">
 <option value="ethereum">Ethereum (Etherscan)</option>
@@ -103,7 +104,7 @@ footer { text-align: center; padding: 2rem; color: #8b949e; border-top: 1px soli
 </div>
 
 <script>
-const CONTRACT_ADDRESS = "{{ result.address if result and not result.error else '' }}";
+const CONTRACT_ADDRESS = {{ (result.address if result and not result.error else '')|tojson }};
 async function analyzeChain(type) {
   document.getElementById('loading').classList.remove('hidden');
   document.getElementById('chainResults').classList.add('hidden');
@@ -111,7 +112,7 @@ async function analyzeChain(type) {
     const resp = await fetch('/analyze_chain', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({address: CONTRACT_ADDRESS, analysis_type: type, chain: '{{ result.chain if result else "ethereum" }}'})
+      body: JSON.stringify({address: CONTRACT_ADDRESS, analysis_type: type, chain: {{ (result.chain if result else 'ethereum')|tojson }}})
     });
     const data = await resp.json();
     document.getElementById('loading').classList.add('hidden');

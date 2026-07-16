@@ -49,6 +49,7 @@ footer { text-align:center; padding:1.5rem; color:var(--text-secondary); border-
   <!-- Server Path Tab -->
   <div id="tab-path" class="tab-content active">
     <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="text" name="path" placeholder="Full path to project on server..." required>
       <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:0.5rem;">Auto-detects Foundry / Hardhat / Truffle / Brownie</p>
       <button type="submit" class="btn">Analyze Project</button>
