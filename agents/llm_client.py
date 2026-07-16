@@ -138,6 +138,46 @@ def _stream_ollama(model_name: str, prompt: str, timeout: int = 300):
         yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
 
+def _stream_openrouter(model_id: str, prompt: str, timeout: int = 300):
+    """Generator that yields tokens from OpenRouter as they arrive (SSE-style)."""
+    from config import OPENROUTER_BASE_URL, get_api_key, TEMPERATURE
+    key = get_api_key()
+    if not key:
+        yield f"data: {json.dumps({'error': 'No OpenRouter API key configured'})}\n\n"
+        return
+    try:
+        resp = requests.post(
+            f"{OPENROUTER_BASE_URL}/chat/completions",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={"model": model_id, "messages": [{"role": "user", "content": prompt}], "stream": True, "temperature": TEMPERATURE},
+            timeout=timeout, stream=True
+        )
+        resp.raise_for_status()
+        full = []
+        for line in resp.iter_lines(decode_unicode=True):
+            if not line or not line.startswith("data: "):
+                continue
+            data_str = line[6:].strip()
+            if data_str == "[DONE]":
+                break
+            try:
+                chunk = json.loads(data_str)
+            except json.JSONDecodeError:
+                continue
+            choices = chunk.get("choices", [])
+            if not choices:
+                continue
+            delta = choices[0].get("delta", {})
+            content = delta.get("content", "")
+            if content:
+                full.append(content)
+                yield f"data: {json.dumps({'token': content})}\n\n"
+        if full:
+            yield f"data: {json.dumps({'done': True, 'full': ''.join(full)})}\n\n"
+    except Exception as e:
+        yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+
 def call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
     if API_PROVIDER == "ollama":
         return _call_ollama(OLLAMA_MODEL, prompt, timeout)

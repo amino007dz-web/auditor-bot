@@ -16,14 +16,22 @@ from _shared import (
     _handle_zip_upload,
 )
 from main import ensure_report_dir, save_report_txt, load_local_contract
-from config import OLLAMA_MODEL, GITHUB_TOKEN, SECRET_KEY
+from config import OLLAMA_MODEL, GITHUB_TOKEN, SECRET_KEY, API_PROVIDER, ACTIVE_MODEL, FREE_MODELS
 from agents.pipeline import truncate_code
-from agents.llm_client import _stream_ollama
+from agents.llm_client import _stream_ollama, _stream_openrouter
 from agents.prompts import SYSTEM_PROMPT
 from agents.pre_scan import run_pre_scan
 from werkzeug.utils import secure_filename
 from orchestrator import dispatch_analysis
 from auth import save_history, get_history, get_history_item, check_quota, requires_auth
+
+# Helper: choose the right streaming function based on config
+def _stream_model(prompt, timeout=300):
+    """Stream tokens from the configured model (OpenRouter or Ollama)."""
+    if API_PROVIDER == "openrouter":
+        model_id = FREE_MODELS.get(ACTIVE_MODEL, {}).get("id", "openrouter/free")
+        return _stream_openrouter(model_id, prompt, timeout)
+    return _stream_ollama(OLLAMA_MODEL, prompt, timeout)
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +120,7 @@ def api_analyze_stream():
         yield f"data: {json.dumps({'type': 'meta', 'message': 'Analyzing with AI...'})}\n\n"
         prompt = f"{SYSTEM_PROMPT}\n\nCode to analyze:\n```solidity\n{code}\n```\nLanguage: english"
         full_report = ""
-        for event in _stream_ollama(OLLAMA_MODEL, prompt):
+        for event in _stream_model(prompt):
             if event.startswith("data: "):
                 try:
                     edata = json.loads(event[6:])
@@ -270,8 +278,9 @@ def api_github_stream():
         )[:5000]
 
         def gen():
-            from agents.llm_client import _stream_ollama
+            from agents.llm_client import _stream_ollama, _stream_openrouter
             from agents.prompts import SYSTEM_PROMPT
+            from config import API_PROVIDER, ACTIVE_MODEL, FREE_MODELS, OLLAMA_MODEL
             pre = run_pre_scan(combined)
             msg = 'GitHub repo: {} files found, {} potential issues'.format(
                 len(contracts), len(pre.get('findings', [])))
@@ -281,7 +290,9 @@ def api_github_stream():
                 SYSTEM_PROMPT, pre_json, url.rsplit('/', 1)[-1], combined)
             yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'ai', 'text': 'Running AI analysis on repository...'}))
             full = ""
-            for event in _stream_ollama(OLLAMA_MODEL, prompt):
+            _stream_fn = _stream_openrouter if API_PROVIDER == "openrouter" else _stream_ollama
+            model_name = FREE_MODELS.get(ACTIVE_MODEL, {}).get("id", "openrouter/free") if API_PROVIDER == "openrouter" else OLLAMA_MODEL
+            for event in _stream_fn(model_name, prompt):
                 if event.startswith("data: "):
                     try:
                         edata = json.loads(event[6:])
@@ -445,8 +456,9 @@ def api_analyze_project():
         combined = combined[:8000]
 
         def generate():
-            from agents.llm_client import _stream_ollama
+            from agents.llm_client import _stream_ollama, _stream_openrouter
             from agents.prompts import SYSTEM_PROMPT
+            from config import API_PROVIDER, ACTIVE_MODEL, FREE_MODELS, OLLAMA_MODEL
             pre = run_pre_scan(combined)
             pre_json = json.dumps([dict(f) for f in pre.get('findings', [])], indent=2)
             prompt = "{}\n\nPre-scan findings:\n{}\n\nProject files ({}):\n{}\n\nProvide a comprehensive security audit of this project. Focus on the entry contract.".format(
@@ -456,7 +468,9 @@ def api_analyze_project():
             yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'pre-scan', 'text': msg}))
             yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'ai', 'text': 'Running AI analysis across project...'}))
             full = ""
-            for event in _stream_ollama(OLLAMA_MODEL, prompt):
+            _stream_fn = _stream_openrouter if API_PROVIDER == "openrouter" else _stream_ollama
+            model_name = FREE_MODELS.get(ACTIVE_MODEL, {}).get("id", "openrouter/free") if API_PROVIDER == "openrouter" else OLLAMA_MODEL
+            for event in _stream_fn(model_name, prompt):
                 if event.startswith("data: "):
                     try:
                         edata = json.loads(event[6:])
