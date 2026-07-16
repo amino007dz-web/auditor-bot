@@ -1,11 +1,10 @@
 function countSeverities(text) {
   const counts = { Critical: 0, High: 0, Medium: 0, Low: 0, Info: 0 };
-  const lines = text.split('\n');
-  for (const key in counts) {
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed.startsWith(key + ' ') || trimmed.startsWith(key + ':')) counts[key]++;
-    }
+  var re = /^#{2,4}\s*(\*\*)?\s*(Critical|High|Medium|Low|Info)\b/gim;
+  var m;
+  while ((m = re.exec(text)) !== null) {
+    var key = m[2];
+    if (key === 'Critical' || key === 'High' || key === 'Medium' || key === 'Low' || key === 'Info') counts[key]++;
   }
   const total = counts.Critical + counts.High + counts.Medium + counts.Low + counts.Info;
   if (total === 0) return '';
@@ -15,14 +14,14 @@ function countSeverities(text) {
 function showChart() {
   el.chartModal.style.display = 'flex';
   const counts = { Critical: 0, High: 0, Medium: 0, Low: 0, Info: 0 };
-  const lines = currentReportText.split('\n');
-  for (const key in counts) {
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed.startsWith(key + ' ') || trimmed.startsWith(key + ':')) counts[key]++;
-    }
+  var re = /^#{2,4}\s*(\*\*)?\s*(Critical|High|Medium|Low|Info)\b/gim;
+  var m;
+  while ((m = re.exec(currentReportText)) !== null) {
+    var key = m[2];
+    if (key === 'Critical' || key === 'High' || key === 'Medium' || key === 'Low' || key === 'Info') counts[key]++;
   }
   if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  if (typeof Chart === 'undefined') return;
   chartInstance = new Chart(el.severityChart, {
     type: 'bar',
     data: {

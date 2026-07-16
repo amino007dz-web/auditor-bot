@@ -7,6 +7,7 @@ function authHeaders(extra) {
 
 function processStream(resp) {
   if (!resp.ok) throw new Error('Analysis failed: ' + resp.status);
+  if (!resp.body) throw new Error('Response has no body stream');
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -36,6 +37,7 @@ function processStream(resp) {
               if (parsed.type === 'final' && parsed.report) {
                 currentReportText = parsed.report;
                 renderFinalReport(parsed.report);
+                done = true; finalizeAnalysis(); resolve(); return;
               }
             } catch (e) { if (e.message !== 'Unexpected end of JSON input') { done = true; reject(e); return; } }
           }
@@ -72,7 +74,7 @@ function handleJsonResponse(resp) {
     var md = '';
     if (data.report) md = data.report;
     else if (data.analysis) md = data.analysis;
-    else if (data.summary) md = '## Diff Summary\n\n' + data.summary + '\n\n## Analysis\n\n' + (data.analysis || '');
+    else if (data.summary) md = '## Diff Summary\n\n' + (data.summary || '') + '\n\n## Analysis\n\n' + (data.analysis || '');
     else md = JSON.stringify(data, null, 2);
     if (md) {
       currentReportText = md;
@@ -87,7 +89,7 @@ function handleJsonResponse(resp) {
 function startAnalysis() {
   if (abortController) { abortController.abort(); abortController = null; }
 
-  const activeTab = document.querySelector('[data-tab]:not(.results-tab)');
+  const activeTab = document.querySelector('.btn.active-tab[data-tab]:not(.results-tab)') || document.querySelector('[data-tab]:not(.results-tab)');
   const tab = activeTab ? activeTab.dataset.tab : 'paste';
 
   let code;
@@ -119,12 +121,16 @@ function startAnalysis() {
     code = getCode();
     endpoint = '/api/analyze/diff';
     body = JSON.stringify({ old_code: el.diffOriginal.value, new_code: el.diffModified.value });
+    if (!el.diffOriginal.value.trim() && !el.diffModified.value.trim()) {
+      el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Enter original and modified code for diff analysis.</p>';
+      return;
+    }
   } else {
     code = window.editor.getValue();
     body = JSON.stringify({ code: code, type: el.analysisType.value });
   }
 
-  if (!code || (tab !== 'diff' && !code.trim())) {
+  if (tab !== 'diff' && !code.trim()) {
     el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Please enter or upload code first.</p>';
     return;
   }
@@ -184,7 +190,7 @@ function fetchGasReport() {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ code: code }),
-  }).then(function (r) { return r.json(); }).then(function (data) {
+  }).then(function (r) { if (!r.ok) throw new Error('Server error: ' + r.status); return r.json(); }).then(function (data) {
     var md = '# Gas Report\n\n';
     if (data.gas_report) md += data.gas_report + '\n\n';
     if (data.static_analysis) {
@@ -208,7 +214,7 @@ function suggestFix() {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ code: code, report: currentReportText.slice(0, 3000) })
-  }).then(function (r) { return r.json(); }).then(function (data) {
+  }).then(function (r) { if (!r.ok) throw new Error('Server error: ' + r.status); return r.json(); }).then(function (data) {
     if (data.fix) {
       var md = '# Suggested Fix\n\n' + data.fix;
       currentReportText = md;
@@ -227,9 +233,9 @@ function scanMalware() {
   fetch('/api/analyze/malware', {
     method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ code: code })
-  }).then(function (r) { return r.json(); }).then(function (data) {
-    var findings = (data.source_findings || []).concat(data.bytecode_findings || []);
+  }).then(function (r) { if (!r.ok) throw new Error('Server error: ' + r.status); return r.json(); }).then(function (data) {
     var md = '# Malware Scan Report\n\n**Risk Score**: ' + data.risk_score + '/10\n\n';
+    var findings = (data.source_findings || []).concat(data.bytecode_findings || []);
     if (findings.length === 0) { md += '*No malicious patterns detected.*\n'; }
     else {
       findings.forEach(function (f) {
@@ -251,7 +257,7 @@ function generateFuzzTest() {
   fetch('/api/analyze/fuzz', {
     method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ code: code })
-  }).then(function (r) { return r.json(); }).then(function (data) {
+  }).then(function (r) { if (!r.ok) throw new Error('Server error: ' + r.status); return r.json(); }).then(function (data) {
     var md = '# Generated Foundry Fuzz Test\n\n```solidity\n' + (data.fuzz_test || 'Error generating test') + '\n```';
     currentReportText = md; renderFinalReport(md);
   }).catch(function (err) { el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + err.message + '</p>'; });
@@ -263,11 +269,11 @@ function exportHackerone() {
   fetch('/api/hackerone', {
     method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ report: currentReportText, code: code, label: 'Smart Contract' })
-  }).then(function (r) { return r.json(); }).then(function (data) {
+  }).then(function (r) { if (!r.ok) throw new Error('Server error: ' + r.status); return r.json(); }).then(function (data) {
     if (data.report) {
       navigator.clipboard.writeText(data.report).then(function () {
         alert('HackerOne report copied to clipboard!');
-      });
+      }).catch(function () { alert('Failed to copy to clipboard'); });
     }
   }).catch(function (err) { alert('Error: ' + err.message); });
 }
@@ -283,7 +289,7 @@ function uploadKnowledge() {
     method: 'POST',
     headers: authHeaders(),
     body: fd,
-  }).then(function (r) { return r.json(); }).then(function (data) {
+  }).then(function (r) { if (!r.ok) throw new Error('Server error: ' + r.status); return r.json(); }).then(function (data) {
     el.uploadKnowledgeBtn.disabled = false;
     el.uploadKnowledgeBtn.innerHTML = '<i class="fas fa-upload"></i> Ingest to Knowledge Base';
     if (data.success) {
@@ -310,12 +316,12 @@ function saveToHistory(report) {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ report: report, title: 'Audit ' + new Date().toLocaleString(), severity_counts: countSeverities(report) })
-  }).then(function () { loadHistory(); });
+  }).then(function (r) { if (r.ok) loadHistory(); });
 }
 
 function loadHistory() {
-  fetch('/api/history', { headers: authHeaders() }).then(function (r) { return r.json(); }).then(function (data) {
-    var items = data.items || [];
+  fetch('/api/history', { headers: authHeaders() }).then(function (r) { if (!r.ok) throw new Error('Server error: ' + r.status); return r.json(); }).then(function (data) {
+    var items = Array.isArray(data.items) ? data.items : [];
     el.historyList.innerHTML = items.length === 0
       ? '<p style="color:var(--text-secondary);font-size:0.8rem;">No previous audits.</p>'
       : items.map(function (h, i) {
@@ -331,7 +337,7 @@ function loadHistory() {
 }
 
 function loadHistoryItem(id) {
-  fetch('/api/history/' + id, { headers: authHeaders() }).then(function (r) { return r.json(); }).then(function (item) {
+  fetch('/api/history/' + id, { headers: authHeaders() }).then(function (r) { if (!r.ok) throw new Error('Server error: ' + r.status); return r.json(); }).then(function (item) {
     if (!item) return;
     el.historyPanel.style.display = 'none';
     el.resultsBody.innerHTML = buildAccordion(item.full_report || item.snippet);
@@ -342,7 +348,7 @@ function loadHistoryItem(id) {
 }
 
 function loadQuota() {
-  fetch('/api/quota', { headers: authHeaders() }).then(function (r) { return r.json(); }).then(function (data) {
+  fetch('/api/quota', { headers: authHeaders() }).then(function (r) { if (!r.ok) throw new Error('Server error: ' + r.status); return r.json(); }).then(function (data) {
     var el2 = document.getElementById('quotaDisplay');
     if (el2 && data) {
       el2.textContent = 'Quota: ' + data.used + '/' + data.allowed;
@@ -354,6 +360,7 @@ function loadQuota() {
 function downloadReport(format) {
   if (!currentReportText) return;
   if (format === 'pdf') {
+    if (typeof html2pdf === 'undefined' || typeof marked === 'undefined' || typeof DOMPurify === 'undefined') { alert('PDF export not available'); return; }
     const el2 = document.createElement('div');
     el2.innerHTML = DOMPurify.sanitize(marked.parse(currentReportText));
     el2.style.padding = '20px'; el2.style.fontFamily = 'system-ui'; el2.style.fontSize = '12px';
@@ -361,6 +368,7 @@ function downloadReport(format) {
     html2pdf().set({ margin: 10, filename: 'audit-report.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(el2).save().then(function () { document.body.removeChild(el2); });
     return;
   }
+  if (format === 'sarif') { alert('SARIF export not yet implemented'); return; }
   const blob = new Blob([currentReportText], { type: 'text/markdown' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -375,7 +383,7 @@ function exportToGithub() {
   const formatted = formatGithubDiscussion(currentReportText);
   navigator.clipboard.writeText(formatted).then(function () {
     alert('GitHub Discussion format copied to clipboard!');
-  });
+  }).catch(function () { alert('Failed to copy to clipboard'); });
 }
 
 function formatGithubDiscussion(text) {

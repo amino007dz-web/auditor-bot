@@ -77,8 +77,8 @@ document.addEventListener('DOMContentLoaded', function () {
   el.historyBtn.addEventListener('click', function () { el.historyPanel.style.display = 'block'; });
   el.historyClose.addEventListener('click', function () { el.historyPanel.style.display = 'none'; });
 
-  el.chartClose.addEventListener('click', function () { el.chartModal.style.display = 'none'; });
-  el.chartModal.addEventListener('click', function (e) { if (e.target === el.chartModal) el.chartModal.style.display = 'none'; });
+  el.chartClose.addEventListener('click', function () { el.chartModal.style.display = 'none'; el.resultsBody.style.display = 'block'; });
+  el.chartModal.addEventListener('click', function (e) { if (e.target === el.chartModal) { el.chartModal.style.display = 'none'; el.resultsBody.style.display = 'block'; } });
 
   el.knowledgeBtn.addEventListener('click', function () { el.knowledgeModal.style.display = 'flex'; });
   el.knowledgeClose.addEventListener('click', function () { el.knowledgeModal.style.display = 'none'; });
@@ -106,8 +106,10 @@ document.addEventListener('DOMContentLoaded', function () {
     e.preventDefault();
     el.codePane.classList.remove('dragover');
     if (e.dataTransfer.files.length > 0) {
-      el.fileInput.files = e.dataTransfer.files;
-      handleFileUpload();
+      const file = e.dataTransfer.files[0];
+      const reader = new FileReader();
+      reader.onload = function (ev) { window.editor.setValue(ev.target.result); switchCodeTab('paste'); };
+      reader.readAsText(file);
     }
   });
 
@@ -166,20 +168,14 @@ function handleProjectUpload() {
   const reader = new FileReader();
   reader.onload = function (e) {
     try {
-      var zipData = new Uint8Array(e.target.result);
       el.entryContract.style.display = 'inline-block';
       el.entryContract.innerHTML = '<option value="">Auto-detect entry contract</option>';
-    } catch (err) { }
+    } catch (err) { console.warn('ZIP parsing error', err); }
   };
   reader.readAsArrayBuffer(file);
 }
 
 function getCode() {
-  const active = document.querySelector('[data-tab].active-tab');
-  if (el.uploadSection && el.uploadSection.style.display !== 'none') return null;
-  if (el.diffSection && el.diffSection.style.display !== 'none') {
-    return JSON.stringify({ original: el.diffOriginal.value, modified: el.diffModified.value });
-  }
   return window.editor.getValue();
 }
 
@@ -212,24 +208,20 @@ function updateStep(step) {
 }
 
 let typewriterTimer = null;
-let _streamingMd = '';
 
 function renderStreamingReport(text) {
   if (typewriterTimer) { clearTimeout(typewriterTimer); }
   typewriterTimer = setTimeout(function () {
-    _streamingMd = text;
-    el.resultsBody.innerHTML = DOMPurify.sanitize(marked.parse(text));
+    el.resultsBody.innerHTML = typeof DOMPurify !== 'undefined' && typeof marked !== 'undefined' ? DOMPurify.sanitize(marked.parse(text)) : text;
     el.resultsBody.scrollTop = el.resultsBody.scrollHeight;
   }, 50);
 }
 
 function renderFinalReport(report) {
-  _streamingMd = report;
   el.resultsBody.innerHTML = buildAccordion(report);
   el.resultsActions.style.display = 'flex';
   el.resultsTabs.style.display = 'flex';
   el.resultsTitle.textContent = 'Report - ' + countSeverities(report);
-  showChart();
   saveToHistory(report);
 }
 
@@ -261,7 +253,7 @@ function buildAccordion(md) {
 
   if (sections.length < 2) {
     return '<div class="finding-card"><div class="finding-body open">' +
-      DOMPurify.sanitize(marked.parse(md)) + '</div></div>';
+      (DOMPurify && marked ? DOMPurify.sanitize(marked.parse(md)) : md) + '</div></div>';
   }
 
   var result = '';
@@ -270,7 +262,12 @@ function buildAccordion(md) {
     var sevKey = s.heading ? s.heading.toLowerCase() : 'info';
     if (!severityMap[sevKey]) sevKey = 'info';
     var sevObj = severityMap[sevKey];
-    var bodyHtml = DOMPurify.sanitize(marked.parse(s.lines.join('\n')));
+    var bodyLines = s.lines.slice();
+    if (bodyLines.length > 0) {
+      var headingRe = /^#{2,4}\s*(\*\*)?\s*(Critical|High|Medium|Low|Info)/i;
+      if (headingRe.test(bodyLines[0])) { bodyLines.shift(); }
+    }
+    var bodyHtml = DOMPurify && marked ? DOMPurify.sanitize(marked.parse(bodyLines.join('\n'))) : bodyLines.join('\n');
     if (j === 0) {
       result += '<div class="finding-card">';
       result += '<div class="finding-header" onclick="this.nextElementSibling.classList.toggle(\'open\')">';
