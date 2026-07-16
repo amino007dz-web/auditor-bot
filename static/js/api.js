@@ -10,20 +10,24 @@ function processStream(resp) {
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let done = false;
   return new Promise(function (resolve, reject) {
     function read() {
+      if (done) return;
       reader.read().then(function (result) {
-        if (result.done) { finalizeAnalysis(); resolve(); return; }
+        if (done) return;
+        if (result.done) { done = true; finalizeAnalysis(); resolve(); return; }
         buffer += decoder.decode(result.value, { stream: true });
         const parts = buffer.split('\n\n');
         buffer = parts.pop();
-        parts.forEach(function (part) {
+        for (var i = 0; i < parts.length; i++) {
+          var part = parts[i];
           if (part.startsWith('data: ')) {
             const data = part.slice(6).trim();
-            if (data === '[DONE]') { finalizeAnalysis(); resolve(); return; }
+            if (data === '[DONE]') { done = true; finalizeAnalysis(); resolve(); return; }
             try {
               const parsed = JSON.parse(data);
-              if (parsed.error) reject(new Error(parsed.error));
+              if (parsed.error) { done = true; reject(new Error(parsed.error)); return; }
               if (parsed.step) { updateStep(parsed.step); }
               if (parsed.type === 'token' && parsed.text) {
                 currentReportText += parsed.text;
@@ -33,12 +37,13 @@ function processStream(resp) {
                 currentReportText = parsed.report;
                 renderFinalReport(parsed.report);
               }
-            } catch (e) { if (e.message !== 'Unexpected end of JSON input') reject(e); }
+            } catch (e) { if (e.message !== 'Unexpected end of JSON input') { done = true; reject(e); return; } }
           }
-        });
+        }
         read();
       }).catch(function (err) {
         if (typewriterTimer) { clearTimeout(typewriterTimer); typewriterTimer = null; }
+        done = true;
         reject(err);
       });
     }
@@ -48,9 +53,8 @@ function processStream(resp) {
 
 function handleFetchError(err) {
   if (typewriterTimer) { clearTimeout(typewriterTimer); typewriterTimer = null; }
-  if (err.name !== 'AbortError') { el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p>'; }
-  el.analyzeBtn.disabled = false;
-  el.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Analyze';
+  finalizeAnalysis();
+  if (err.name !== 'AbortError') { el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p><p style="margin-top:1rem;font-size:0.85rem;">Try pasting shorter or simpler code, or switch to a different analysis mode.</p>'; }
 }
 
 function startAnalysis() {
