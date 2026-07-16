@@ -8,6 +8,13 @@ function qs(sel) { return document.querySelector(sel); }
 
 function qsa(sel) { return document.querySelectorAll(sel); }
 
+function authHeaders(extra) {
+  var h = extra || {};
+  var token = localStorage.getItem('auth_token');
+  if (token) h['Authorization'] = 'Bearer ' + token;
+  return h;
+}
+
 const el = {
   resultsBody: $('resultsBody'),
   resultsTitle: $('resultsTitle'),
@@ -133,7 +140,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function switchCodeTab(tab) {
   qsa('[data-tab^="paste"],[data-tab^="upload"],[data-tab^="project"],[data-tab^="github"],[data-tab^="diff"]').forEach(function (t) {
-    if (t.dataset.tab === tab) t.style.background = 'var(--accent)'; else t.style.background = '';
+    if (t.dataset.tab === tab) { t.style.background = 'var(--accent)'; t.classList.add('active-tab'); } else { t.style.background = ''; t.classList.remove('active-tab'); }
   });
   ['pasteSection', 'uploadSection', 'projectSection', 'githubSection', 'diffSection'].forEach(function (id) {
     el[id].style.display = id.replace('Section', '') === tab ? 'flex' : 'none';
@@ -242,7 +249,7 @@ function startAnalysis() {
 
   fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: body,
     signal: abortController.signal
   }).then(function (resp) {
@@ -278,6 +285,7 @@ function startAnalysis() {
         });
         read();
       }).catch(function (err) {
+        if (typewriterTimer) { clearTimeout(typewriterTimer); typewriterTimer = null; }
         if (err.name !== 'AbortError') { el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p>'; }
         el.analyzeBtn.disabled = false;
         el.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Analyze';
@@ -285,6 +293,7 @@ function startAnalysis() {
     }
     read();
   }).catch(function (err) {
+    if (typewriterTimer) { clearTimeout(typewriterTimer); typewriterTimer = null; }
     if (err.name !== 'AbortError') { el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p>'; }
     el.analyzeBtn.disabled = false;
     el.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Analyze';
@@ -307,6 +316,7 @@ function uploadKnowledge() {
   fd.append('file', file);
   fetch('/api/knowledge/ingest', {
     method: 'POST',
+    headers: authHeaders(),
     body: fd,
   }).then(function (r) { return r.json(); }).then(function (data) {
     el.uploadKnowledgeBtn.disabled = false;
@@ -331,7 +341,7 @@ function fetchGasReport() {
   el.resultsTitle.textContent = 'Gas Report...';
   fetch('/api/gas', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ code: code }),
   }).then(function (r) { return r.json(); }).then(function (data) {
     var md = '# Gas Report\n\n';
@@ -355,7 +365,7 @@ function suggestFix() {
   el.resultsBody.innerHTML = '<div class="skeleton w-75"></div><div class="skeleton w-50"></div>';
   fetch('/api/analyze/fix', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ code: code, report: currentReportText.slice(0, 3000) })
   }).then(function (r) { return r.json(); }).then(function (data) {
     if (data.fix) {
@@ -374,7 +384,7 @@ function scanMalware() {
   el.resultsTitle.textContent = 'Scanning for malware...';
   el.resultsBody.innerHTML = '<div class="skeleton w-75"></div>';
   fetch('/api/analyze/malware', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ code: code })
   }).then(function (r) { return r.json(); }).then(function (data) {
     var findings = (data.source_findings || []).concat(data.bytecode_findings || []);
@@ -398,7 +408,7 @@ function generateFuzzTest() {
   el.resultsTitle.textContent = 'Generating fuzz test...';
   el.resultsBody.innerHTML = '<div class="skeleton w-75"></div>';
   fetch('/api/analyze/fuzz', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ code: code })
   }).then(function (r) { return r.json(); }).then(function (data) {
     var md = '# Generated Foundry Fuzz Test\n\n```solidity\n' + (data.fuzz_test || 'Error generating test') + '\n```';
@@ -410,7 +420,7 @@ function exportHackerone() {
   if (!currentReportText) return;
   var code = window.editor.getValue();
   fetch('/api/hackerone', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ report: currentReportText, code: code, label: 'Smart Contract' })
   }).then(function (r) { return r.json(); }).then(function (data) {
     if (data.report) {
@@ -421,22 +431,22 @@ function exportHackerone() {
   }).catch(function (err) { alert('Error: ' + err.message); });
 }
 
+var i18nTexts = {
+  'app.title': { en: 'Smart Contract Auditor', ar: 'مدقق العقود الذكية', zh: '智能合约审计器' },
+  'tab.paste': { en: 'Paste', ar: 'لصق', zh: '粘贴' },
+  'tab.upload': { en: 'Upload', ar: 'رفع', zh: '上传' },
+  'tab.project': { en: 'Project', ar: 'مشروع', zh: '项目' },
+  'tab.github': { en: 'GitHub', ar: 'جيت هاب', zh: 'GitHub' },
+  'tab.diff': { en: 'Diff', ar: 'مقارنة', zh: '差异' },
+  'btn.analyze': { en: 'Analyze', ar: 'تحليل', zh: '分析' },
+  'results.title': { en: 'Results', ar: 'النتائج', zh: '结果' },
+  'quota.label': { en: 'Quota', ar: 'الحصة', zh: '配额' },
+};
+
 function applyLang(lang) {
-  // Simple i18n: update data-i18n elements
   document.querySelectorAll('[data-i18n]').forEach(function (el2) {
     var key = el2.dataset.i18n;
-    var texts = {
-      'app.title': { en: 'Smart Contract Auditor', ar: 'مدقق العقود الذكية', zh: '智能合约审计器' },
-      'tab.paste': { en: 'Paste', ar: 'لصق', zh: '粘贴' },
-      'tab.upload': { en: 'Upload', ar: 'رفع', zh: '上传' },
-      'tab.project': { en: 'Project', ar: 'مشروع', zh: '项目' },
-      'tab.github': { en: 'GitHub', ar: 'جيت هاب', zh: 'GitHub' },
-      'tab.diff': { en: 'Diff', ar: 'مقارنة', zh: '差异' },
-      'btn.analyze': { en: 'Analyze', ar: 'تحليل', zh: '分析' },
-      'results.title': { en: 'Results', ar: 'النتائج', zh: '结果' },
-      'quota.label': { en: 'Quota', ar: 'الحصة', zh: '配额' },
-    };
-    var t = texts[key];
+    var t = i18nTexts[key];
     if (t && t[lang]) { el2.textContent = t[lang]; }
   });
 }
@@ -454,6 +464,7 @@ function doProjectAnalysis(endpoint, formData) {
 
   fetch(endpoint, {
     method: 'POST',
+    headers: authHeaders(),
     body: formData,
     signal: abortController.signal
   }).then(function (resp) {
@@ -489,6 +500,7 @@ function doProjectAnalysis(endpoint, formData) {
         });
         read();
       }).catch(function (err) {
+        if (typewriterTimer) { clearTimeout(typewriterTimer); typewriterTimer = null; }
         if (err.name !== 'AbortError') { el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p>'; }
         el.analyzeBtn.disabled = false;
         el.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Analyze';
@@ -496,6 +508,7 @@ function doProjectAnalysis(endpoint, formData) {
     }
     read();
   }).catch(function (err) {
+    if (typewriterTimer) { clearTimeout(typewriterTimer); typewriterTimer = null; }
     if (err.name !== 'AbortError') { el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p>'; }
     el.analyzeBtn.disabled = false;
     el.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Analyze';
@@ -644,13 +657,13 @@ function showChart() {
 function saveToHistory(report) {
   fetch('/api/history', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ report: report, title: 'Audit ' + new Date().toLocaleString(), severity_counts: countSeverities(report) })
   }).then(function () { loadHistory(); });
 }
 
 function loadHistory() {
-  fetch('/api/history').then(function (r) { return r.json(); }).then(function (data) {
+  fetch('/api/history', { headers: authHeaders() }).then(function (r) { return r.json(); }).then(function (data) {
     var items = data.items || [];
     el.historyList.innerHTML = items.length === 0
       ? '<p style="color:var(--text-secondary);font-size:0.8rem;">No previous audits.</p>'
@@ -667,7 +680,7 @@ function loadHistory() {
 }
 
 function loadHistoryItem(id) {
-  fetch('/api/history/' + id).then(function (r) { return r.json(); }).then(function (item) {
+  fetch('/api/history/' + id, { headers: authHeaders() }).then(function (r) { return r.json(); }).then(function (item) {
     if (!item) return;
     el.historyPanel.style.display = 'none';
     el.resultsBody.innerHTML = buildAccordion(item.full_report || item.snippet);
@@ -678,7 +691,7 @@ function loadHistoryItem(id) {
 }
 
 function loadQuota() {
-  fetch('/api/quota').then(function (r) { return r.json(); }).then(function (data) {
+  fetch('/api/quota', { headers: authHeaders() }).then(function (r) { return r.json(); }).then(function (data) {
     var el2 = document.getElementById('quotaDisplay');
     if (el2 && data) {
       el2.textContent = 'Quota: ' + data.used + '/' + data.allowed;

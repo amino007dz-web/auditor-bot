@@ -69,6 +69,8 @@ th { color: var(--text2); font-weight: 500; }
 <script>
 let adminAuthed = false;
 
+function esc(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+
 function adminLogin() {
   const pass = document.getElementById('adminPass').value;
   fetch('/api/admin/login', {
@@ -112,8 +114,8 @@ function loadCodes() {
     const tbody = document.getElementById('codesTable');
     tbody.innerHTML = (data.codes || []).map(function(c) {
       const status = c.is_active ? '<span class="active-badge">Active</span>' : '<span class="inactive-badge">Inactive</span>';
-      const action = c.is_active ? '<button class="btn btn-danger" onclick="deactivateCode(\'' + c.code + '\')" style="padding:0.25rem 0.5rem;font-size:0.75rem;">Deactivate</button>' : '';
-      return '<tr><td><code>' + c.code + '</code></td><td>' + (c.created_by || '') + '</td><td>' + c.used_count + '</td><td>' + (c.max_uses === -1 ? 'Unlimited' : c.max_uses) + '</td><td>' + status + '</td><td>' + new Date(c.created_at * 1000).toLocaleDateString() + '</td><td>' + action + '</td></tr>';
+      const action = c.is_active ? '<button class="btn btn-danger" onclick="deactivateCode(\'' + esc(c.code) + '\')" style="padding:0.25rem 0.5rem;font-size:0.75rem;">Deactivate</button>' : '';
+      return '<tr><td><code>' + esc(c.code) + '</code></td><td>' + esc(c.created_by || '') + '</td><td>' + c.used_count + '</td><td>' + (c.max_uses === -1 ? 'Unlimited' : c.max_uses) + '</td><td>' + status + '</td><td>' + new Date(c.created_at * 1000).toLocaleDateString() + '</td><td>' + action + '</td></tr>';
     }).join('');
   });
 }

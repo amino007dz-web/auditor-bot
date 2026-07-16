@@ -66,7 +66,8 @@ pre { background: #161b22; padding: 1rem; border-radius: 6px; overflow-x: auto; 
     const resp = await fetch('${apiUrl}/api/analyze/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json'${apiKey ? ", 'Authorization': 'Bearer " + apiKey + "'" : ""} },
-      body: JSON.stringify({ code: ${JSON.stringify(code.slice(0, 4000))}, type: 'audit' })
+      signal: AbortSignal.timeout(30000),
+      body: JSON.stringify({ code: ${JSON.stringify(escapeHtml(code.slice(0, 4000)))}, type: 'audit' })
     });
     if (!resp.ok) { reportEl.textContent = 'Error: ' + resp.status; statusEl.textContent = 'Failed'; return; }
     const reader = resp.body.getReader();
