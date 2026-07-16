@@ -128,8 +128,6 @@ def _stream_ollama(model_name: str, prompt: str, timeout: int = 300):
                 delta = chunk.get("message", {}).get("content", "")
             else:
                 delta = chunk.get("response", "")
-            else:
-                delta = chunk.get("response", "")
             if delta:
                 full.append(delta)
                 yield f"data: {json.dumps({'token': delta})}\n\n"
