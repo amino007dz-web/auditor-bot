@@ -25,37 +25,15 @@ th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var
 th { color: var(--text2); font-weight: 500; }
 .active-badge { color: var(--green); } .inactive-badge { color: var(--text2); }
 #newCodeDisplay { display: none; margin-top: 1rem; padding: 0.75rem; background: var(--bg3); border-radius: 6px; font-family: monospace; font-size: 1.1rem; text-align: center; border: 1px solid var(--accent); }
+#loginSection { max-width: 400px; margin: 3rem auto; }
+#adminPanel { display: none; }
 </style>
 </head>
 <body>
-<h1><span>🛡️</span> Admin Panel — Access Codes</h1>
-
-<div class="card">
-  <h2>Generate New Access Code</h2>
-  <div class="form-row">
-    <div class="form-group">
-      <label>Created For</label>
-      <input type="text" id="createdBy" placeholder="Name or email">
-    </div>
-    <div class="form-group">
-      <label>Max Uses</label>
-      <input type="number" id="maxUses" value="-1" style="width:100px;">
-    </div>
-    <button class="btn btn-primary" onclick="generateCode()"><i class="fas fa-plus"></i> Generate</button>
-  </div>
-  <div id="newCodeDisplay"></div>
-</div>
-
-<div class="card">
-  <h2>Existing Codes</h2>
-  <table>
-    <thead><tr><th>Code</th><th>Created For</th><th>Uses</th><th>Max</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
-    <tbody id="codesTable"></tbody>
-  </table>
-</div>
+<h1><span>🛡️</span> Admin Panel &mdash; Access Codes</h1>
 
 <div id="loginSection">
-  <div class="card" style="max-width:400px;margin:3rem auto;">
+  <div class="card">
     <h2>Admin Login</h2>
     <div class="form-group" style="margin-bottom:0.75rem;">
       <label>Password</label>
@@ -66,38 +44,66 @@ th { color: var(--text2); font-weight: 500; }
   </div>
 </div>
 
+<div id="adminPanel">
+  <div class="card">
+    <h2>Generate New Access Code</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Created For</label>
+        <input type="text" id="createdBy" placeholder="Name or email">
+      </div>
+      <div class="form-group">
+        <label>Max Uses</label>
+        <input type="number" id="maxUses" value="-1" style="width:100px;">
+      </div>
+      <button class="btn btn-primary" onclick="generateCode()"><i class="fas fa-plus"></i> Generate</button>
+    </div>
+    <div id="newCodeDisplay"></div>
+  </div>
+
+  <div class="card">
+    <h2>Existing Codes</h2>
+    <table>
+      <thead><tr><th>Code</th><th>Created For</th><th>Uses</th><th>Max</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
+      <tbody id="codesTable"></tbody>
+    </table>
+  </div>
+</div>
+
 <script>
-let adminAuthed = false;
+var adminAuthed = false;
 
 function esc(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
 
 function adminLogin() {
-  const pass = document.getElementById('adminPass').value;
+  var pass = document.getElementById('adminPass').value;
   fetch('/api/admin/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ password: pass })
-  }).then(function(r) { return r.json(); }).then(function(d) {
-    if (d.success) { adminAuthed = true; document.getElementById('loginSection').style.display = 'none'; loadCodes(); }
+  }).then(function(r) { if (!r.ok) throw new Error('Server error'); return r.json(); }).then(function(d) {
+    if (d.success) { adminAuthed = true; document.getElementById('loginSection').style.display = 'none'; document.getElementById('adminPanel').style.display = 'block'; loadCodes(); }
     else { document.getElementById('loginError').textContent = d.error || 'Wrong password'; document.getElementById('loginError').style.display = 'block'; }
+  }).catch(function(err) {
+    document.getElementById('loginError').textContent = 'Error: ' + err.message; document.getElementById('loginError').style.display = 'block';
   });
 }
 
 function generateCode() {
   if (!adminAuthed) return;
-  const createdBy = document.getElementById('createdBy').value;
-  const maxUses = parseInt(document.getElementById('maxUses').value) || -1;
+  var createdBy = document.getElementById('createdBy').value;
+  var maxUses = parseInt(document.getElementById('maxUses').value) || -1;
   fetch('/api/admin/codes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ created_by: createdBy, max_uses: maxUses })
-  }).then(function(r) { return r.json(); }).then(function(d) {
+  }).then(function(r) { if (!r.ok) throw new Error('Server error'); return r.json(); }).then(function(d) {
     if (d.code) {
       document.getElementById('newCodeDisplay').textContent = 'New Code: ' + d.code;
       document.getElementById('newCodeDisplay').style.display = 'block';
       loadCodes();
     }
-  });
+  }).catch(function(err) { alert('Error: ' + err.message); });
 }
 
 function deactivateCode(code) {
@@ -106,15 +112,15 @@ function deactivateCode(code) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code: code })
-  }).then(function() { loadCodes(); });
+  }).then(function(r) { if (r.ok) loadCodes(); });
 }
 
 function loadCodes() {
-  fetch('/api/admin/codes').then(function(r) { return r.json(); }).then(function(data) {
-    const tbody = document.getElementById('codesTable');
-    tbody.innerHTML = (data.codes || []).map(function(c) {
-      const status = c.is_active ? '<span class="active-badge">Active</span>' : '<span class="inactive-badge">Inactive</span>';
-      const action = c.is_active ? '<button class="btn btn-danger" onclick="deactivateCode(\'' + esc(c.code) + '\')" style="padding:0.25rem 0.5rem;font-size:0.75rem;">Deactivate</button>' : '';
+  fetch('/api/admin/codes').then(function(r) { if (!r.ok) throw new Error('Server error'); return r.json(); }).then(function(data) {
+    var tbody = document.getElementById('codesTable');
+    tbody.innerHTML = (Array.isArray(data.codes) ? data.codes : []).map(function(c) {
+      var status = c.is_active ? '<span class="active-badge">Active</span>' : '<span class="inactive-badge">Inactive</span>';
+      var action = c.is_active ? '<button class="btn btn-danger" onclick="deactivateCode(\'' + esc(c.code) + '\')" style="padding:0.25rem 0.5rem;font-size:0.75rem;">Deactivate</button>' : '';
       return '<tr><td><code>' + esc(c.code) + '</code></td><td>' + esc(c.created_by || '') + '</td><td>' + c.used_count + '</td><td>' + (c.max_uses === -1 ? 'Unlimited' : c.max_uses) + '</td><td>' + status + '</td><td>' + new Date(c.created_at * 1000).toLocaleDateString() + '</td><td>' + action + '</td></tr>';
     }).join('');
   });
@@ -122,7 +128,7 @@ function loadCodes() {
 
 // Check if already authed via session
 fetch('/api/admin/check').then(function(r) { return r.json(); }).then(function(d) {
-  if (d.authenticated) { adminAuthed = true; document.getElementById('loginSection').style.display = 'none'; loadCodes(); }
+  if (d.authenticated) { adminAuthed = true; document.getElementById('loginSection').style.display = 'none'; document.getElementById('adminPanel').style.display = 'block'; loadCodes(); }
 });
 </script>
 </body>

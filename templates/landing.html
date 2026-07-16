@@ -119,6 +119,18 @@ nav .nav-links a:hover { color: var(--text); }
 .modal-box input:focus { outline: none; border-color: var(--accent); }
 .error-msg { color: var(--red); font-size: 0.85rem; margin-bottom: 0.5rem; display: none; }
 footer { text-align: center; padding: 2rem; color: var(--text2); font-size: 0.8rem; border-top: 1px solid var(--border); }
+
+@media (max-width: 768px) {
+  nav { flex-direction: column; gap: 0.75rem; padding: 1rem; }
+  nav .nav-links { gap: 0.75rem; }
+  .hero { flex-direction: column; padding: 2rem 1.5rem; gap: 2rem; }
+  .hero-text h1 { font-size: 1.8rem; }
+  .hero-text p { font-size: 0.9rem; }
+  .stats { flex-wrap: wrap; gap: 1.5rem; padding: 2rem 1rem; }
+  .section { padding: 2rem 1rem; }
+  .section h2 { font-size: 1.4rem; }
+  .pricing-grid { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
@@ -301,8 +313,10 @@ footer { text-align: center; padding: 2rem; color: var(--text2); font-size: 0.8r
 <script>
 function showModal(type) {
   document.getElementById(type + 'Modal').classList.add('show');
-  var inp = document.getElementById('accessCodeInput');
-  if (inp) inp.focus();
+  if (type === 'access') {
+    var inp = document.getElementById('accessCodeInput');
+    if (inp) setTimeout(function() { inp.focus(); }, 100);
+  }
 }
 function closeModal(type) {
   document.getElementById(type + 'Modal').classList.remove('show');

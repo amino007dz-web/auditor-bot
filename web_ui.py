@@ -118,6 +118,8 @@ def report_interactive(filename):
                 break
         if sev:
             title = line.replace("###", "").replace("##", "").replace("**", "").strip()
+            if in_finding and findings_html:
+                findings_html.append("</div></div>")
             findings_html.append(
                 f'<div class="finding">'
                 f'<div class="finding-header" onclick="toggleFinding(this)">'
@@ -128,12 +130,12 @@ def report_interactive(filename):
             )
             in_finding = True
         elif line.strip().startswith("---") and in_finding:
-            findings_html[-1] = findings_html[-1].rstrip("</div>\n</div>") + "</div></div>"
+            findings_html.append("</div></div>")
             in_finding = False
         elif in_finding:
-            findings_html.append(f"<pre>{line}</pre>")
+            findings_html.append(f"<p>{line}</p>")
         else:
-            findings_html.append(f"<pre>{line}</pre>")
+            findings_html.append(f"<p>{line}</p>")
     if in_finding and findings_html:
         findings_html.append("</div></div>")
     return render_template('report_interactive.html',

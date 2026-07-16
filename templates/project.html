@@ -3,10 +3,10 @@
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Project Audit — VulnAudit</title>
 <style>
-:root { --bg-primary:#0a0e14; --bg-secondary:#111820; --bg-card:#161f2e; --border:#1e2a3a; --text-primary:#e6edf3; --text-secondary:#8b95a5; --accent:#58a6ff; --radius:10px; }
+:root { --bg-primary:#0d1117; --bg-secondary:#161b22; --bg-card:#21262d; --border:#30363d; --text-primary:#e6edf3; --text-secondary:#8b949e; --accent:#58a6ff; --radius:10px; }
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:-apple-system,'Segoe UI',sans-serif; background:var(--bg-primary); color:var(--text-primary); padding:1.5rem; max-width:1000px; margin:0 auto; }
-h1 { font-size:1.5rem; background:linear-gradient(135deg,var(--accent),#a371f7); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+h1 { font-size:1.5rem; color: var(--accent); }
 .nav { display:flex; gap:0.5rem; flex-wrap:wrap; margin:0.75rem 0; }
 .nav a { color:var(--text-secondary); text-decoration:none; padding:0.4rem 0.85rem; border-radius:6px; font-size:0.85rem; border:1px solid transparent; }
 .nav a:hover { color:var(--text-primary); background:var(--bg-card); border-color:var(--border); }
@@ -19,8 +19,9 @@ h1 { font-size:1.5rem; background:linear-gradient(135deg,var(--accent),#a371f7);
 .tab-content.active { display:block; }
 input, select { width:100%; padding:0.7rem; border:1px solid var(--border); border-radius:6px; background:var(--bg-primary); color:var(--text-primary); font-size:0.9rem; }
 input:focus, select:focus { outline:none; border-color:var(--accent); }
-.btn { display:inline-block; padding:0.7rem 1.4rem; border:none; border-radius:6px; font-size:0.9rem; cursor:pointer; background:linear-gradient(135deg,#238636,#2ea043); color:#fff; transition:filter 0.2s; }
+.btn { display:inline-block; padding:0.7rem 1.4rem; border:none; border-radius:6px; font-size:0.9rem; cursor:pointer; background:#238636; color:#fff; transition:filter 0.2s; }
 .btn:hover { filter:brightness(1.15); }
+.btn:disabled { opacity:0.5; cursor:not-allowed; filter:none; }
 .mt-1 { margin-top:1rem; }
 pre { background:var(--bg-primary); border:1px solid var(--border); border-radius:6px; padding:1rem; max-height:600px; overflow:auto; direction:ltr; text-align:left; font-size:0.82rem; line-height:1.6; }
 .hidden { display:none !important; }
@@ -37,7 +38,7 @@ pre { background:var(--bg-primary); border:1px solid var(--border); border-radiu
 footer { text-align:center; padding:1.5rem; color:var(--text-secondary); border-top:1px solid var(--border); margin-top:2rem; font-size:0.8rem; }
 </style></head>
 <body>
-<h1>📂 Project Security Audit</h1>
+<h1>Project Security Audit</h1>
 <nav class="nav"><a href="/">Home</a><a href="/batch">Batch</a><a href="/dashboard">Dashboard</a></nav>
 
 <div class="card">
@@ -46,7 +47,6 @@ footer { text-align:center; padding:1.5rem; color:var(--text-secondary); border-
     <div class="tab" onclick="switchTab('zip',this)">Upload ZIP</div>
   </div>
 
-  <!-- Server Path Tab -->
   <div id="tab-path" class="tab-content active">
     <form method="POST">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -56,15 +56,19 @@ footer { text-align:center; padding:1.5rem; color:var(--text-secondary); border-
     </form>
   </div>
 
-  <!-- ZIP Upload Tab -->
   <div id="tab-zip" class="tab-content">
+    <form id="zipForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="upload-zone" id="dropZone">
       <div class="icon">📦</div>
       <p>Upload a ZIP file of your project</p>
-      <input type="file" id="fileInput" accept=".zip" style="display:none" onchange="handleFile(event)">
+      <input type="file" id="fileInput" name="zipfile" accept=".zip" style="display:none" onchange="handleFile(event)">
     </div>
     <div id="fileInfo" class="hidden file-name"></div>
-    <button class="btn mt-1" onclick="uploadZip()">Upload & Analyze</button>
+    <div style="position:relative; display:inline-block;">
+      <button type="submit" class="btn mt-1" id="uploadBtn">Upload &amp; Analyze</button>
+    </div>
+    </form>
   </div>
 </div>
 
@@ -75,13 +79,13 @@ footer { text-align:center; padding:1.5rem; color:var(--text-secondary); border-
 
 <div id="result" class="hidden card"><pre id="resultContent"></pre></div>
 
-<footer>VulnAudit — Smart Contract Security Analysis Engine</footer>
+<footer>VulnAudit &mdash; Smart Contract Security Analysis Engine</footer>
 
 <script>
 let uploadedFile = null;
 function switchTab(name, el) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
   el.classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
 }
@@ -92,39 +96,45 @@ function handleFile(e) {
     document.getElementById('fileInfo').classList.remove('hidden');
   }
 }
-document.getElementById('dropZone').addEventListener('click', () => document.getElementById('fileInput').click());
-document.getElementById('dropZone').addEventListener('dragover', (e) => { e.preventDefault(); e.currentTarget.classList.add('dragover'); });
-document.getElementById('dropZone').addEventListener('dragleave', (e) => { e.currentTarget.classList.remove('dragover'); });
-document.getElementById('dropZone').addEventListener('drop', (e) => {
+document.getElementById('dropZone').addEventListener('click', function() { document.getElementById('fileInput').click(); });
+document.getElementById('dropZone').addEventListener('dragover', function(e) { e.preventDefault(); e.currentTarget.classList.add('dragover'); });
+document.getElementById('dropZone').addEventListener('dragleave', function(e) { e.currentTarget.classList.remove('dragover'); });
+document.getElementById('dropZone').addEventListener('drop', function(e) {
   e.preventDefault(); e.currentTarget.classList.remove('dragover');
-  const files = e.dataTransfer.files;
+  var files = e.dataTransfer.files;
   if (files.length > 0) {
-    document.getElementById('fileInput').files = files;
     uploadedFile = files[0];
+    document.getElementById('fileInput').files = files;
     document.getElementById('fileInfo').textContent = uploadedFile.name + ' (' + (uploadedFile.size/1024).toFixed(1) + ' KB)';
     document.getElementById('fileInfo').classList.remove('hidden');
   }
 });
-async function uploadZip() {
+document.getElementById('zipForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
   if (!uploadedFile) { alert('Please select a ZIP file first'); return; }
-  const loading = document.getElementById('loading');
+  var loading = document.getElementById('loading');
   loading.classList.remove('hidden');
   document.getElementById('result').classList.add('hidden');
-  const formData = new FormData();
-  formData.append('file', uploadedFile);
+  document.getElementById('uploadBtn').disabled = true;
+  var formData = new FormData();
+  formData.append('zipfile', uploadedFile);
+  formData.append('csrf_token', document.querySelector('#zipForm [name=csrf_token]').value);
   try {
-    const resp = await fetch('/upload_project', { method:'POST', body:formData });
-    const data = await resp.json();
+    var resp = await fetch('/project', { method:'POST', body:formData });
+    if (!resp.ok) throw new Error('Server error: ' + resp.status);
+    var data = await resp.json();
     loading.classList.add('hidden');
     document.getElementById('result').classList.remove('hidden');
-    const pre = document.getElementById('resultContent');
+    var pre = document.getElementById('resultContent');
     pre.textContent = data.report || data.error || JSON.stringify(data, null, 2);
   } catch (err) {
     loading.classList.add('hidden');
     document.getElementById('result').classList.remove('hidden');
     document.getElementById('resultContent').textContent = 'Error: ' + err.message;
+  } finally {
+    document.getElementById('uploadBtn').disabled = false;
   }
-}
+});
 </script>
 </body>
 </html>

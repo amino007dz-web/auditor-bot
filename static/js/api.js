@@ -357,18 +357,69 @@ function loadQuota() {
   });
 }
 
+function convertToSARIF(report) {
+  var sev = /^#{2,4}\s*(\*\*)?\s*(Critical|High|Medium|Low|Info)/gim;
+  var lines = report.split('\n');
+  var results = [];
+  var currentFinding = null;
+  for (var i = 0; i < lines.length; i++) {
+    var m = sev.exec(lines[i]);
+    sev.lastIndex = 0;
+    if (m) {
+      if (currentFinding) results.push(currentFinding);
+      currentFinding = { severity: m[2].toUpperCase(), name: lines[i].replace(/[#*]/g,'').trim(), lines: [] };
+    } else if (currentFinding) {
+      currentFinding.lines.push(lines[i]);
+    }
+  }
+  if (currentFinding) results.push(currentFinding);
+  if (results.length === 0) {
+    results.push({ severity: 'NOTE', name: 'Audit Report', lines: lines.slice(0, 5) });
+  }
+  var rules = [], sarifResults = [];
+  var seenRules = {};
+  results.forEach(function(f) {
+    var ruleId = f.name.slice(0, 50).replace(/[^a-zA-Z0-9 ]/g, '_') || 'finding';
+    if (!seenRules[ruleId]) {
+      seenRules[ruleId] = true;
+      rules.push({ id: ruleId, name: f.name, shortDescription: { text: f.name }, properties: { severity: f.severity } });
+    }
+    var level = f.severity === 'CRITICAL' ? 'error' : f.severity === 'HIGH' ? 'error' : f.severity === 'MEDIUM' ? 'warning' : f.severity === 'LOW' ? 'note' : 'note';
+    sarifResults.push({
+      ruleId: ruleId, level: level, message: { text: f.lines.join('\n').slice(0, 500) || f.name },
+      locations: [{ physicalLocation: { artifactLocation: { uri: 'contract.sol' }, region: { startLine: 1 } } }]
+    });
+  });
+  return {
+    version: '2.1.0',
+    $schema: 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
+    runs: [{
+      tool: { driver: { name: 'Smart Contract Auditor', version: '1.0', rules: rules } },
+      results: sarifResults
+    }]
+  };
+}
+
 function downloadReport(format) {
   if (!currentReportText) return;
   if (format === 'pdf') {
     if (typeof html2pdf === 'undefined' || typeof marked === 'undefined' || typeof DOMPurify === 'undefined') { alert('PDF export not available'); return; }
     const el2 = document.createElement('div');
     el2.innerHTML = DOMPurify.sanitize(marked.parse(currentReportText));
+    el2.style.position = 'fixed'; el2.style.left = '-10000px'; el2.style.top = '0';
     el2.style.padding = '20px'; el2.style.fontFamily = 'system-ui'; el2.style.fontSize = '12px';
     document.body.appendChild(el2);
-    html2pdf().set({ margin: 10, filename: 'audit-report.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(el2).save().then(function () { document.body.removeChild(el2); });
+    html2pdf().set({ margin: 10, filename: 'audit-report.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(el2).save().then(function () { if (el2.parentNode) document.body.removeChild(el2); }).catch(function () { if (el2.parentNode) document.body.removeChild(el2); });
     return;
   }
-  if (format === 'sarif') { alert('SARIF export not yet implemented'); return; }
+  if (format === 'sarif') {
+    var sarif = convertToSARIF(currentReportText);
+    var blob = new Blob([JSON.stringify(sarif, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href = url; a.download = 'audit-report.sarif'; a.click();
+    URL.revokeObjectURL(url);
+    return;
+  }
   const blob = new Blob([currentReportText], { type: 'text/markdown' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

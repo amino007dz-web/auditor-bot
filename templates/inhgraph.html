@@ -1,31 +1,56 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inheritance Graph - Smart Contract Auditor</title>
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Segoe UI',sans-serif; background:#0d1117; color:#c9d1d9; padding:2rem; max-width:1000px; margin:0 auto; }
-h1 { color:#58a6ff; }
-a { color:#58a6ff; }
-.card { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:1.5rem; margin:1rem 0; }
-textarea { width:100%; padding:0.75rem; border:1px solid #30363d; border-radius:6px; background:#0d1117; color:#c9d1d9; margin-bottom:1rem; font-family:monospace; min-height:200px; }
-.btn { padding:0.75rem 1.5rem; border:none; border-radius:6px; cursor:pointer; background:#238636; color:#fff; }
-.graph-frame { width:100%; height:600px; border:none; border-radius:6px; }
-</style></head>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
+.container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+header { text-align: center; padding: 2rem 0; border-bottom: 1px solid #30363d; margin-bottom: 2rem; }
+header h1 { color: #58a6ff; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+.card h2 { color: #58a6ff; margin-bottom: 1rem; }
+textarea { width: 100%; min-height: 200px; padding: 0.75rem; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-size: 0.9rem; font-family: monospace; resize: vertical; }
+.btn { display: inline-block; padding: 0.75rem 1.5rem; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; }
+.btn-primary { background: #238636; color: #fff; }
+.btn-primary:hover { background: #2ea043; }
+.graph-container { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 1rem; overflow: auto; text-align: center; }
+.graph-container img, .graph-container svg { max-width: 100%; height: auto; }
+a { color: #58a6ff; text-decoration: none; }
+.meta { color: #8b949e; font-size: 0.85rem; }
+</style>
+</head>
 <body>
-<h1>🔗 Inheritance Graph</h1>
-<p><a href="/">الرئيسية</a></p>
+<div class="container">
+<header>
+<h1>Inheritance Graph Generator</h1>
+<p><a href="/">Home</a></p>
+</header>
+
 <div class="card">
+<h2>Generate Graph</h2>
 <form method="POST">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<textarea name="code" placeholder="الصق كود Solidity هنا..." required></textarea>
-<button type="submit" class="btn">رسم الوراثة</button>
+<textarea name="code" placeholder="Paste Solidity code here..." required></textarea>
+<button type="submit" class="btn btn-primary">Generate Graph</button>
 </form>
 </div>
-{% if graph %}
+
+{% if graph_file %}
 <div class="card">
-<iframe class="graph-frame" srcdoc="{{ graph|e }}"></iframe>
-<p><a href="/download/inheritance_{{ '%s'|format(range(1,999999)|random) }}.html" target="_blank">فتح في نافذة جديدة</a></p>
+<h2>Inheritance Graph</h2>
+<div class="graph-container">
+{% if graph_file.endswith('.svg') %}
+{{ graph_content|safe }}
+{% else %}
+<img src="/download/{{ graph_file }}" alt="Inheritance Graph">
+{% endif %}
+</div>
+<p class="meta" style="margin-top: 1rem;"><a href="/download/{{ graph_file }}" target="_blank">Open in new window</a></p>
 </div>
 {% endif %}
-</body></html>
+</div>
+</body>
+</html>

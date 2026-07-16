@@ -4,15 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard — Smart Contract Auditor</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
 <style>
 :root {
-  --bg-primary: #0a0e14;
-  --bg-secondary: #111820;
-  --bg-card: #161f2e;
-  --border: #1e2a3a;
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-card: #21262d;
+  --border: #30363d;
   --text-primary: #e6edf3;
-  --text-secondary: #8b95a5;
+  --text-secondary: #8b949e;
   --accent: #58a6ff;
   --critical: #f85149;
   --high: #d29922;
@@ -55,13 +55,8 @@ tr:hover td { background: rgba(88, 166, 255, 0.03); }
 .status-warn { background: rgba(210,153,34,0.15); color: var(--high); border: 1px solid rgba(210,153,34,0.3); }
 footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); border-top: 1px solid var(--border); margin-top: 2rem; font-size: 0.8rem; }
 .empty { text-align: center; padding: 2rem; color: var(--text-secondary); background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--radius); }
-.severity-bar { display: inline-flex; height: 14px; border-radius: 3px; margin-left: 0.5rem; }
-.bar-critical { background: var(--critical); }
-.bar-high { background: var(--high); }
-.bar-medium { background: var(--medium); }
-.bar-low { background: var(--low); }
-.bar-info { background: var(--info); }
-.chart-container { max-width: 350px; margin: 0 auto 2rem; }
+.table-wrap { overflow-x: auto; }
+.chart-container { max-width: 350px; margin: 0 auto 2rem; {% if not stats.kb_dynamic %}display:none;{% endif %} }
 </style>
 </head>
 <body>
@@ -72,18 +67,17 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
       <a href="/">Home</a>
       <a href="/dashboard" class="active">Dashboard</a>
       <a href="/report/list">Reports</a>
-      <a href="/report/interactive">Interactive Reports</a>
       <a href="/explorer">Chain Loader</a>
       <a href="/cvss">CVSS 4.0</a>
     </nav>
   </header>
 
-  <!-- Severity Distribution Chart -->
+  {% if stats.kb_dynamic %}
   <div class="chart-container">
     <canvas id="severityChart"></canvas>
   </div>
+  {% endif %}
 
-  <!-- Stats Cards -->
   <div class="stats-grid">
     <div class="stat-card">
       <div class="num">{{ stats.patterns }}</div>
@@ -130,6 +124,7 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
   <div class="section">
     <h2>Most Common Vulnerability Patterns</h2>
     {% if stats.top_patterns %}
+    <div class="table-wrap">
     <table>
       <thead><tr><th>#</th><th>Pattern</th><th>Score</th></tr></thead>
       <tbody>
@@ -148,6 +143,7 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
       {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <div class="empty">No patterns recorded yet. Run some audits to populate the knowledge base.</div>
     {% endif %}
@@ -156,6 +152,7 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
   <div class="section">
     <h2>Model Performance Rankings</h2>
     {% if stats.rankings %}
+    <div class="table-wrap">
     <table>
       <thead><tr><th>Model</th><th>Accuracy</th><th>TP</th><th>FP</th></tr></thead>
       <tbody>
@@ -176,6 +173,7 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
       {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <div class="empty">No model data yet. Results appear after audits with feedback.</div>
     {% endif %}
@@ -183,6 +181,7 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
 
   <div class="section">
     <h2>System Components</h2>
+    <div class="table-wrap">
     <table>
       <thead><tr><th>Component</th><th>Status</th></tr></thead>
       <tbody>
@@ -212,23 +211,34 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
         </tr>
       </tbody>
     </table>
+    </div>
   </div>
 
-  <footer>Smart Contract Auditor — Secure Analysis Engine</footer>
+  <footer>Smart Contract Auditor &mdash; Secure Analysis Engine</footer>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  const ctx = document.getElementById('severityChart');
-  if (!ctx) return;
-  const hasData = {{ stats.top_patterns|length }} > 0;
+  var ctx = document.getElementById('severityChart');
+  if (!ctx || typeof Chart === 'undefined') return;
+  {% if stats.kb_dynamic %}
+  var chartData = [
+    {{ stats.kb_dynamic.high_confidence }},
+    {{ stats.kb_dynamic.medium_confidence }},
+    {{ stats.kb_dynamic.low_confidence }}
+  ];
+  var sum = chartData[0] + chartData[1] + chartData[2];
+  {% else %}
+  var chartData = [0, 0, 0];
+  var sum = 0;
+  {% endif %}
   new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['Critical', 'High', 'Medium', 'Low', 'Info'],
+      labels: ['High Confidence', 'Medium Confidence', 'Low Confidence'],
       datasets: [{
-        data: hasData ? [1, 2, 3, 2, 1] : [0, 0, 1, 0, 0],
-        backgroundColor: ['#da3633', '#d29922', '#58a6ff', '#8b949e', '#238636'],
+        data: sum > 0 ? chartData : [1],
+        backgroundColor: sum > 0 ? ['#3fb950', '#58a6ff', '#d29922'] : ['#30363d'],
         borderWidth: 1
       }]
     },
@@ -236,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
       responsive: true,
       plugins: {
         legend: { position: 'bottom', labels: { color: '#e6edf3' } },
-        title: { display: true, text: 'Severity Distribution', color: '#e6edf3' }
+        title: { display: true, text: 'KB Confidence Distribution', color: '#e6edf3' }
       }
     }
   });

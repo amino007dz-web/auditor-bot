@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>التقارير - Smart Contract Auditor</title>
+<title>Reports - Smart Contract Auditor</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
@@ -11,8 +11,9 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; colo
 header { text-align: center; padding: 2rem 0; border-bottom: 1px solid #30363d; margin-bottom: 2rem; }
 header h1 { color: #58a6ff; }
 .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }
+.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
-th { text-align: right; padding: 0.75rem 0.5rem; border-bottom: 2px solid #30363d; color: #58a6ff; }
+th { text-align: left; padding: 0.75rem 0.5rem; border-bottom: 2px solid #30363d; color: #58a6ff; }
 td { padding: 0.75rem 0.5rem; border-bottom: 1px solid #30363d; }
 tr:hover td { background: rgba(88, 166, 255, 0.03); }
 a { color: #58a6ff; text-decoration: none; }
@@ -31,17 +32,18 @@ a:hover { text-decoration: underline; }
 <body>
 <div class="container">
 <header>
-<h1>التقارير</h1>
+<h1>Reports</h1>
 <div class="nav-links">
-<a href="/">الرئيسية</a>
-<a href="/report/list">التقارير</a>
+<a href="/">Home</a>
+<a href="/report/list">Reports</a>
 </div>
 </header>
 
 <div class="card">
 {% if reports %}
+<div class="table-wrap">
 <table>
-<thead><tr><th>اسم التقرير</th><th>الحجم</th><th>تاريخ التعديل</th><th></th></tr></thead>
+<thead><tr><th>Report Name</th><th>Size</th><th>Modified</th><th></th></tr></thead>
 <tbody>
 {% for r in reports %}
 <tr>
@@ -49,16 +51,17 @@ a:hover { text-decoration: underline; }
 <td>{{ r.size }}</td>
 <td>{{ r.modified }}</td>
 <td>
-<a href="/report/view/{{ r.name }}" class="btn btn-view">عرض</a>
+<a href="/report/view/{{ r.name }}" class="btn btn-view">View</a>
 </td>
 </tr>
 {% endfor %}
 </tbody>
 </table>
+</div>
 {% else %}
 <div class="empty">
-<p>لا توجد تقارير بعد</p>
-<p style="margin-top: 0.5rem;"><a href="/">ارفع عقداً ذكياً لبدء التحليل</a></p>
+<p>No reports yet.</p>
+<p style="margin-top: 0.5rem;"><a href="/">Upload a smart contract to start analysis.</a></p>
 </div>
 {% endif %}
 </div>

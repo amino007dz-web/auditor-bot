@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>جلب من المستكشف - Smart Contract Auditor</title>
+<title>Chain Explorer - Smart Contract Auditor</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
@@ -36,17 +36,17 @@ footer { text-align: center; padding: 2rem; color: #8b949e; border-top: 1px soli
 <body>
 <div class="container">
 <header>
-<h1>جلب العقد من مستكشف السلسلة</h1>
+<h1>Fetch Contract from Chain Explorer</h1>
 <div class="nav-links">
-<a href="/">الرئيسية</a>
-<a href="/report/list">التقارير</a>
-<a href="/dashboard">لوحة التحكم</a>
-<a href="/explorer">المستكشف</a>
+<a href="/">Home</a>
+<a href="/report/list">Reports</a>
+<a href="/dashboard">Dashboard</a>
+<a href="/explorer">Explorer</a>
 </div>
 </header>
 
 <div class="card">
-<h2>إدخال عنوان العقد</h2>
+<h2>Enter Contract Address</h2>
 <form method="POST">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="text" name="address" placeholder="0x..." required>
@@ -59,69 +59,71 @@ footer { text-align: center; padding: 2rem; color: #8b949e; border-top: 1px soli
 <option value="base">Base (BaseScan)</option>
 <option value="avalanche">Avalanche (SnowTrace)</option>
 </select>
-<input type="text" name="api_key" placeholder="API Key (اختياري — الافتراضي: YourApiKeyToken)">
-<button type="submit" class="btn btn-primary">جلب العقد</button>
+<input type="text" name="api_key" placeholder="API Key (optional, default: YourApiKeyToken)">
+<button type="submit" class="btn btn-primary">Fetch Contract</button>
 </form>
-<p class="meta">السلاسل المدعومة: {{ chains }}</p>
+<p class="meta">Supported chains: {{ chains }}</p>
 </div>
 
 {% if result %}
 <div class="card">
 <h2 class="{% if result.error %}error{% else %}success{% endif %}">
-{% if result.error %}خطأ{% else %}تم الجلب بنجاح{% endif %}
+{% if result.error %}Error{% else %}Successfully Fetched{% endif %}
 </h2>
 {% if result.error %}
 <p>{{ result.error }}</p>
 {% else %}
-<p class="meta"><strong>الاسم:</strong> {{ result.name }}</p>
-<p class="meta"><strong>السلسلة:</strong> {{ result.chain }} ({{ result.explorer }})</p>
-<p class="meta"><strong>العنوان:</strong> {{ result.address }}</p>
-<p class="meta"><strong>المترجم:</strong> {{ result.compiler }}</p>
-<p class="meta"><strong>حجم الكود:</strong> {{ result.code|length }} حرف</p>
+<p class="meta"><strong>Name:</strong> {{ result.name }}</p>
+<p class="meta"><strong>Chain:</strong> {{ result.chain }} ({{ result.explorer }})</p>
+<p class="meta"><strong>Address:</strong> {{ result.address }}</p>
+<p class="meta"><strong>Compiler:</strong> {{ result.compiler }}</p>
+<p class="meta"><strong>Code Size:</strong> {{ result.code|length }} chars</p>
 
 <div class="flex" style="margin: 1rem 0;">
-<button class="btn btn-primary" onclick="analyzeChain('audit')">تحليل كامل</button>
-<button class="btn btn-secondary" onclick="analyzeChain('chunked')">تحليل مجزأ</button>
+<button class="btn btn-primary" onclick="analyzeChain('audit')">Full Audit</button>
+<button class="btn btn-secondary" onclick="analyzeChain('chunked')">Chunked Analysis</button>
 <button class="btn btn-secondary" onclick="analyzeChain('opcodes')">Opcodes</button>
 </div>
 
-<div id="loading" class="hidden"><div class="spinner"></div><p>جاري التحليل...</p></div>
+<div id="loading" class="hidden"><div class="spinner"></div><p>Analyzing...</p></div>
 <div id="chainResults" class="hidden">
-<h3>نتائج التحليل</h3>
+<h3>Analysis Results</h3>
 <pre id="chainReport"></pre>
 <div id="chainLinks" class="flex" style="margin-top: 1rem;"></div>
 </div>
 
 <details>
-<summary style="cursor:pointer;color:#58a6ff;">عرض الكود المصدري</summary>
+<summary style="cursor:pointer;color:#58a6ff;">View Source Code</summary>
 <pre>{{ result.code[:3000] }}{% if result.code|length > 3000 %}...{% endif %}</pre>
 </details>
 {% endif %}
 </div>
 {% endif %}
 
-<footer>Smart Contract Auditor — جلب من مستكشفات السلاسل</footer>
+<footer>Smart Contract Auditor &mdash; Chain Explorer</footer>
 </div>
 
 <script>
-const CONTRACT_ADDRESS = {{ (result.address if result and not result.error else '')|tojson }};
+var CONTRACT_ADDRESS = {% if result and not result.error %}{{ result.address|tojson }}{% else %}''{% endif %};
 async function analyzeChain(type) {
   document.getElementById('loading').classList.remove('hidden');
   document.getElementById('chainResults').classList.add('hidden');
   try {
-    const resp = await fetch('/analyze_chain', {
+    var resp = await fetch('/analyze_chain', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({address: CONTRACT_ADDRESS, analysis_type: type, chain: {{ (result.chain if result else 'ethereum')|tojson }}})
+      body: JSON.stringify({address: CONTRACT_ADDRESS, analysis_type: type, chain: {% if result %}{{ result.chain|tojson }}{% else %}'ethereum'{% endif %}})
     });
-    const data = await resp.json();
+    if (!resp.ok) throw new Error('Server error: ' + resp.status);
+    var data = await resp.json();
+    if (data.error) throw new Error(data.error);
     document.getElementById('loading').classList.add('hidden');
     document.getElementById('chainReport').textContent = data.report;
     document.getElementById('chainResults').classList.remove('hidden');
-    const links = document.getElementById('chainLinks');
-    links.innerHTML = '<a href="/download/' + data.filename + '" class="btn btn-secondary">تحميل TXT</a>';
+    var links = document.getElementById('chainLinks');
+    links.innerHTML = data.filename ? '<a href="/download/' + data.filename + '" class="btn btn-secondary">Download TXT</a>' : '';
   } catch(e) {
-    document.getElementById('loading').innerHTML = '<p class="error">خطأ: ' + e.message + '</p>';
+    document.getElementById('loading').innerHTML = '<p class="error">Error: ' + e.message + '</p>';
   }
 }
 </script>
