@@ -54,7 +54,34 @@ function processStream(resp) {
 function handleFetchError(err) {
   if (typewriterTimer) { clearTimeout(typewriterTimer); typewriterTimer = null; }
   finalizeAnalysis();
-  if (err.name !== 'AbortError') { el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p><p style="margin-top:1rem;font-size:0.85rem;">Try pasting shorter or simpler code, or switch to a different analysis mode.</p>'; }
+  if (err.name !== 'AbortError') {
+    var isModelError = err.message.indexOf('image') !== -1 || err.message.indexOf('Cannot read') !== -1 || err.message.indexOf('not support') !== -1;
+    var hint = isModelError
+      ? 'The AI model returned an error. This may be a temporary issue — please try again.'
+      : 'Try pasting shorter or simpler code, or switch to a different analysis mode.';
+    el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p><p style="margin-top:1rem;font-size:0.85rem;">' + hint + ' <a href="#" onclick="location.reload()" style="color:var(--accent);">Reload page</a></p>';
+    el.resultsActions.style.display = 'flex';
+    el.resultsTabs.style.display = 'flex';
+  }
+}
+
+function handleJsonResponse(resp) {
+  if (!resp.ok) throw new Error('Analysis failed: ' + resp.status);
+  return resp.json().then(function (data) {
+    if (data.error) throw new Error(data.error);
+    var md = '';
+    if (data.report) md = data.report;
+    else if (data.analysis) md = data.analysis;
+    else if (data.summary) md = '## Diff Summary\n\n' + data.summary + '\n\n## Analysis\n\n' + (data.analysis || '');
+    else md = JSON.stringify(data, null, 2);
+    if (md) {
+      currentReportText = md;
+      renderFinalReport(md);
+    } else {
+      el.resultsBody.innerHTML = '<p style="color:var(--text-secondary);">No results returned.</p>';
+    }
+    finalizeAnalysis();
+  });
 }
 
 function startAnalysis() {
@@ -111,12 +138,21 @@ function startAnalysis() {
   el.analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
   currentReportText = '';
 
-  fetch(endpoint, {
-    method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: body,
-    signal: abortController.signal
-  }).then(processStream).catch(handleFetchError);
+  if (tab === 'diff') {
+    fetch(endpoint, {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: body,
+      signal: abortController.signal
+    }).then(handleJsonResponse).catch(handleFetchError);
+  } else {
+    fetch(endpoint, {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: body,
+      signal: abortController.signal
+    }).then(processStream).catch(handleFetchError);
+  }
 }
 
 function doProjectAnalysis(endpoint, formData) {

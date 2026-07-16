@@ -65,6 +65,8 @@ def _call_ollama(model_name: str, prompt: str, timeout: int = 0) -> str:
             resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
             resp.raise_for_status()
             data = resp.json()
+            if 'error' in data:
+                raise Exception(data['error'])
             if OLLAMA_API_KEY:
                 result = data.get("message", {}).get("content", "")
             else:
@@ -118,8 +120,14 @@ def _stream_ollama(model_name: str, prompt: str, timeout: int = 300):
                 chunk = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            # Check if the model returned an API-level error
+            if 'error' in chunk:
+                yield f"data: {json.dumps({'error': chunk['error']})}\n\n"
+                return
             if OLLAMA_API_KEY:
                 delta = chunk.get("message", {}).get("content", "")
+            else:
+                delta = chunk.get("response", "")
             else:
                 delta = chunk.get("response", "")
             if delta:

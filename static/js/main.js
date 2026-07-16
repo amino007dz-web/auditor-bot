@@ -92,8 +92,8 @@ document.addEventListener('DOMContentLoaded', function () {
   qsa('[data-tab]').forEach(function (tab) {
     tab.addEventListener('click', function () {
       const t = tab.dataset.tab;
-      if (t === 'paste' || t === 'upload' || t === 'diff') switchCodeTab(t);
-      else if (t === 'report' || t === 'chart') switchResultTab(t);
+      if (t === 'report' || t === 'chart') switchResultTab(t);
+      else switchCodeTab(t);
     });
   });
 

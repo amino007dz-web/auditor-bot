@@ -131,6 +131,14 @@ def api_analyze_stream():
                     pass
             yield event
 
+        # Check if model returned an error instead of a report
+        if not full_report or len(full_report.strip()) < 20:
+            yield f"data: {json.dumps({'type': 'error', 'message': 'The AI model returned an empty response. Please try again.'})}\n\n"
+            return
+        if any(indicator in full_report.lower() for indicator in ["cannot read", "this model does not support", "image input", "i cannot", "i'm unable to", "not designed for"]):
+            yield f"data: {json.dumps({'type': 'error', 'message': 'The AI model returned an error response. Please try again or use shorter code.'})}\n\n"
+            return
+
         # Step 3: Validation pass
         if full_report:
             yield f"data: {json.dumps({'type': 'step', 'step': 3, 'status': 'active'})}\n\n"
@@ -273,11 +281,24 @@ def api_github_stream():
                 SYSTEM_PROMPT, pre_json, url.rsplit('/', 1)[-1], combined)
             yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'ai', 'text': 'Running AI analysis on repository...'}))
             full = ""
-            for chunk in _stream_ollama(prompt):
-                full += chunk
-                yield 'data: {}\n\n'.format(json.dumps({'type': 'token', 'text': chunk}))
+            for event in _stream_ollama(OLLAMA_MODEL, prompt):
+                if event.startswith("data: "):
+                    try:
+                        edata = json.loads(event[6:])
+                        if 'token' in edata:
+                            full += edata['token']
+                            yield 'data: {}\n\n'.format(json.dumps({'type': 'token', 'text': edata['token']}))
+                            continue
+                        elif 'error' in edata:
+                            yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': edata['error']}))
+                            return
+                    except json.JSONDecodeError:
+                        pass
+                yield event
+            if not full or len(full.strip()) < 20:
+                yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': 'The AI model returned an empty response. Please try again.'}))
+                return
             yield 'data: {}\n\n'.format(json.dumps({'type': 'final', 'report': full}))
-            yield "data: [DONE]\n\n"
 
         return Response(stream_with_context(gen()), mimetype='text/event-stream', headers={
             'X-Accel-Buffering': 'no', 'Cache-Control': 'no-cache',
@@ -435,11 +456,24 @@ def api_analyze_project():
             yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'pre-scan', 'text': msg}))
             yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'ai', 'text': 'Running AI analysis across project...'}))
             full = ""
-            for chunk in _stream_ollama(prompt):
-                full += chunk
-                yield 'data: {}\n\n'.format(json.dumps({'type': 'token', 'text': chunk}))
+            for event in _stream_ollama(OLLAMA_MODEL, prompt):
+                if event.startswith("data: "):
+                    try:
+                        edata = json.loads(event[6:])
+                        if 'token' in edata:
+                            full += edata['token']
+                            yield 'data: {}\n\n'.format(json.dumps({'type': 'token', 'text': edata['token']}))
+                            continue
+                        elif 'error' in edata:
+                            yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': edata['error']}))
+                            return
+                    except json.JSONDecodeError:
+                        pass
+                yield event
+            if not full or len(full.strip()) < 20:
+                yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': 'The AI model returned an empty response. Please try again.'}))
+                return
             yield 'data: {}\n\n'.format(json.dumps({'type': 'final', 'report': full}))
-            yield "data: [DONE]\n\n"
 
         return Response(stream_with_context(generate()), mimetype='text/event-stream', headers={
             'X-Accel-Buffering': 'no', 'Cache-Control': 'no-cache',
