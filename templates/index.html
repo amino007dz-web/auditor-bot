@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark" dir="ltr">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +9,170 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/dracula.min.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome.min.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<!-- ─── Top Bar ─── -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <span class="shield">&#128737;</span>
+    <span>Smart Contract Auditor</span>
+  </div>
+  <div class="topbar-center">
+    <button class="btn btn-sm btn-ghost" id="knowledgeBtn" title="Knowledge Base"><i class="fas fa-book"></i></button>
+    <button class="btn btn-sm btn-ghost" id="historyBtn" title="History"><i class="fas fa-history"></i></button>
+  </div>
+  <div class="topbar-right">
+    <span id="quotaDisplay"></span>
+    <button class="btn-icon" id="themeToggle" title="Toggle theme"><i class="fas fa-moon"></i></button>
+  </div>
+</header>
+
+<!-- ─── Main ─── -->
+<div class="main">
+
+  <!-- ─── Sidebar ─── -->
+  <nav class="sidebar">
+    <div class="sidebar-label">Input</div>
+    <button class="sidebar-tab active" data-tab="paste"><i class="fas fa-paste"></i><span>Paste</span></button>
+    <button class="sidebar-tab" data-tab="upload"><i class="fas fa-cloud-upload-alt"></i><span>Upload</span></button>
+    <button class="sidebar-tab" data-tab="project"><i class="fas fa-folder-open"></i><span>Project</span></button>
+    <button class="sidebar-tab" data-tab="github"><i class="fab fa-github"></i><span>GitHub</span></button>
+    <button class="sidebar-tab" data-tab="diff"><i class="fas fa-code-branch"></i><span>Diff</span></button>
+  </nav>
+
+  <!-- ─── Editor Pane ─── -->
+  <section class="editor-pane">
+    <div class="editor-toolbar">
+      <div class="editor-toolbar-left">
+        <span class="editor-status" id="fileInfo"></span>
+      </div>
+      <div class="editor-toolbar-right">
+        <select id="analysisType">
+          <option value="full">Full Audit</option>
+          <option value="quick">Quick Scan</option>
+          <option value="deep">Deep Analysis</option>
+        </select>
+        <button class="btn btn-primary" id="analyzeBtn"><i class="fas fa-play"></i> Analyze</button>
+      </div>
+    </div>
+
+    <div class="editor-body" id="editorBody">
+      <div class="tab-content active" id="tab-paste">
+        <textarea id="codeEditor" placeholder="Paste your Solidity / Vyper / Move code here..."></textarea>
+      </div>
+      <div class="tab-content" id="tab-upload">
+        <div class="tab-content-center">
+          <i class="fas fa-cloud-upload-alt"></i>
+          <p>Drop a .sol / .vy / .move file here or click to browse</p>
+          <span class="hint">File content will be loaded into the Paste tab</span>
+          <input type="file" id="fileInput" accept=".sol,.vy,.move,.clsp,.clib">
+          <button class="btn" id="browseBtn"><i class="fas fa-folder-open"></i> Browse Files</button>
+        </div>
+      </div>
+      <div class="tab-content" id="tab-project">
+        <div class="tab-content-center">
+          <i class="fas fa-folder-open"></i>
+          <p>Upload a ZIP project with multiple contracts</p>
+          <select id="entryContract" style="max-width:300px;display:none;">
+            <option value="">Auto-detect entry contract</option>
+          </select>
+          <input type="file" id="projectInput" accept=".zip">
+          <button class="btn" id="browseProjectBtn"><i class="fas fa-file-archive"></i> Browse ZIP</button>
+          <div id="projectFileInfo" class="hint"></div>
+        </div>
+      </div>
+      <div class="tab-content" id="tab-github">
+        <div class="tab-content-center">
+          <i class="fab fa-github"></i>
+          <p>Audit a public GitHub repository</p>
+          <input type="text" id="githubUrl" placeholder="https://github.com/owner/repo">
+          <div id="githubFileInfo" class="hint"></div>
+        </div>
+      </div>
+      <div class="tab-content" id="tab-diff">
+        <div class="diff-panels">
+          <div class="diff-panel">
+            <div class="diff-panel-header">Original</div>
+            <textarea id="diffOriginal" placeholder="Original code..."></textarea>
+          </div>
+          <div class="diff-panel">
+            <div class="diff-panel-header">Modified</div>
+            <textarea id="diffModified" placeholder="Modified code..."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="drop-zone" id="dropZone">
+        <i class="fas fa-file-upload"></i>
+        <span>Drop file here</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Results Pane ─── -->
+  <section class="results-pane" id="resultsPane">
+    <div class="results-header">
+      <span class="results-title" id="resultsTitle">Results</span>
+      <div class="results-actions" id="resultsActions" style="display:none">
+        <button class="btn-icon" id="downloadMd" title="Download Markdown"><i class="fas fa-download"></i></button>
+        <button class="btn-icon" id="downloadSarif" title="Download SARIF"><i class="fas fa-code"></i></button>
+        <button class="btn-icon" id="downloadPdf" title="Download PDF"><i class="fas fa-file-pdf"></i></button>
+        <button class="btn-icon" id="gasBtn" title="Gas Report"><i class="fas fa-gas-pump"></i></button>
+        <button class="btn-icon" id="fixBtn" title="Suggest Fix"><i class="fas fa-wrench"></i></button>
+        <button class="btn-icon" id="malwareBtn" title="Malware Scan"><i class="fas fa-bug"></i></button>
+        <button class="btn-icon" id="fuzzBtn" title="Generate Fuzz Test"><i class="fas fa-flask"></i></button>
+        <button class="btn-icon" id="hackeroneBtn" title="Export to HackerOne"><i class="fas fa-paper-plane"></i></button>
+        <button class="btn-icon" id="toggleChart" title="Toggle Chart"><i class="fas fa-chart-bar"></i></button>
+        <button class="btn-icon" id="exportGithub" title="Export to GitHub"><i class="fas fa-share-alt"></i></button>
+      </div>
+    </div>
+    <div class="results-body" id="resultsBody">
+      <div class="results-empty">
+        <i class="fas fa-shield-alt"></i>
+        <p>Paste your smart contract code and click <strong>Analyze</strong> to begin.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ─── History Panel ─── -->
+<div class="panel-overlay" id="historyPanel">
+  <div class="panel-slide">
+    <div class="panel-slide-header">
+      <h3>History</h3>
+      <button class="btn-icon" id="historyClose"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="panel-slide-body" id="historyList"></div>
+  </div>
+</div>
+
+<!-- ─── Chart Modal ─── -->
+<div class="modal-overlay" id="chartModal">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;">Severity Distribution</h3>
+      <button class="btn-icon" id="chartClose"><i class="fas fa-times"></i></button>
+    </div>
+    <canvas id="severityChart" width="400" height="280"></canvas>
+  </div>
+</div>
+
+<!-- ─── Knowledge Modal ─── -->
+<div class="modal-overlay" id="knowledgeModal">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <h3 style="margin:0;">Upload Knowledge (PDF)</h3>
+      <button class="btn-icon" id="knowledgeClose"><i class="fas fa-times"></i></button>
+    </div>
+    <p>Upload security research, audit reports, or vulnerability databases to enrich future analysis.</p>
+    <input type="file" id="knowledgeInput" accept=".pdf" style="display:none;">
+    <button class="btn" id="browseKnowledgeBtn" style="margin-bottom:8px;"><i class="fas fa-folder-open"></i> Browse PDF</button>
+    <div id="knowledgeFileInfo" class="hint" style="margin-bottom:8px;"></div>
+    <div id="knowledgeResult" style="font-size:13px;margin-bottom:8px;"></div>
+    <button class="btn btn-primary" id="uploadKnowledgeBtn"><i class="fas fa-upload"></i> Ingest to Knowledge Base</button>
+  </div>
+</div>
+
 <script src="{{ url_for('static', filename='vendor/codemirror.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/javascript.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/matchbrackets.min.js') }}"></script>
@@ -17,203 +181,6 @@
 <script src="{{ url_for('static', filename='vendor/marked.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/html2pdf.bundle.min.js') }}"></script>
-</head>
-<body>
-
-<div class="top-bar">
-  <h1><span>🛡️</span> <span data-i18n="app.title">Smart Contract Auditor</span></h1>
-  <div style="display:flex;align-items:center;gap:0.75rem;">
-    <span id="quotaDisplay" style="color:var(--text-secondary);font-size:0.75rem;"></span>
-    <select id="langSelect" style="padding:0.2rem 0.4rem;border-radius:4px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.75rem;">
-      <option value="en">EN</option>
-      <option value="ar">AR</option>
-      <option value="zh">ZH</option>
-    </select>
-    <button class="icon-btn" id="knowledgeBtn" title="Knowledge Base" aria-label="Knowledge Base"><i class="fas fa-book"></i></button>
-    <button class="icon-btn" id="historyBtn" title="History" aria-label="History"><i class="fas fa-history"></i></button>
-    <button class="icon-btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme"><i class="fas fa-moon"></i></button>
-  </div>
-</div>
-
-<div class="main-container">
-  <div class="code-pane" id="codePane">
-    <div class="code-tabs">
-      <button class="btn active-tab" data-tab="paste">Paste</button>
-      <button class="btn" data-tab="upload">Upload</button>
-      <button class="btn" data-tab="project">Project</button>
-      <button class="btn" data-tab="github">GitHub</button>
-      <button class="btn" data-tab="diff">Diff</button>
-      <div style="flex:1;"></div>
-      <select id="analysisType">
-        <option value="full">Full Audit</option>
-        <option value="quick">Quick Scan</option>
-        <option value="deep">Deep Analysis</option>
-      </select>
-    </div>
-    <div id="pasteSection" style="flex:1;display:flex;flex-direction:column;">
-      <textarea id="codeEditor" placeholder="Paste your Solidity/Vyper/Move code here..."></textarea>
-    </div>
-    <div id="uploadSection" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;padding:2rem;">
-      <i class="fas fa-cloud-upload-alt" style="font-size:3rem;color:var(--text-secondary);margin-bottom:1rem;"></i>
-      <p style="color:var(--text-secondary);margin-bottom:0.5rem;">Drop a .sol / .vy / .move file or click to browse</p>
-      <p style="color:var(--text-secondary);font-size:0.75rem;margin-bottom:1rem;">The file content will be loaded into the Paste tab for editing.</p>
-      <input type="file" id="fileInput" accept=".sol,.vy,.move,.clsp,.clib" style="display:none;">
-      <button class="btn" id="browseBtn">Browse Files</button>
-    </div>
-    <div id="githubSection" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;padding:2rem;">
-      <i class="fab fa-github" style="font-size:3rem;color:var(--text-secondary);margin-bottom:1rem;"></i>
-      <p style="color:var(--text-secondary);margin-bottom:0.5rem;">Audit a public GitHub repository</p>
-      <input type="text" id="githubUrl" placeholder="https://github.com/owner/repo" style="width:400px;max-width:90%;padding:0.7rem 1rem;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:0.9rem;margin-bottom:1rem;">
-      <div id="githubFileInfo" style="color:var(--text-secondary);font-size:0.8rem;"></div>
-    </div>
-    <div id="diffSection" style="display:none;flex:1;">
-      <div style="display:flex;flex:1;height:100%;">
-        <div style="flex:1;display:flex;flex-direction:column;border-right:1px solid var(--border);">
-          <div style="padding:0.4rem 0.8rem;font-size:0.75rem;color:var(--text-secondary);border-bottom:1px solid var(--border);">Original</div>
-          <textarea id="diffOriginal" style="flex:1;resize:none;background:var(--bg-primary);color:var(--text-primary);border:none;padding:0.8rem;font-family:monospace;font-size:0.8rem;"></textarea>
-        </div>
-        <div style="flex:1;display:flex;flex-direction:column;">
-          <div style="padding:0.4rem 0.8rem;font-size:0.75rem;color:var(--text-secondary);border-bottom:1px solid var(--border);">Modified</div>
-          <textarea id="diffModified" style="flex:1;resize:none;background:var(--bg-primary);color:var(--text-primary);border:none;padding:0.8rem;font-family:monospace;font-size:0.8rem;"></textarea>
-        </div>
-      </div>
-    </div>
-    <div id="projectSection" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;padding:2rem;">
-      <i class="fas fa-folder-open" style="font-size:3rem;color:var(--text-secondary);margin-bottom:1rem;"></i>
-      <p style="color:var(--text-secondary);margin-bottom:0.5rem;">Upload a ZIP project with multiple contracts</p>
-      <div style="display:flex;gap:0.75rem;align-items:center;margin-bottom:0.75rem;flex-wrap:wrap;justify-content:center;">
-        <label style="color:var(--text-secondary);font-size:0.8rem;">Entry contract:</label>
-        <select id="entryContract" style="padding:0.4rem 0.6rem;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:0.8rem;display:none;">
-          <option value="">Auto-detect</option>
-        </select>
-      </div>
-      <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;justify-content:center;">
-        <input type="file" id="projectInput" accept=".zip" style="display:none;">
-        <button class="btn" id="browseProjectBtn">Browse ZIP</button>
-      </div>
-      <div id="projectFileInfo" style="color:var(--text-secondary);font-size:0.8rem;"></div>
-    </div>
-    <div class="code-toolbar">
-      <span id="fileInfo" style="color:var(--text-secondary);font-size:0.75rem;"></span>
-      <div style="flex:1;"></div>
-      <button class="btn btn-primary" id="analyzeBtn"><i class="fas fa-play"></i> Analyze</button>
-    </div>
-    <div class="drop-zone-overlay"><i class="fas fa-file-upload"></i> Drop file here</div>
-  </div>
-
-  <div class="results-pane" id="resultsPane">
-    <div class="results-header">
-      <span id="resultsTitle">Results</span>
-      <div id="resultsActions" style="display:none;gap:0.35rem;">
-        <button class="icon-btn" id="downloadMd" title="Download Markdown" aria-label="Download Markdown"><i class="fas fa-download"></i></button>
-        <button class="icon-btn" id="downloadSarif" title="Download SARIF" aria-label="Download SARIF"><i class="fas fa-code"></i></button>
-        <button class="icon-btn" id="fixBtn" title="Suggest Fix" aria-label="Suggest Fix"><i class="fas fa-wrench"></i></button>
-        <button class="icon-btn" id="malwareBtn" title="Malware Scan" aria-label="Malware Scan"><i class="fas fa-bug"></i></button>
-        <button class="icon-btn" id="fuzzBtn" title="Generate Fuzz Test" aria-label="Generate Fuzz Test"><i class="fas fa-flask"></i></button>
-        <button class="icon-btn" id="hackeroneBtn" title="Export to HackerOne" aria-label="Export to HackerOne"><i class="fas fa-paper-plane"></i></button>
-        <button class="icon-btn" id="downloadPdf" title="Download PDF" aria-label="Download PDF"><i class="fas fa-file-pdf"></i></button>
-        <button class="icon-btn" id="gasBtn" title="Gas Report" aria-label="Gas Report"><i class="fas fa-gas-pump"></i></button>
-        <button class="icon-btn" id="toggleChart" title="Toggle chart" aria-label="Toggle chart"><i class="fas fa-chart-bar"></i></button>
-        <button class="icon-btn" id="exportGithub" title="Export to GitHub Discussion" aria-label="Export to GitHub Discussion"><i class="fas fa-share-alt"></i></button>
-      </div>
-    </div>
-    <div class="results-tabs" id="resultsTabs" style="display:none;">
-      <button class="results-tab active" data-tab="report">Report</button>
-      <button class="results-tab" data-tab="chart">Chart</button>
-    </div>
-    <div class="results-body" id="resultsBody">
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);">
-        <i class="fas fa-shield-alt" style="font-size:3rem;margin-bottom:1rem;"></i>
-        <p>Paste your smart contract code and click Analyze to begin.</p>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="historyPanel" style="display:none;position:fixed;top:0;right:0;width:320px;height:100%;background:var(--bg-secondary);border-left:1px solid var(--border);z-index:100;overflow-y:auto;padding:1rem;">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-    <h3 style="font-size:0.9rem;">History</h3>
-    <button class="icon-btn" id="historyClose" title="Close history" aria-label="Close history"><i class="fas fa-times"></i></button>
-  </div>
-  <div id="historyList"></div>
-</div>
-
-<div id="chartModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
-  <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:1.5rem;width:500px;max-width:90%;">
-    <div style="display:flex;justify-content:space-between;margin-bottom:1rem;">
-      <h3 style="font-size:0.9rem;">Severity Distribution</h3>
-      <button class="icon-btn" id="chartClose" title="Close chart" aria-label="Close chart"><i class="fas fa-times"></i></button>
-    </div>
-    <canvas id="severityChart" width="400" height="300"></canvas>
-  </div>
-</div>
-
-<div id="knowledgeModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
-  <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:1.5rem;width:450px;max-width:90%;">
-    <div style="display:flex;justify-content:space-between;margin-bottom:1rem;">
-      <h3 style="font-size:0.9rem;">Upload Knowledge (PDF)</h3>
-      <button class="icon-btn" id="knowledgeClose" title="Close knowledge base" aria-label="Close knowledge base"><i class="fas fa-times"></i></button>
-    </div>
-    <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:1rem;">Upload security research, audit reports, or vulnerability databases to enrich future analysis.</p>
-    <input type="file" id="knowledgeInput" accept=".pdf" style="display:none;">
-    <button class="btn" id="browseKnowledgeBtn" style="margin-bottom:1rem;">Browse PDF</button>
-    <div id="knowledgeFileInfo" style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:1rem;"></div>
-    <div id="knowledgeResult" style="font-size:0.8rem;margin-bottom:1rem;"></div>
-    <button class="btn btn-primary" id="uploadKnowledgeBtn" style="justify-content:center;width:100%;"><i class="fas fa-upload"></i> Ingest to Knowledge Base</button>
-  </div>
-</div>
-
-<script>
-(function() {
-  var ta = document.getElementById('codeEditor');
-  if (typeof CodeMirror !== 'undefined') {
-    window.editor = CodeMirror.fromTextArea(ta, {
-      lineNumbers: true,
-      mode: 'javascript',
-      theme: 'dracula',
-      matchBrackets: true,
-      styleActiveLine: true,
-      indentUnit: 2,
-      tabSize: 2,
-      autoCloseBrackets: true
-    });
-    window.editor.on('change', function() {
-      var val = window.editor.getValue();
-      var charCount = val.length;
-      var contractCount = (val.match(/contract\s+\w+|library\s+\w+|interface\s+\w+|module\s+\w+/g) || []).length;
-      document.getElementById('fileInfo').textContent = charCount > 0
-        ? charCount.toLocaleString() + ' chars | ' + contractCount + ' contract' + (contractCount !== 1 ? 's' : '')
-        : '';
-    });
-  } else {
-    ta.style.display = 'block';
-    ta.style.width = '100%';
-    ta.style.height = '100%';
-    ta.style.background = 'var(--bg-primary)';
-    ta.style.color = 'var(--text-primary)';
-    ta.style.border = 'none';
-    ta.style.padding = '1rem';
-    ta.style.fontFamily = 'monospace';
-    ta.style.fontSize = '13px';
-    ta.style.resize = 'none';
-    window.editor = { getValue: function() { return ta.value; }, setValue: function(v) { ta.value = v; }, refresh: function() {} };
-  }
-
-  // Lang selector
-  var langSelect = document.getElementById('langSelect');
-  var savedLang = localStorage.getItem('auditor-lang') || 'en';
-  langSelect.value = savedLang;
-  function applyLangUI(lang) {
-    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-  }
-  applyLangUI(savedLang);
-  langSelect.addEventListener('change', function() {
-    localStorage.setItem('auditor-lang', this.value);
-    applyLangUI(this.value);
-    location.reload();
-  });
-})();
-</script>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
 <script src="{{ url_for('static', filename='js/api.js') }}"></script>
