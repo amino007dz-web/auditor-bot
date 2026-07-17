@@ -346,9 +346,7 @@ def validate_report(report: str, code: str, kb_patterns: Optional[List[Dict]] = 
             kept.append(f)
 
     if not kept:
-        severity_match = re.search(r"### Overall Security Rating:\s*(\S+)", report)
-        rating = severity_match.group(1) if severity_match else "N/A"
-        header = f"### Overall Security Rating: {rating}\n\nNo vulnerabilities found after validation.\n"
+        header = "### Overall Security Rating: A+\n\nNo vulnerabilities found after validation.\n"
         gas = ""
         gas_match = re.search(r"(### Gas Optimizations.*?)(?=###|$)", report, re.DOTALL)
         if gas_match:
