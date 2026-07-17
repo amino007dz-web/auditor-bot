@@ -144,7 +144,7 @@ def api_analyze_stream():
             yield f"data: {json.dumps({'type': 'error', 'message': 'The AI model returned an empty response. Please try again.'})}\n\n"
             return
         if any(indicator in full_report.lower() for indicator in ["cannot read", "this model does not support", "image input", "i cannot", "i'm unable to", "not designed for"]):
-            yield f"data: {json.dumps({'type': 'error', 'message': 'The AI model returned an error response. Please try again or use shorter code.'})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': 'The AI model returned an internal error. This is a temporary issue — please try again.'})}\n\n"
             return
 
         # Step 3: Validation pass
