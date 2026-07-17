@@ -418,6 +418,11 @@ def api_docs():
     return render_template('swagger.html')
 
 
+@app.route('/api-test')
+def api_test_page():
+    return render_template('api_test.html')
+
+
 @app.route('/api/openapi.json')
 def api_openapi():
     return jsonify({

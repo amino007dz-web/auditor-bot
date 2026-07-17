@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head><meta charset="UTF-8"><title>API Test</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:system-ui,sans-serif;background:#0d1117;color:#e6edf3;padding:2rem;max-width:800px;margin:0 auto;}
+h1{color:#58a6ff;margin-bottom:1rem;}
+label{display:block;margin-bottom:0.25rem;color:#8b949e;font-size:0.85rem;}
+input,textarea,button{width:100%;padding:0.6rem;margin-bottom:1rem;border-radius:6px;border:1px solid #30363d;background:#161b22;color:#e6edf3;font-size:0.9rem;}
+textarea{min-height:120px;font-family:monospace;}
+button{background:#238636;color:#fff;border:none;cursor:pointer;font-weight:600;}
+button:hover{background:#2ea043;}
+pre{background:#161b22;border:1px solid #30363d;border-radius:6px;padding:1rem;overflow:auto;max-height:500px;font-size:0.8rem;}
+.error{color:#da3633;}
+</style>
+</head>
+<body>
+<h1>🔬 API Test</h1>
+<form id="testForm">
+<label>الـ API Key (من Render Environment Variables)</label>
+<input type="text" id="apiKey" placeholder="AUDITOR_API_KEY" value="">
+
+<label>الكود المراد تحليله</label>
+<textarea id="code">contract Test {
+    function withdraw() external {
+        msg.sender.call{value: address(this).balance}("");
+    }
+}</textarea>
+
+<button type="submit">🔍 إرسال وتحليل</button>
+</form>
+<h2 style="color:#8b949e;font-size:1rem;margin-bottom:0.5rem;">النتيجة:</h2>
+<pre id="result">انتظر...</pre>
+
+<script>
+document.getElementById('testForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var key = document.getElementById('apiKey').value.trim();
+    var code = document.getElementById('code').value.trim();
+    var resultEl = document.getElementById('result');
+    resultEl.textContent = 'جاري التحليل... (قد يستغرق 30-60 ثانية)';
+    resultEl.className = '';
+    try {
+        var resp = await fetch('/api/analyze/json', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(key ? {'X-API-Key': key} : {})
+            },
+            body: JSON.stringify({code: code, type: 'audit'})
+        });
+        var data = await resp.json();
+        if (data.report) {
+            resultEl.textContent = data.report;
+        } else if (data.error) {
+            resultEl.textContent = 'خطأ: ' + data.error;
+            resultEl.className = 'error';
+        } else {
+            resultEl.textContent = JSON.stringify(data, null, 2);
+        }
+    } catch(err) {
+        resultEl.textContent = 'فشل الاتصال: ' + err.message;
+        resultEl.className = 'error';
+    }
+});
+</script>
+</body>
+</html>
