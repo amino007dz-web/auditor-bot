@@ -62,7 +62,7 @@ footer { text-align: center; padding: 2rem; color: #8b949e; border-top: 1px soli
 <input type="text" name="api_key" placeholder="API Key (optional, default: YourApiKeyToken)">
 <button type="submit" class="btn btn-primary">Fetch Contract</button>
 </form>
-<p class="meta">Supported chains: {{ chains }}</p>
+<p class="meta">Supported chains: {{ chains|join(', ') }}</p>
 </div>
 
 {% if result %}
@@ -121,9 +121,16 @@ async function analyzeChain(type) {
     document.getElementById('chainReport').textContent = data.report;
     document.getElementById('chainResults').classList.remove('hidden');
     var links = document.getElementById('chainLinks');
-    links.innerHTML = data.filename ? '<a href="/download/' + data.filename + '" class="btn btn-secondary">Download TXT</a>' : '';
+    links.textContent = '';
+    if (data.filename) {
+      var a = document.createElement('a');
+      a.href = '/download/' + encodeURIComponent(data.filename);
+      a.textContent = 'Download TXT';
+      a.className = 'btn btn-secondary';
+      links.appendChild(a);
+    }
   } catch(e) {
-    document.getElementById('loading').innerHTML = '<p class="error">Error: ' + e.message + '</p>';
+    document.getElementById('loading').textContent = 'Error: ' + e.message;
   }
 }
 </script>

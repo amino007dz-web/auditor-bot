@@ -12,7 +12,8 @@ from flask import session, redirect, request, jsonify
 
 logger = logging.getLogger(__name__)
 
-AUTH_DB_PATH = os.environ.get("AUTH_DB_PATH", os.path.join(os.path.dirname(__file__), "auth.db"))
+AUTH_DB_PATH = os.environ.get("AUTH_DB_PATH", os.path.join(os.path.dirname(__file__), "instance", "auth.db"))
+os.makedirs(os.path.dirname(AUTH_DB_PATH), exist_ok=True)
 _local = threading.local()
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
@@ -152,7 +153,6 @@ def requires_auth(f):
 
 def requires_admin(f):
     @wraps(f)
-    @wraps
     def decorated(*args, **kwargs):
         if 'admin_authenticated' not in session:
             return redirect('/admin/login')

@@ -1,16 +1,20 @@
 """Gas Analysis - analyze gas consumption and optimization."""
 import logging
 import re
+import time
 from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
 _ETH_PRICE_CACHE: Optional[float] = None
+_ETH_PRICE_TS: float = 0.0
+_ETH_PRICE_TTL: float = 300.0
 
 
 def _fetch_eth_price() -> float:
-    global _ETH_PRICE_CACHE
-    if _ETH_PRICE_CACHE is not None:
+    global _ETH_PRICE_CACHE, _ETH_PRICE_TS
+    now = time.time()
+    if _ETH_PRICE_CACHE is not None and (now - _ETH_PRICE_TS) < _ETH_PRICE_TTL:
         return _ETH_PRICE_CACHE
     try:
         import requests
@@ -20,6 +24,7 @@ def _fetch_eth_price() -> float:
         )
         if resp.status_code == 200:
             _ETH_PRICE_CACHE = resp.json()["ethereum"]["usd"]
+            _ETH_PRICE_TS = time.time()
             logger.info(f"ETH price: ${_ETH_PRICE_CACHE}")
             return _ETH_PRICE_CACHE
     except Exception as e:

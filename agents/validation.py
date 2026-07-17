@@ -13,7 +13,7 @@ except ImportError:
     pass
 
 
-def validate_report(report: str, code: str) -> str:
+def validate_report(report: str, code: str, language: str = "english") -> str:
     """Second-pass validator: aggressively removes false positives from the report."""
     prompt = f"""You are a strict validator. Your ONLY job is to REMOVE false positives from the audit report below.
 
@@ -106,7 +106,7 @@ def cvss_score_report(report: str) -> dict:
     return {"error": "CVSS scorer not available"}
 
 
-def self_evaluate(report: str, code: str) -> dict:
+def _self_evaluate(report: str, code: str) -> dict:
     scores = {
         "has_exploit_path": 0.0,
         "fix_preserves_logic": 0.0,

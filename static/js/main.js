@@ -8,60 +8,43 @@ function qs(sel) { return document.querySelector(sel); }
 
 function qsa(sel) { return document.querySelectorAll(sel); }
 
-const el = {
-  resultsBody: $('resultsBody'),
-  resultsTitle: $('resultsTitle'),
-  resultsActions: $('resultsActions'),
-  resultsTabs: $('resultsTabs'),
-  analyzeBtn: $('analyzeBtn'),
-  fileInput: $('fileInput'),
-  browseBtn: $('browseBtn'),
-  fileInfo: $('fileInfo'),
-  analysisType: $('analysisType'),
-  themeToggle: $('themeToggle'),
-  historyBtn: $('historyBtn'),
-  historyPanel: $('historyPanel'),
-  historyClose: $('historyClose'),
-  historyList: $('historyList'),
-  chartModal: $('chartModal'),
-  chartClose: $('chartClose'),
-  severityChart: $('severityChart'),
-  knowledgeBtn: $('knowledgeBtn'),
-  knowledgeModal: $('knowledgeModal'),
-  knowledgeClose: $('knowledgeClose'),
-  knowledgeInput: $('knowledgeInput'),
-  browseKnowledgeBtn: $('browseKnowledgeBtn'),
-  knowledgeFileInfo: $('knowledgeFileInfo'),
-  knowledgeResult: $('knowledgeResult'),
-  uploadKnowledgeBtn: $('uploadKnowledgeBtn'),
-  gasBtn: $('gasBtn'),
-  fixBtn: $('fixBtn'),
-  malwareBtn: $('malwareBtn'),
-  fuzzBtn: $('fuzzBtn'),
-  hackeroneBtn: $('hackeroneBtn'),
-  entryContract: $('entryContract'),
-  langSelect: $('langSelect'),
-  githubSection: $('githubSection'),
-  githubUrl: $('githubUrl'),
-  githubFileInfo: $('githubFileInfo'),
-  codePane: $('codePane'),
-  pasteSection: $('pasteSection'),
-  uploadSection: $('uploadSection'),
-  diffSection: $('diffSection'),
-  diffOriginal: $('diffOriginal'),
-  diffModified: $('diffModified'),
-  downloadMd: $('downloadMd'),
-  downloadSarif: $('downloadSarif'),
-  downloadPdf: $('downloadPdf'),
-  toggleChart: $('toggleChart'),
-  exportGithub: $('exportGithub'),
-  projectInput: $('projectInput'),
-  browseProjectBtn: $('browseProjectBtn'),
-  projectFileInfo: $('projectFileInfo'),
-  projectSection: $('projectSection'),
-};
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
+}
+
+const el = {};
 
 document.addEventListener('DOMContentLoaded', function () {
+  Object.assign(el, {
+    resultsBody: $('resultsBody'), resultsTitle: $('resultsTitle'),
+    resultsActions: $('resultsActions'), resultsTabs: $('resultsTabs'),
+    analyzeBtn: $('analyzeBtn'), fileInput: $('fileInput'),
+    browseBtn: $('browseBtn'), fileInfo: $('fileInfo'),
+    analysisType: $('analysisType'), themeToggle: $('themeToggle'),
+    historyBtn: $('historyBtn'), historyPanel: $('historyPanel'),
+    historyClose: $('historyClose'), historyList: $('historyList'),
+    chartModal: $('chartModal'), chartClose: $('chartClose'),
+    severityChart: $('severityChart'), knowledgeBtn: $('knowledgeBtn'),
+    knowledgeModal: $('knowledgeModal'), knowledgeClose: $('knowledgeClose'),
+    knowledgeInput: $('knowledgeInput'), browseKnowledgeBtn: $('browseKnowledgeBtn'),
+    knowledgeFileInfo: $('knowledgeFileInfo'), knowledgeResult: $('knowledgeResult'),
+    uploadKnowledgeBtn: $('uploadKnowledgeBtn'), gasBtn: $('gasBtn'),
+    fixBtn: $('fixBtn'), malwareBtn: $('malwareBtn'), fuzzBtn: $('fuzzBtn'),
+    hackeroneBtn: $('hackeroneBtn'), entryContract: $('entryContract'),
+    langSelect: $('langSelect'), githubSection: $('githubSection'),
+    githubUrl: $('githubUrl'), githubFileInfo: $('githubFileInfo'),
+    codePane: $('codePane'), pasteSection: $('pasteSection'),
+    uploadSection: $('uploadSection'), diffSection: $('diffSection'),
+    diffOriginal: $('diffOriginal'), diffModified: $('diffModified'),
+    downloadMd: $('downloadMd'), downloadSarif: $('downloadSarif'),
+    downloadPdf: $('downloadPdf'), toggleChart: $('toggleChart'),
+    exportGithub: $('exportGithub'), projectInput: $('projectInput'),
+    browseProjectBtn: $('browseProjectBtn'), projectFileInfo: $('projectFileInfo'),
+    projectSection: $('projectSection'),
+  });
+
   const savedTheme = localStorage.getItem('auditor-theme') || 'dark';
   document.documentElement.setAttribute('data-theme', savedTheme);
   el.themeToggle.innerHTML = savedTheme === 'dark' ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
@@ -204,7 +187,11 @@ let typewriterTimer = null;
 function renderStreamingReport(text) {
   if (typewriterTimer) { clearTimeout(typewriterTimer); }
   typewriterTimer = setTimeout(function () {
-    el.resultsBody.innerHTML = typeof DOMPurify !== 'undefined' && typeof marked !== 'undefined' ? DOMPurify.sanitize(marked.parse(text)) : text;
+    if (typeof DOMPurify !== 'undefined' && typeof marked !== 'undefined') {
+      el.resultsBody.innerHTML = DOMPurify.sanitize(marked.parse(text));
+    } else {
+      el.resultsBody.textContent = text;
+    }
     el.resultsBody.scrollTop = el.resultsBody.scrollHeight;
   }, 50);
 }
@@ -244,8 +231,9 @@ function buildAccordion(md) {
   if (current.lines.length > 0) { sections.push(current); }
 
   if (sections.length < 2) {
-    return '<div class="finding-card"><div class="finding-body open">' +
-      (DOMPurify && marked ? DOMPurify.sanitize(marked.parse(md)) : md) + '</div></div>';
+    var safeMd = (typeof DOMPurify !== 'undefined' && typeof marked !== 'undefined')
+      ? DOMPurify.sanitize(marked.parse(md)) : escapeHtml(md);
+    return '<div class="finding-card"><div class="finding-body open">' + safeMd + '</div></div>';
   }
 
   var result = '';
@@ -259,7 +247,9 @@ function buildAccordion(md) {
       var headingRe = /^#{2,4}\s*(\*\*)?\s*(Critical|High|Medium|Low|Info)/i;
       if (headingRe.test(bodyLines[0])) { bodyLines.shift(); }
     }
-    var bodyHtml = DOMPurify && marked ? DOMPurify.sanitize(marked.parse(bodyLines.join('\n'))) : bodyLines.join('\n');
+    var bodyHtml = (typeof DOMPurify !== 'undefined' && typeof marked !== 'undefined')
+      ? DOMPurify.sanitize(marked.parse(bodyLines.join('\n'))) : escapeHtml(bodyLines.join('\n'));
+    var safeHeading = escapeHtml(s.heading);
     if (j === 0) {
       result += '<div class="finding-card">';
       result += '<div class="finding-header" onclick="this.nextElementSibling.classList.toggle(\'open\')">';
@@ -269,7 +259,7 @@ function buildAccordion(md) {
     } else {
       result += '<div class="finding-card" style="border-left:3px solid ' + sevObj.color + ';">';
       result += '<div class="finding-header" onclick="this.nextElementSibling.classList.toggle(\'open\')">';
-      result += '<div><span class="severity-icon">' + sevObj.icon + '</span><span class="finding-title">' + s.heading + '</span></div>';
+      result += '<div><span class="severity-icon">' + sevObj.icon + '</span><span class="finding-title">' + safeHeading + '</span></div>';
       result += '<span class="chevron">▼</span></div>';
       result += '<div class="finding-body open">' + bodyHtml + '</div></div>';
     }

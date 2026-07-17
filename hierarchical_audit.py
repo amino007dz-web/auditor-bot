@@ -220,11 +220,9 @@ def hierarchical_audit(code: str, protocol_name: str = "Protocol", repo_url: str
     return final
 
 
-def run_hierarchical_audit_interactive(code: str, focus: str = "") -> str:
-    print("\n" + "="*60 + "\nHierarchical Analysis\n" + "="*60)
-    protocol_name = input("Protocol name (Enter for default): ").strip() or "Smart Contract"
-    repo_url = input("Repo URL (Enter to skip): ").strip() or ""
-    print()
+def run_hierarchical_audit_interactive(code: str, focus: str = "",
+                                       protocol_name: str = "Smart Contract",
+                                       repo_url: str = "") -> str:
     return hierarchical_audit(code, protocol_name, repo_url, focus=focus)
 
 

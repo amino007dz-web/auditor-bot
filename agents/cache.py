@@ -8,16 +8,28 @@ from typing import Dict, Optional
 
 _has_redis = False
 _redis_client = None
+_redis_module = None
 try:
     import redis as _redis_module
-    _redis_client = _redis_module.Redis.from_url(
-        os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
-        socket_connect_timeout=2, socket_timeout=2, decode_responses=True,
-    )
-    _redis_client.ping()
-    _has_redis = True
-except Exception:
-    _redis_client = None
+except ImportError:
+    pass
+
+
+def _get_redis():
+    global _redis_client, _has_redis
+    if _redis_client is not None or _has_redis:
+        return _redis_client
+    if _redis_module is None:
+        return None
+    try:
+        _redis_client = _redis_module.Redis.from_url(
+            os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
+            socket_connect_timeout=2, socket_timeout=2, decode_responses=True,
+        )
+        _has_redis = True
+    except Exception:
+        _redis_client = None
+    return _redis_client
 
 from config import CACHE_ENABLED, CACHE_DB_PATH, FREE_MODELS, MAX_CODE_CHARS
 from cli_display import console
@@ -34,16 +46,24 @@ def _get_conn() -> sqlite3.Connection:
     return _cache_local.conn
 
 
-def _cache_cleanup(max_age_days: int = 30):
+def _cache_cleanup(max_age_days: int = 30, batch_size: int = 1000):
     if not CACHE_ENABLED:
         return
     try:
         cutoff = time.time() - max_age_days * 86400
         conn = _get_conn()
-        deleted = conn.execute("DELETE FROM responses WHERE created_at < ?", (cutoff,)).rowcount
-        conn.commit()
-        if deleted:
-            logger.info(f"Cache: deleted {deleted} entries older than {max_age_days} days")
+        total_deleted = 0
+        while True:
+            deleted = conn.execute(
+                "DELETE FROM responses WHERE rowid IN (SELECT rowid FROM responses WHERE created_at < ? LIMIT ?)",
+                (cutoff, batch_size)
+            ).rowcount
+            conn.commit()
+            total_deleted += deleted
+            if deleted < batch_size:
+                break
+        if total_deleted:
+            logger.info(f"Cache: deleted {total_deleted} entries older than {max_age_days} days")
     except Exception as e:
         logger.debug(f"Cache cleanup error: {e}")
 
@@ -71,8 +91,9 @@ def _cache_get(model_id: str, prompt: str) -> Optional[str]:
         return None
     h = hashlib.sha256(prompt.encode()).hexdigest()
     try:
-        if _has_redis:
-            val = _redis_client.get(f"cache:{model_id}:{h}")
+        rc = _get_redis()
+        if rc:
+            val = rc.get(f"cache:{model_id}:{h}")
             if val is not None:
                 console.log(f"[dim]Redis Cache: {model_id} — hit[/]")
                 return val
@@ -99,8 +120,9 @@ def _cache_set(model_id: str, prompt: str, response: str):
         return
     h = hashlib.sha256(prompt.encode()).hexdigest()
     try:
-        if _has_redis:
-            _redis_client.setex(f"cache:{model_id}:{h}", 86400, response)
+        rc = _get_redis()
+        if rc:
+            rc.setex(f"cache:{model_id}:{h}", 86400, response)
     except Exception:
         pass
     try:

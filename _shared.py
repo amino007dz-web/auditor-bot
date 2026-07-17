@@ -21,7 +21,6 @@ try:
     _url = os.environ.get("REDIS_URL", "")
     if _url:
         _REDIS_RATE_CLIENT = _redis_module.Redis.from_url(_url, socket_connect_timeout=1, socket_timeout=1, decode_responses=True)
-        _REDIS_RATE_CLIENT.ping()
         _HAS_REDIS_RATE_LIMIT = True
 except Exception:
     _REDIS_RATE_CLIENT = None

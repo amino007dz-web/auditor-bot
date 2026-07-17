@@ -237,8 +237,8 @@ _SCAN_TASKS = [
 
 
 def run_pre_scan(code: str) -> str:
-    _register_learned_classes()
     """Run all pre-scan modules in parallel and return concatenated context string."""
+    _register_learned_classes()
     parts = []
     with ThreadPoolExecutor(max_workers=7) as pool:
         future_map = {pool.submit(fn, code): name for name, fn in _SCAN_TASKS}

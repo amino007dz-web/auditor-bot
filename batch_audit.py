@@ -8,11 +8,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 sys.path.insert(0, os.path.dirname(__file__))
 from agents import analyze_code
-from main import save_report_txt
 
 logger = logging.getLogger(__name__)
 
-EXTENSIONS = {".sol": "solidity", ".move": "move", ".cl": "chialisp", ".py": "vyper"}
+EXTENSIONS = {".sol": "solidity", ".move": "move", ".cl": "chialisp", ".vy": "vyper"}
 
 
 def find_contracts(root_dir: str, max_files: int = 200) -> list[dict[str, str]]:
@@ -86,6 +85,9 @@ def batch_audit(root_dir: str, max_workers: int = 4) -> dict:
             lines.append(r["result"][:1000])
             lines.append("---")
     txt = "\n".join(lines)
-    save_report_txt(f"batch_{int(time.time())}.txt", txt)
+    txt_dir = os.path.join(os.path.dirname(__file__), "reports")
+    os.makedirs(txt_dir, exist_ok=True)
+    with open(os.path.join(txt_dir, f"batch_{int(time.time())}.txt"), "w", encoding="utf-8") as f:
+        f.write(txt)
 
     return summary

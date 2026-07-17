@@ -3,8 +3,6 @@
 *.bak
 flood*
 grep_arsenal.py
-test.sol
-test2.sol
 secure_contracts_oz/
 stress_test_damn/
 stress_test_defihack/
@@ -27,3 +25,4 @@ report_*.md
 .pytest_cache/
 dist/
 *.egg-info/
+instance/

@@ -1,4 +1,4 @@
-import os, json, logging, tempfile, subprocess, re, shutil
+import os, json, logging, tempfile, subprocess, re, shutil, time
 from typing import List, Optional
 from analyzers.base import Finding
 

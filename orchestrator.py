@@ -69,7 +69,7 @@ def dispatch_analysis(
 
     if analysis_type == "autopoc":
         initial = analyze_code(code)
-        critique = self_critique(initial, code, "english")
+        critique = self_critique(initial, code)
         return validate_with_poc_silent(critique, code)
 
     if analysis_type == "multi":

@@ -9,8 +9,7 @@ services:
       - "5001:5001"
     volumes:
       - ./reports:/app/reports
-      - ./cache.db:/app/cache.db
-      - ./knowledge.db:/app/knowledge.db
+      - ./instance:/app/instance
       - ./.env:/app/.env:ro
     env_file:
       - .env
@@ -22,10 +21,11 @@ services:
     build: .
     container_name: sc-auditor-web
     ports:
-      - "5000:5000"
+      - "8080:5000"
     volumes:
       - ./reports:/app/reports
       - ./.env:/app/.env:ro
+      - ./instance:/app/instance
     env_file:
       - .env
     command: python web_ui.py
@@ -40,6 +40,7 @@ services:
     volumes:
       - ./reports:/app/reports
       - ./.env:/app/.env:ro
+      - ./instance:/app/instance
     env_file:
       - .env
     command: python api_mode.py

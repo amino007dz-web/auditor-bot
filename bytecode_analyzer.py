@@ -44,7 +44,7 @@ def _parse_hex(bytecode: str) -> bytes:
 def _analyze_opcodes(raw: bytes) -> List[Dict]:
     findings = []
     for name, op in Opcodes.items():
-        code = bytes.fromhex(op[2:]) if len(op) == 4 else op.encode()
+        code = bytes.fromhex(op[2:]) if op.startswith("0x") else op.encode()
         if code in raw:
             findings.append({"opcode": name, "code": op})
     return findings

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 MOVE_SOURCES_DIR = os.environ.get(
     'MOVE_SOURCES_DIR',
-    os.path.join(os.path.dirname(__file__), '..', '..', '08_NAVI_Astros_DVault', 'move_sources')
+    os.path.join(os.path.dirname(__file__), 'move_sources')
 )
 
 LAYER1_AGENTS = [
@@ -201,7 +201,7 @@ def move_hierarchical_audit(code: str) -> str:
                 return None
 
     auditor._run_agent = move_run_agent
-    _, _, final = auditor.run(code, lang)
+    _, _, final = auditor.run(code)
     return final
 
 

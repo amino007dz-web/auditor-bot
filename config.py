@@ -44,7 +44,12 @@ OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gpt-oss:120b")
 OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", "300"))
 
 GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
-SECRET_KEY: str = os.getenv("SECRET_KEY", os.urandom(32).hex())
+_secret_key = os.getenv("SECRET_KEY", "")
+if not _secret_key:
+    import warnings
+    warnings.warn("SECRET_KEY not set in environment — sessions invalidated on restart. Set SECRET_KEY in .env for production.")
+    _secret_key = os.urandom(32).hex()
+SECRET_KEY: str = _secret_key
 
 CONFIG_FILE = Path(__file__).parent / 'config.json'
 
@@ -106,7 +111,8 @@ TIMEOUT: int = _config["timeout"]
 MAX_RETRIES: int = _config["max_retries"]
 INITIAL_BACKOFF: float = _config["initial_backoff"]
 CACHE_ENABLED: bool = _config["cache_enabled"]
-CACHE_DB_PATH: str = os.path.join(os.path.dirname(__file__), _config["cache_db"])
+CACHE_DB_PATH: str = os.path.join(os.path.dirname(__file__), "instance", _config["cache_db"])
+os.makedirs(os.path.dirname(CACHE_DB_PATH), exist_ok=True)
 PARALLEL: bool = _config["parallel"]
 PARALLEL_MAX_WORKERS: int = _config["parallel_max_workers"]
 REPORT_DIR: str = os.path.join(os.path.dirname(__file__), "reports")
@@ -114,7 +120,7 @@ PROGRESS_FILE: str = os.path.join(REPORT_DIR, "_progress.json")
 
 KB_ENABLED: bool = _config.get("kb_enabled", True)
 _kb_file = _config.get("kb_db", "knowledge.db")
-_kb_local = os.path.join(os.path.dirname(__file__), _kb_file)
+_kb_local = os.path.join(os.path.dirname(__file__), "instance", _kb_file)
 _kb_data = f"/data/{_kb_file}"
 KB_DB_PATH: str = _kb_data if os.path.isdir("/data") else _kb_local
 KB_RAG_ENABLED: bool = _config.get("kb_rag_enabled", True)

@@ -15,6 +15,7 @@ from _shared import (
 )
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_cors import CORS
 from api_routes import api_bp
 from audit_service import AuditService
 from config import KB_ENABLED, CACHE_ENABLED, REPORT_DIR, GITHUB_TOKEN, SECRET_KEY
@@ -31,6 +32,7 @@ from external_analyzers import TOOL_AVAILABLE
 from _shared import _has_gas_profiler as _has_gas_profiler_local
 from _shared import compile_estimate_gas
 from auth import verify_code, requires_auth, create_access_code, list_codes, deactivate_code, ADMIN_PASSWORD
+from flask_cors import CORS
 
 try:
     from cvss_scorer import score_report, compute_cvss, cvss_explanation
@@ -46,6 +48,9 @@ app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 app.static_folder = 'static'
 app.register_blueprint(api_bp)
+
+# CORS — allow n8n and other external tools
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # CSRF protection: exempt API blueprint (uses Bearer token)
 csrf = CSRFProtect(app)
@@ -229,7 +234,11 @@ def batch_page():
             f.save(zippath)
             try:
                 with zipfile.ZipFile(zippath, 'r') as zf:
-                    zf.extractall(tmpdir)
+                    for member in zf.infolist():
+                        target = os.path.realpath(os.path.join(tmpdir, member.filename))
+                        if not target.startswith(os.path.realpath(tmpdir)):
+                            continue
+                        zf.extract(member, tmpdir)
                 items = os.listdir(tmpdir)
                 root = tmpdir
                 for item in items:
@@ -294,7 +303,8 @@ def inhgraph_page():
             html_path = os.path.join(REPORT_DIR, f"inheritance_{int(time.time())}.html")
             with open(html_path, "w", encoding="utf-8") as f:
                 f.write(html_graph)
-    return render_template('inhgraph.html', graph=html_graph)
+            graph_file = os.path.basename(html_path)
+    return render_template('inhgraph.html', graph=html_graph, graph_file=graph_file if html_graph else None)
 
 
 @app.route('/project', methods=['GET', 'POST'])
@@ -412,85 +422,140 @@ def api_docs():
 def api_openapi():
     return jsonify({
         "openapi": "3.0.0",
-        "info": {"title": "Smart Contract Auditor API", "version": "2.0.0", "description": "AI-powered smart contract security auditing API"},
-        "servers": [{"url": "/api", "description": "API server"}],
+        "info": {"title": "Smart Contract Auditor API", "version": "3.0.0", "description": "AI-powered smart contract security auditing API. Use X-API-Key header or Authorization: Bearer <key> for authenticated requests."},
+        "servers": [{"url": "", "description": "Same origin"}, {"url": "https://auditor-bot.onrender.com", "description": "Production"}],
+        "security": [{"ApiKeyAuth": []}, {"BearerAuth": []}],
+        "components": {
+            "securitySchemes": {
+                "ApiKeyAuth": {"type": "apiKey", "in": "header", "name": "X-API-Key", "description": "API key from AUDITOR_API_KEY env var"},
+                "BearerAuth": {"type": "http", "scheme": "bearer", "description": "Bearer token from AUDITOR_API_KEY env var"}
+            },
+            "schemas": {
+                "Error": {"type": "object", "properties": {"error": {"type": "string"}}},
+                "CodeInput": {"type": "object", "required": ["code"], "properties": {
+                    "code": {"type": "string", "description": "Smart contract source code"},
+                    "type": {"type": "string", "enum": ["audit", "quick", "deep", "gas", "opcodes", "storage", "permissions"], "default": "audit"}
+                }},
+                "ReportOutput": {"type": "object", "properties": {
+                    "report": {"type": "string", "description": "Markdown audit report"}
+                }}
+            }
+        },
         "paths": {
-            "/analyze/stream": {
+            "/api/analyze/json": {
                 "post": {
-                    "summary": "Stream analysis results via SSE",
-                    "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object", "properties": {
-                        "code": {"type": "string", "description": "Source code"},
-                        "type": {"type": "string", "enum": ["audit", "quick", "deep"]}
-                    }}}}},
-                    "responses": {"200": {"description": "SSE stream of analysis progress and results"}}
+                    "summary": "Analyze code (JSON, non-streaming)",
+                    "description": "Best for n8n, VS Code extension, and programmatic use. Returns complete report as JSON.",
+                    "operationId": "analyzeJson",
+                    "security": [{"ApiKeyAuth": []}, {"BearerAuth": []}],
+                    "requestBody": {"required": True, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CodeInput"}}}},
+                    "responses": {
+                        "200": {"description": "Audit report", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ReportOutput"}}}},
+                        "400": {"description": "Missing code field", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+                        "401": {"description": "Unauthorized", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+                    }
                 }
             },
-            "/auth/verify": {
+            "/api/analyze/stream": {
+                "post": {
+                    "summary": "Analyze code with SSE streaming",
+                    "description": "Streams analysis progress and partial results via Server-Sent Events. Use when you want real-time progress updates.",
+                    "operationId": "analyzeStream",
+                    "requestBody": {"required": True, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CodeInput"}}}},
+                    "responses": {
+                        "200": {"description": "SSE stream of analysis tokens and progress events"},
+                        "400": {"description": "Missing code field", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+                    }
+                }
+            },
+            "/api/auth/verify": {
                 "post": {
                     "summary": "Verify an access code",
+                    "tags": ["Auth"],
                     "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object", "properties": {
-                        "code": {"type": "string"}
-                    }}}}},
-                    "responses": {"200": {"description": "Authentication result"}}
+                        "code": {"type": "string", "description": "Access code (SCA-XXXX-XXXX)"}
+                    }, "required": ["code"]}}}},
+                    "responses": {
+                        "200": {"description": "Authentication result", "content": {"application/json": {"schema": {"type": "object", "properties": {
+                            "success": {"type": "boolean"}, "remaining": {"type": "integer"}
+                        }}}}},
+                        "403": {"description": "Invalid code"}
+                    }
                 }
             },
-            "/quota": {
-                "get": {"summary": "Get remaining quota", "responses": {"200": {"description": "Quota info"}}}
+            "/api/quota": {
+                "get": {
+                    "summary": "Get remaining quota",
+                    "tags": ["Auth"],
+                    "responses": {"200": {"description": "Quota info", "content": {"application/json": {"schema": {
+                        "type": "object", "properties": {"remaining": {"type": "integer"}, "total": {"type": "integer"}}
+                    }}}}}
+                }
             },
-            "/history": {
-                "get": {"summary": "List audit history", "responses": {"200": {"description": "History list"}}},
+            "/api/gas": {
+                "post": {
+                    "summary": "Analyze gas usage",
+                    "tags": ["Analysis"],
+                    "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object", "required": ["code"], "properties": {
+                        "code": {"type": "string", "description": "Solidity source code"}
+                    }}}}},
+                    "responses": {"200": {"description": "Gas report with optimization suggestions"}}
+                }
+            },
+            "/api/analyze/github": {
+                "post": {
+                    "summary": "Audit a GitHub repository",
+                    "tags": ["Analysis"],
+                    "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object", "required": ["url"], "properties": {
+                        "url": {"type": "string", "description": "GitHub repository URL", "example": "https://github.com/owner/repo"}
+                    }}}}},
+                    "responses": {"200": {"description": "SSE stream of audit results"}}
+                }
+            },
+            "/api/analyze/project": {
+                "post": {
+                    "summary": "Audit a ZIP project",
+                    "tags": ["Analysis"],
+                    "requestBody": {"required": True, "content": {"multipart/form-data": {"schema": {"type": "object", "properties": {
+                        "project": {"type": "string", "format": "binary", "description": "ZIP file containing contracts"},
+                        "entry_contract": {"type": "string", "description": "Entry contract filename (optional, auto-detected)"}
+                    }, "required": ["project"]}}}},
+                    "responses": {"200": {"description": "SSE stream of audit results"}}
+                }
+            },
+            "/api/analyze/fix": {
+                "post": {
+                    "summary": "Suggest a fix for vulnerable code",
+                    "tags": ["Analysis"],
+                    "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object", "required": ["code", "report"], "properties": {
+                        "code": {"type": "string"}, "report": {"type": "string"}
+                    }}}}},
+                    "responses": {"200": {"description": "Suggested fix in markdown"}}
+                }
+            },
+            "/api/history": {
+                "get": {
+                    "summary": "List audit history",
+                    "tags": ["History"],
+                    "responses": {"200": {"description": "History list"}}
+                },
                 "post": {
                     "summary": "Save an audit report",
+                    "tags": ["History"],
                     "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object", "properties": {
                         "report": {"type": "string"}, "title": {"type": "string"}
                     }}}}},
                     "responses": {"200": {"description": "Saved"}}
                 }
             },
-            "/gas": {
-                "post": {
-                    "summary": "Analyze gas usage",
-                    "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object", "properties": {
-                        "code": {"type": "string"}
-                    }}}}},
-                    "responses": {"200": {"description": "Gas report"}}
-                }
-            },
-            "/knowledge/ingest": {
+            "/api/knowledge/ingest": {
                 "post": {
                     "summary": "Upload PDF to knowledge base",
+                    "tags": ["Knowledge"],
                     "requestBody": {"required": True, "content": {"multipart/form-data": {"schema": {"type": "object", "properties": {
                         "file": {"type": "string", "format": "binary"}
                     }}}}},
                     "responses": {"200": {"description": "Ingestion result"}}
-                }
-            },
-            "/analyze/fix": {
-                "post": {
-                    "summary": "Suggest a fix for vulnerable code",
-                    "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object", "properties": {
-                        "code": {"type": "string"}, "report": {"type": "string"}
-                    }}}}},
-                    "responses": {"200": {"description": "Suggested fix"}}
-                }
-            },
-            "/analyze/github": {
-                "post": {
-                    "summary": "Audit a GitHub repository",
-                    "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object", "properties": {
-                        "url": {"type": "string"}
-                    }}}}},
-                    "responses": {"200": {"description": "SSE stream of audit results"}}
-                }
-            },
-            "/analyze/project": {
-                "post": {
-                    "summary": "Audit a ZIP project",
-                    "requestBody": {"required": True, "content": {"multipart/form-data": {"schema": {"type": "object", "properties": {
-                        "project": {"type": "string", "format": "binary"},
-                        "entry_contract": {"type": "string"}
-                    }}}}},
-                    "responses": {"200": {"description": "SSE stream of audit results"}}
                 }
             },
         }

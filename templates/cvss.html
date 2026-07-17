@@ -135,7 +135,7 @@ pre { font-family: 'Cascadia Code', monospace; font-size: 0.8rem; white-space: p
   <h2>Results</h2>
   {% if result.score is defined %}
   <div class="result-box">
-    <div class="score-{{ result.severity.lower() }}">{{ result.score }}/10</div>
+    <div class="score-{{ (result.severity or 'unknown')|lower }}">{{ result.score }}/10</div>
     <p>Severity: <strong>{{ result.severity }}</strong></p>
     <p>Vector: <code>{{ result.vector }}</code></p>
     <pre>{{ result.explanation }}</pre>
@@ -145,12 +145,12 @@ pre { font-family: 'Cascadia Code', monospace; font-size: 0.8rem; white-space: p
     {% for f in result.findings %}
     <div style="margin-bottom: 0.75rem; padding: 0.5rem; background: #0d1117; border-radius: 4px;">
       <strong>{{ f.name }}</strong>
-      <span class="score-{{ f.cvss_severity.lower() }}" style="font-size:1rem;">{{ f.cvss_score }}</span>
+      <span class="score-{{ (f.cvss_severity or 'unknown')|lower }}" style="font-size:1rem;">{{ f.cvss_score }}</span>
       <code>{{ f.cvss_vector }}</code>
     </div>
     {% endfor %}
     <hr style="border-color:#30363d; margin:0.75rem 0;">
-    <p><strong>Overall Max:</strong> <span class="score-{{ result.overall_severity.lower() }}" style="font-size:1.2rem;">{{ result.overall_score }}/10 ({{ result.overall_severity }})</span></p>
+    <p><strong>Overall Max:</strong> <span class="score-{{ (result.overall_severity or 'unknown')|lower }}" style="font-size:1.2rem;">{{ result.overall_score }}/10 ({{ result.overall_severity }})</span></p>
     <p>Total findings scored: {{ result.total_findings }}</p>
   </div>
   {% else %}

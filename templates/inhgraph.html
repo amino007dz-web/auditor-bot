@@ -38,17 +38,15 @@ a { color: #58a6ff; text-decoration: none; }
 </form>
 </div>
 
-{% if graph_file %}
+{% if graph %}
 <div class="card">
 <h2>Inheritance Graph</h2>
 <div class="graph-container">
-{% if graph_file.endswith('.svg') %}
-{{ graph_content|safe }}
-{% else %}
-<img src="/download/{{ graph_file }}" alt="Inheritance Graph">
-{% endif %}
+{{ graph|safe }}
 </div>
+{% if graph_file %}
 <p class="meta" style="margin-top: 1rem;"><a href="/download/{{ graph_file }}" target="_blank">Open in new window</a></p>
+{% endif %}
 </div>
 {% endif %}
 </div>

@@ -43,12 +43,8 @@ def generate_combined_report(code: str, protocol: str = "Protocol") -> str:
     report += analyze_inheritance(code, contracts_data) + "\n"
     return report
 
-def generate_combined_report_interactive(code: str, lang: str = "english") -> str:
-    print("\n" + "="*60)
-    print("📊 Combined Report (Opcodes + Storage + Inheritance)")
-    print("="*60)
-    protocol_name = input("Protocol name (Enter for default): ").strip() or "Smart Contract"
-    print()
+def generate_combined_report_interactive(code: str, lang: str = "english",
+                                          protocol_name: str = "Smart Contract") -> str:
     return generate_combined_report(code, protocol_name)
 
 def _extract_opcode_findings(code: str) -> List[Dict]:

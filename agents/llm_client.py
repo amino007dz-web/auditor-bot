@@ -179,6 +179,11 @@ def _stream_openrouter(model_id: str, prompt: str, timeout: int = 300):
 
 
 def call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
+    try:
+        asyncio.get_running_loop()
+        logger.warning("call_model() is synchronous — use async_call_model() in async context")
+    except RuntimeError:
+        pass
     if API_PROVIDER == "ollama":
         return _call_ollama(OLLAMA_MODEL, prompt, timeout)
     prompt = _validate_text_input(prompt)
@@ -236,6 +241,11 @@ def call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
 
 
 def call_model_with_fallback(prompt: str, timeout: int = 0, model_chain: Optional[List[str]] = None) -> str:
+    try:
+        asyncio.get_running_loop()
+        logger.warning("call_model_with_fallback() is synchronous — use async_call_model() in async context")
+    except RuntimeError:
+        pass
     if model_chain is None:
         model_chain = MODEL_FALLBACK_CHAIN
     last_error = ""
@@ -340,9 +350,8 @@ async def async_call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
 
 def _call_groq(prompt: str) -> str:
     from groq import Groq
-    logger.info("Calling Groq (Llama 3)...")
-    client = Groq(api_key="")
     from config import GROQ_API_KEY, GROQ_MODEL
+    logger.info("Calling Groq (Llama 3)...")
     client = Groq(api_key=GROQ_API_KEY)
     response = client.chat.completions.create(
         model=GROQ_MODEL,

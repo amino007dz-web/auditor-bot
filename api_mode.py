@@ -9,7 +9,8 @@ from flask import Flask, request, jsonify
 
 sys.path.insert(0, os.path.dirname(__file__))
 from agents import analyze_code, chunked_audit
-from main import hierarchical_audit, load_local_contract
+from main import load_local_contract
+from orchestrator import dispatch_analysis
 from chain_loader import load_from_explorer
 from batch_audit import batch_audit
 from diff_audit import compute_diff, run_diff_audit

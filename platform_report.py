@@ -335,7 +335,7 @@ def validate_markdown(text: str) -> List[str]:
     # Broken Markdown links [text](url)
     for m in re.finditer(r'\[([^\]]*)\]\(([^)]*)\)', text):
         url = m.group(2).strip()
-        if url and url.startswith(("http://", "https://")) and not url.startswith(("http://", "https://")):
+        if url and not re.match(r'^https?://', url):
             issues.append(f"⚠️  Invalid link: '{m.group(0)}'")
 
     # Incomplete tables (column count mismatch)

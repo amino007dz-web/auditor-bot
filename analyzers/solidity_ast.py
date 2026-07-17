@@ -8,9 +8,14 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-import solcx
-from solcast import from_ast
-HAS_SOLCAST = True
+try:
+    import solcx
+    from solcast import from_ast
+    HAS_SOLCAST = True
+except ImportError:
+    solcx = None
+    from_ast = None
+    HAS_SOLCAST = False
 
 SOLC_VERSION = "0.8.25"
 

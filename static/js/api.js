@@ -5,6 +5,12 @@ function authHeaders(extra) {
   return h;
 }
 
+function escHtml(str) {
+  var div = document.createElement('div');
+  div.appendChild(document.createTextNode(String(str)));
+  return div.innerHTML;
+}
+
 function processStream(resp) {
   if (!resp.ok) throw new Error('Analysis failed: ' + resp.status);
   if (!resp.body) throw new Error('Response has no body stream');
@@ -69,7 +75,7 @@ function handleFetchError(err) {
     var hint = isModelError
       ? 'The AI model returned an error. This may be a temporary issue — please try again.'
       : 'Try pasting shorter or simpler code, or switch to a different analysis mode.';
-    el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + err.message + '</p><p style="margin-top:1rem;font-size:0.85rem;">' + hint + ' <a href="#" onclick="location.reload()" style="color:var(--accent);">Reload page</a></p>';
+    el.resultsBody.innerHTML = '<p style="color:var(--accent-red);">Error: ' + escHtml(err.message) + '</p><p style="margin-top:1rem;font-size:0.85rem;">' + hint + ' <a href="#" onclick="location.reload()" style="color:var(--accent);">Reload page</a></p>';
     el.resultsActions.style.display = 'flex';
     el.resultsTabs.style.display = 'flex';
   }
@@ -202,13 +208,13 @@ function fetchGasReport() {
     var md = '# Gas Report\n\n';
     if (data.gas_report) md += data.gas_report + '\n\n';
     if (data.static_analysis) {
-      md += '## Static Pattern Analysis\n\n' + data.static_analysis.map(function (p) { return '- **' + p.pattern + '**: ' + p.msg; }).join('\n') + '\n\n';
+      md += '## Static Pattern Analysis\n\n' + (Array.isArray(data.static_analysis) ? data.static_analysis.map(function (p) { return '- **' + escHtml(p.pattern) + '**: ' + escHtml(p.msg); }).join('\n') : data.static_analysis) + '\n\n';
     }
     if (data.savings_usd) md += '**Estimated Savings**: $' + data.savings_usd + '\n';
     currentReportText = md;
     renderFinalReport(md);
   }).catch(function (err) {
-    el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + err.message + '</p>';
+    el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + escHtml(err.message) + '</p>';
   });
 }
 
@@ -227,9 +233,9 @@ function suggestFix() {
       var md = '# Suggested Fix\n\n' + data.fix;
       currentReportText = md;
       renderFinalReport(md);
-    } else { el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + (data.error || 'No fix generated') + '</p>'; }
+    } else { el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + escHtml(data.error || 'No fix generated') + '</p>'; }
   }).catch(function (err) {
-    el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + err.message + '</p>';
+    el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + escHtml(err.message) + '</p>';
   });
 }
 
@@ -254,7 +260,7 @@ function scanMalware() {
       });
     }
     currentReportText = md; renderFinalReport(md);
-  }).catch(function (err) { el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + err.message + '</p>'; });
+  }).catch(function (err) { el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + escHtml(err.message) + '</p>'; });
 }
 
 function generateFuzzTest() {
@@ -268,7 +274,7 @@ function generateFuzzTest() {
   }).then(function (r) { if (!r.ok) throw new Error('Server error: ' + r.status); return r.json(); }).then(function (data) {
     var md = '# Generated Foundry Fuzz Test\n\n```solidity\n' + (data.fuzz_test || 'Error generating test') + '\n```';
     currentReportText = md; renderFinalReport(md);
-  }).catch(function (err) { el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + err.message + '</p>'; });
+  }).catch(function (err) { el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + escHtml(err.message) + '</p>'; });
 }
 
 function exportHackerone() {
@@ -279,9 +285,13 @@ function exportHackerone() {
     body: JSON.stringify({ report: currentReportText, code: code, label: 'Smart Contract' })
   }).then(function (r) { if (!r.ok) throw new Error('Server error: ' + r.status); return r.json(); }).then(function (data) {
     if (data.report) {
-      navigator.clipboard.writeText(data.report).then(function () {
-        alert('HackerOne report copied to clipboard!');
-      }).catch(function () { alert('Failed to copy to clipboard'); });
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(data.report).then(function () {
+          alert('HackerOne report copied to clipboard!');
+        }).catch(function () { alert('Failed to copy to clipboard'); });
+      } else {
+        alert('Clipboard API not available (requires HTTPS)');
+      }
     }
   }).catch(function (err) { alert('Error: ' + err.message); });
 }
@@ -301,9 +311,9 @@ function uploadKnowledge() {
     el.uploadKnowledgeBtn.disabled = false;
     el.uploadKnowledgeBtn.innerHTML = '<i class="fas fa-upload"></i> Ingest to Knowledge Base';
     if (data.success) {
-      el.knowledgeResult.innerHTML = '<span style="color:var(--green);">Ingested: ' + data.pages + ' pages, ' + data.chars + ' chars.</span>';
+      el.knowledgeResult.innerHTML = '<span style="color:var(--green);">Ingested: ' + escHtml(data.pages) + ' pages, ' + escHtml(data.chars) + ' chars.</span>';
     } else {
-      el.knowledgeResult.innerHTML = '<span style="color:var(--red);">Error: ' + (data.error || 'Unknown') + '</span>';
+      el.knowledgeResult.innerHTML = '<span style="color:var(--red);">Error: ' + escHtml(data.error || 'Unknown') + '</span>';
     }
   }).catch(function () {
     el.uploadKnowledgeBtn.disabled = false;
@@ -334,9 +344,10 @@ function loadHistory() {
       ? '<p style="color:var(--text-secondary);font-size:0.8rem;">No previous audits.</p>'
       : items.map(function (h, i) {
           var date = new Date(h.created_at * 1000).toLocaleString();
-          return '<div class="history-item" data-id="' + h.id + '" style="padding:0.6rem;border:1px solid var(--border);border-radius:6px;margin-bottom:0.5rem;cursor:pointer;font-size:0.8rem;">' +
-            '<div style="color:var(--text-primary);margin-bottom:0.25rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (h.title || h.snippet.slice(0, 80)) + '...</div>' +
-            '<div style="color:var(--text-secondary);font-size:0.7rem;">' + date + '</div></div>';
+          var title = h.title || (h.snippet ? h.snippet.slice(0, 80) : 'Untitled');
+          return '<div class="history-item" data-id="' + escHtml(h.id) + '" style="padding:0.6rem;border:1px solid var(--border);border-radius:6px;margin-bottom:0.5rem;cursor:pointer;font-size:0.8rem;">' +
+            '<div style="color:var(--text-primary);margin-bottom:0.25rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(title) + '...</div>' +
+            '<div style="color:var(--text-secondary);font-size:0.7rem;">' + escHtml(date) + '</div></div>';
         }).join('');
     el.historyList.querySelectorAll('.history-item').forEach(function (item) {
       item.addEventListener('click', function () { loadHistoryItem(parseInt(item.dataset.id)); });
@@ -440,9 +451,13 @@ function downloadReport(format) {
 function exportToGithub() {
   if (!currentReportText) return;
   const formatted = formatGithubDiscussion(currentReportText);
-  navigator.clipboard.writeText(formatted).then(function () {
-    alert('GitHub Discussion format copied to clipboard!');
-  }).catch(function () { alert('Failed to copy to clipboard'); });
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(formatted).then(function () {
+      alert('GitHub Discussion format copied to clipboard!');
+    }).catch(function () { alert('Failed to copy to clipboard'); });
+  } else {
+    alert('Clipboard API not available (requires HTTPS)');
+  }
 }
 
 function formatGithubDiscussion(text) {

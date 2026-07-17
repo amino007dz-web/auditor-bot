@@ -1,10 +1,14 @@
+import os
 import sqlite3
 import threading
 from datetime import datetime, timedelta
 
 
 class UsageTracker:
-    def __init__(self, db_path="usage.db"):
+    def __init__(self, db_path=None):
+        if db_path is None:
+            db_path = os.path.join(os.path.dirname(__file__), "instance", "usage.db")
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self._db_path = db_path
         self._lock = threading.Lock()
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
