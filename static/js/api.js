@@ -36,7 +36,8 @@ function processStream(resp) {
             try {
               const parsed = JSON.parse(data);
               if (parsed.error) { done = true; reject(new Error(parsed.error)); return; }
-              if (parsed.step) { updateStep(parsed.step); }
+              if (parsed.type === 'progress' && parsed.text) { updateStep(parsed.text); }
+              else if (parsed.step) { updateStep(parsed.step); }
               if (parsed.type === 'token' && parsed.text) {
                 currentReportText += parsed.text;
                 renderStreamingReport(currentReportText);

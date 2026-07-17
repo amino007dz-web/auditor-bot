@@ -165,14 +165,6 @@ function handleProjectUpload() {
   const file = el.projectInput.files[0];
   if (!file) return;
   el.projectFileInfo.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    try {
-      el.entryContract.style.display = 'inline-block';
-      el.entryContract.innerHTML = '<option value="">Auto-detect entry contract</option>';
-    } catch (err) { console.warn('ZIP parsing error', err); }
-  };
-  reader.readAsArrayBuffer(file);
 }
 
 function getCode() {

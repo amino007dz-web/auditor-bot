@@ -514,6 +514,14 @@ def api_admin_login():
 csrf.exempt(api_admin_login)
 
 
+@app.route('/api/admin/logout', methods=['POST'])
+def api_admin_logout():
+    session.pop('admin_authenticated', None)
+    return jsonify({"success": True})
+
+csrf.exempt(api_admin_logout)
+
+
 @app.route('/api/admin/check')
 def api_admin_check():
     return jsonify({"authenticated": 'admin_authenticated' in session})

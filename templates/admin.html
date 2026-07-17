@@ -30,8 +30,6 @@ th { color: var(--text2); font-weight: 500; }
 </style>
 </head>
 <body>
-<h1><span>🛡️</span> Admin Panel &mdash; Access Codes</h1>
-
 <div id="loginSection">
   <div class="card">
     <h2>Login</h2>
@@ -45,6 +43,10 @@ th { color: var(--text2); font-weight: 500; }
 </div>
 
 <div id="adminPanel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+    <h1 style="margin-bottom:0;"><span>🛡️</span> Admin Panel &mdash; Access Codes</h1>
+    <button class="btn btn-danger" onclick="adminLogout()" style="font-size:0.8rem;"><i class="fas fa-sign-out-alt"></i> Logout</button>
+  </div>
   <div class="card">
     <h2>Generate New Access Code</h2>
     <div class="form-row">
@@ -123,6 +125,16 @@ function loadCodes() {
       var action = c.is_active ? '<button class="btn btn-danger" onclick="deactivateCode(\'' + esc(c.code) + '\')" style="padding:0.25rem 0.5rem;font-size:0.75rem;">Deactivate</button>' : '';
       return '<tr><td><code>' + esc(c.code) + '</code></td><td>' + esc(c.created_by || '') + '</td><td>' + c.used_count + '</td><td>' + (c.max_uses === -1 ? 'Unlimited' : c.max_uses) + '</td><td>' + status + '</td><td>' + new Date(c.created_at * 1000).toLocaleDateString() + '</td><td>' + action + '</td></tr>';
     }).join('');
+  });
+}
+
+function adminLogout() {
+  fetch('/api/admin/logout', { method: 'POST' }).then(function() {
+    adminAuthed = false;
+    document.getElementById('loginSection').style.display = 'block';
+    document.getElementById('adminPanel').style.display = 'none';
+    document.getElementById('adminPass').value = '';
+    document.getElementById('loginError').style.display = 'none';
   });
 }
 

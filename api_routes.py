@@ -282,12 +282,10 @@ def api_github_stream():
             from agents.prompts import SYSTEM_PROMPT
             from config import API_PROVIDER, ACTIVE_MODEL, FREE_MODELS, OLLAMA_MODEL
             pre = run_pre_scan(combined)
-            msg = 'GitHub repo: {} files found, {} potential issues'.format(
-                len(contracts), len(pre.get('findings', [])))
+            msg = 'GitHub repo: {} files found, pre-scan complete'.format(len(contracts))
             yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'pre-scan', 'text': msg}))
-            pre_json = json.dumps([dict(f) for f in pre.get('findings', [])], indent=2)
             prompt = "{}\n\nPre-scan findings:\n{}\n\nGitHub repo ({}) code:\n{}\n\nProvide a comprehensive security audit.".format(
-                SYSTEM_PROMPT, pre_json, url.rsplit('/', 1)[-1], combined)
+                SYSTEM_PROMPT, pre, url.rsplit('/', 1)[-1], combined)
             yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'ai', 'text': 'Running AI analysis on repository...'}))
             full = ""
             _stream_fn = _stream_openrouter if API_PROVIDER == "openrouter" else _stream_ollama
@@ -437,11 +435,13 @@ def api_analyze_project():
     try:
         f.save(tmp.name)
         tmp.close()
+        sol_files = []
         with zipfile.ZipFile(tmp.name, 'r') as zf:
-            sol_files = []
             for name in zf.namelist():
                 if name.lower().endswith(('.sol', '.vy', '.move')):
-                    sol_files.append((name, zf.read(name).decode('utf-8', errors='replace')))
+                    raw = zf.read(name)
+                    code = raw[:8000].decode('utf-8', errors='replace')
+                    sol_files.append((name, code))
         if not sol_files:
             return jsonify({"error": "No Solidity/Vyper/Move files found in ZIP"}), 400
         entry_code = ""
@@ -460,11 +460,9 @@ def api_analyze_project():
             from agents.prompts import SYSTEM_PROMPT
             from config import API_PROVIDER, ACTIVE_MODEL, FREE_MODELS, OLLAMA_MODEL
             pre = run_pre_scan(combined)
-            pre_json = json.dumps([dict(f) for f in pre.get('findings', [])], indent=2)
             prompt = "{}\n\nPre-scan findings:\n{}\n\nProject files ({}):\n{}\n\nProvide a comprehensive security audit of this project. Focus on the entry contract.".format(
-                SYSTEM_PROMPT, pre_json, len(sol_files), combined)
-            msg = 'Pre-scan complete: {} files found, {} potential issues'.format(
-                len(sol_files), len(pre.get('findings', [])))
+                SYSTEM_PROMPT, pre, len(sol_files), combined)
+            msg = 'Pre-scan complete: {} files found'.format(len(sol_files))
             yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'pre-scan', 'text': msg}))
             yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'ai', 'text': 'Running AI analysis across project...'}))
             full = ""
