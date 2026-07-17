@@ -17,7 +17,14 @@ function processStream(resp) {
       if (done) return;
       reader.read().then(function (result) {
         if (done) return;
-        if (result.done) { done = true; finalizeAnalysis(); resolve(); return; }
+        if (result.done) {
+          done = true; finalizeAnalysis();
+          if (!currentReportText) {
+            el.resultsBody.innerHTML = '<p style="color:var(--text-secondary);">No results returned. The analysis may have produced an empty report.</p>';
+            el.resultsActions.style.display = 'flex'; el.resultsTabs.style.display = 'flex';
+          }
+          resolve(); return;
+        }
         buffer += decoder.decode(result.value, { stream: true });
         const parts = buffer.split('\n\n');
         buffer = parts.pop();

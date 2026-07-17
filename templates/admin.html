@@ -34,12 +34,12 @@ th { color: var(--text2); font-weight: 500; }
 
 <div id="loginSection">
   <div class="card">
-    <h2>Admin Login</h2>
+    <h2>Login</h2>
     <div class="form-group" style="margin-bottom:0.75rem;">
       <label>Password</label>
-      <input type="password" id="adminPass" placeholder="Enter admin password">
+      <input type="password" id="adminPass" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')adminLogin()">
     </div>
-    <button class="btn btn-primary" onclick="adminLogin()">Login</button>
+    <button class="btn btn-primary" onclick="adminLogin()" id="adminLoginBtn">Login</button>
     <div id="loginError" style="color:var(--red);font-size:0.8rem;margin-top:0.5rem;display:none;"></div>
   </div>
 </div>

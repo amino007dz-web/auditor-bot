@@ -277,7 +277,7 @@ footer { text-align: center; padding: 2rem; color: var(--text2); font-size: 0.8r
     <h2>Enter Access Code</h2>
     <p style="color:var(--text2);font-size:0.85rem;margin-bottom:1rem;">Enter your access code to start auditing contracts.</p>
     <div class="error-msg" id="accessError"></div>
-    <input type="text" id="accessCodeInput" placeholder="SCA-XXXX-XXXX" maxlength="20" autocomplete="off">
+    <input type="text" id="accessCodeInput" placeholder="SCA-XXXX-XXXX" maxlength="30" autocomplete="off" onkeydown="if(event.key==='Enter')verifyAccess()">
     <button class="btn btn-primary" onclick="verifyAccess()" style="width:100%;justify-content:center;">Verify & Enter</button>
   </div>
 </div>
@@ -325,9 +325,6 @@ function closeModal(type) {
   document.getElementById(id).addEventListener('click', function(e) {
     if (e.target === this) closeModal(id.replace('Modal', '').toLowerCase());
   });
-});
-document.getElementById('accessCodeInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') verifyAccess();
 });
 function verifyAccess() {
   var code = document.getElementById('accessCodeInput').value.trim();
