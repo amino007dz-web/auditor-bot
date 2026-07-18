@@ -130,16 +130,19 @@ def _has_modifier(func_node, modifier_name: str) -> bool:
     return False
 
 
-def _traverse(node, predicate: Callable) -> List:
+def _traverse(node, predicate: Callable, _depth: int = 0) -> List:
     """Traverse AST searching for nodes matching predicate"""
+    if _depth > 500:
+        logger.warning("AST traversal exceeded max depth 500 — stopping recursion")
+        return []
     results = []
     if predicate(node):
         results.append(node)
     try:
         for child in node.children():
-            results.extend(_traverse(child, predicate))
+            results.extend(_traverse(child, predicate, _depth + 1))
     except Exception:
-        pass
+        logger.debug(f"AST traversal error at depth {_depth}", exc_info=True)
     return results
 
 

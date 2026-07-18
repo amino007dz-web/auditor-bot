@@ -13,8 +13,8 @@ def generate_combined_report(code: str, protocol: str = "Protocol") -> str:
     all_findings = []
     all_findings.extend(_extract_opcode_findings(code))
     all_findings.extend(_extract_storage_findings(code, contracts_data))
-    all_findings.sort(key=lambda f: SEVERITY_ORDER.get(f["severity"], 99))
-    counts = Counter(f["severity"] for f in all_findings)
+    all_findings.sort(key=lambda f: SEVERITY_ORDER.get(f.get("severity", "INFO"), 99))
+    counts = Counter(f.get("severity", "INFO") for f in all_findings if isinstance(f, dict))
     report = f"# {protocol} — Combined Report\n\n"
     report += f"**Generation Date:** {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     report += "**Sources:** Opcode Tracer + Storage Analyzer + Inheritance Analyzer\n\n"
@@ -25,16 +25,18 @@ def generate_combined_report(code: str, protocol: str = "Protocol") -> str:
     if all_findings:
         report += "## List of Vulnerabilities (Sorted by Severity)\n\n"
         current_sev = None
-        sev_headers = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🔵", "INFO": "⚪"}
+        sev_headers = {"CRITICAL": "[CRITICAL]", "HIGH": "[HIGH]", "MEDIUM": "[MEDIUM]", "LOW": "[LOW]", "INFO": "[INFO]"}
         for i, f in enumerate(all_findings, 1):
-            if f["severity"] != current_sev:
-                report += f"\n### {sev_headers.get(f['severity'], '')} {f['severity']}\n\n"
-                current_sev = f["severity"]
-            report += f"**{i}. {f['title']}** [{f['severity']}]\n"
-            report += f"- **Details:** {f['description']}\n"
+            if not isinstance(f, dict):
+                continue
+            if f.get("severity") != current_sev:
+                report += f"\n### {sev_headers.get(f.get('severity', 'INFO'), '')} {f.get('severity', 'INFO')}\n\n"
+                current_sev = f.get("severity")
+            report += f"**{i}. {f.get('title', 'Unknown')}** [{f.get('severity', 'INFO')}]\n"
+            report += f"- **Details:** {f.get('description', 'N/A')}\n"
             if f.get("match"):
                 report += f"- **Matched Text:** `{f['match']}`\n"
-            if f.get("fix") and f["fix"] != "—":
+            if f.get("fix") and f.get("fix", "") != "—":
                 report += f"- **Fix:** {f['fix']}\n"
             report += "\n"
     report += "---\n\n## Attachments\n\n"
