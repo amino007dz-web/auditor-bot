@@ -612,6 +612,9 @@ class TelegramBot:
 
     # ── Lifecycle ───────────────────────────────────────────────
     def start(self, start_monitor: bool = False):
+        if self._thread is not None and self._thread.is_alive():
+            logger.warning("Telegram bot already running")
+            return
         if not self.token or not HAS_REQUESTS:
             logger.warning("Telegram bot not configured")
             return
