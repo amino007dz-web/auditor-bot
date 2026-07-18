@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', function () {
     'githubUrl','githubFileInfo','editorBody','diffOriginal','diffModified',
     'downloadMd','downloadSarif','downloadPdf','toggleChart','exportGithub',
     'projectInput','browseProjectBtn','projectFileInfo','dropZone','quotaDisplay',
+    'featuresShowcase',
   ];
   ids.forEach(function (id) { el[id] = $(id); });
 
