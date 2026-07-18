@@ -136,7 +136,8 @@ def api_analyze_stream():
                         yield f"data: {json.dumps({'type': 'error', 'message': edata['error']})}\n\n"
                         return
                 except json.JSONDecodeError:
-                    pass
+                    logger.warning(f"SSE stream: JSON decode error for event: {event[:200]}")
+                    continue
             yield event
 
         # Check if model returned an error instead of a report
@@ -303,7 +304,8 @@ def api_github_stream():
                             yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': edata['error']}))
                             return
                     except json.JSONDecodeError:
-                        pass
+                        logger.warning(f"SSE stream: JSON decode error in event: {event[:200]}")
+                        continue
                 yield event
             if not full or len(full.strip()) < 20:
                 yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': 'The AI model returned an empty response. Please try again.'}))
@@ -483,7 +485,8 @@ def api_analyze_project():
                             yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': edata['error']}))
                             return
                     except json.JSONDecodeError:
-                        pass
+                        logger.warning(f"SSE stream: JSON decode error in event: {event[:200]}")
+                        continue
                 yield event
             if not full or len(full.strip()) < 20:
                 yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': 'The AI model returned an empty response. Please try again.'}))

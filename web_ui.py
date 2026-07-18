@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 app.static_folder = 'static'
 app.register_blueprint(api_bp)
@@ -650,19 +650,23 @@ def api_admin_deactivate():
 csrf.exempt(api_admin_deactivate)
 
 
-try:
-    from telegram_bot import get_bot
-    _tg_bot = get_bot()
-    _tg_bot.start()
-    if _tg_bot.token:
-        logger.info("Telegram bot polling thread started")
-except Exception as e:
-    logger.error(f"Telegram bot failed to start: {e} — continuing without Telegram")
-    if os.environ.get("TELEGRAM_BOT_TOKEN"):
-        logger.warning("TELEGRAM_BOT_TOKEN is set but bot failed to start — check token validity")
+@app.route('/health')
+def health():
+    return jsonify({"ok": True}), 200
+
 
 if __name__ == '__main__':
     ensure_report_dir()
+    try:
+        from telegram_bot import get_bot
+        _tg_bot = get_bot()
+        _tg_bot.start()
+        if _tg_bot.token:
+            logger.info("Telegram bot polling thread started")
+    except Exception as e:
+        logger.error(f"Telegram bot failed to start: {e} — continuing without Telegram")
+        if os.environ.get("TELEGRAM_BOT_TOKEN"):
+            logger.warning("TELEGRAM_BOT_TOKEN is set but bot failed to start — check token validity")
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "0") == "1"
     logger.info(f"Starting Web UI on http://0.0.0.0:{port} (debug={debug})")

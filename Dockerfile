@@ -13,7 +13,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p /data && \
+RUN python -c "import solcx; solcx.install_solc('0.8.25', silent=True)" && \
+    mkdir -p /data && \
     useradd -m -u 1000 auditoruser && \
     chown -R auditoruser:auditoruser /app /data
 
@@ -23,4 +24,6 @@ ENV PORT=5000
 USER auditoruser
 EXPOSE 5000
 
-CMD ["python", "web_ui.py"]
+CMD ["gunicorn", "web_ui:app", "--bind", "0.0.0.0:5000", \
+     "--workers", "2", "--worker-class", "gevent", \
+     "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]

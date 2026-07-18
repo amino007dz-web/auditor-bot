@@ -7,14 +7,14 @@ services:
     env: python
     buildCommand: pip install --no-cache-dir -r requirements.txt
     startCommand: ./start.sh
-    healthCheckPath: /
+    healthCheckPath: /health
     disk:
       name: kb-data
       mountPath: /data
       sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
-        value: 3.10.0
+        value: 3.10
       - key: PYTHONDONTWRITEBYTECODE
         value: "1"
       - key: PYTHONUNBUFFERED
