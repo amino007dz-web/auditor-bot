@@ -44,11 +44,13 @@ OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gpt-oss:120b")
 OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", "300"))
 
 GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
-_secret_key = os.getenv("SECRET_KEY", "")
+_secret_key = os.getenv("SECRET_KEY")
 if not _secret_key:
     import warnings
-    warnings.warn("SECRET_KEY not set in environment — sessions invalidated on restart. Set SECRET_KEY in .env for production.")
-    _secret_key = os.urandom(32).hex()
+    if os.path.isdir("/data"):
+        raise RuntimeError("SECRET_KEY must be set in production environment variables")
+    warnings.warn("SECRET_KEY not set — using insecure dev fallback. Set SECRET_KEY in .env for production.")
+    _secret_key = "dev-insecure-fallback-change-in-production"
 SECRET_KEY: str = _secret_key
 
 CONFIG_FILE = Path(__file__).parent / 'config.json'

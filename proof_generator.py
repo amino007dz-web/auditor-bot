@@ -51,6 +51,19 @@ import "forge-std/Test.sol";
 """
 
 
+DANGEROUS_CHEATCODES = [
+    r"vm\.ffi\s*\(",
+    r"vm\.broadcast\s*\(",
+    r"vm\.startBroadcast\s*\(",
+    r"vm\.stopBroadcast\s*\(",
+]
+
+def _has_dangerous_cheatcodes(code: str) -> bool:
+    for pattern in DANGEROUS_CHEATCODES:
+        if re.search(pattern, code):
+            return True
+    return False
+
 def _clean_poc(raw: str) -> str:
     """Extract Solidity code from LLM response."""
     m = re.search(r"```solidity\n?(.*?)```", raw, re.DOTALL)
@@ -73,6 +86,9 @@ def generate_poc(finding: Finding, full_code: str) -> Optional[str]:
     try:
         raw = call_model_with_fallback(prompt)
         code = _clean_poc(raw)
+        if _has_dangerous_cheatcodes(code):
+            logger.error(f"PoC for {finding.agent_name} contains dangerous cheatcodes (vm.ffi/vm.broadcast) — rejecting")
+            return None
         if not code or len(code) < 100:
             logger.warning(f"PoC too short for {finding.agent_name}")
             return None

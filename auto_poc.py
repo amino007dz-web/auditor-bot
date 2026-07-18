@@ -134,5 +134,10 @@ def validate_with_poc_silent(report: str, code: str) -> str:
     try:
         return validate_with_poc(report, code)
     except Exception as e:
-        logger.warning(f"auto_poc: validation failed — {e}")
+        logger.error(f"auto_poc: validation failed — {e}")
+        report += (
+            f"\n\n---\n### Auto-PoC Validation\n"
+            f"- ❌ Auto-PoC validation failed due to an internal error.\n"
+            f"- Findings are reported as-is without proof verification.\n"
+        )
         return report
