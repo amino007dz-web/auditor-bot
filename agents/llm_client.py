@@ -197,7 +197,6 @@ def call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
     ctx = info.get("context", 0)
     console.log(f"[bold cyan]{model_id}[/]  [dim]context: {ctx:,}[/]")
     current_key = get_api_key()
-    masked_key = (current_key[:4] + "..." + current_key[-4:]) if current_key and len(current_key) > 8 else "***"
     last_err = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -220,7 +219,7 @@ def call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
                 time.sleep(backoff)
                 continue
             elif resp.status_code == 402:
-                raise requests.HTTPError(f"402 Payment Required (key: {masked_key})", response=resp)
+                raise requests.HTTPError("402 Payment Required — API key is invalid or has insufficient credits", response=resp)
             resp.raise_for_status()
             result = resp.json()["choices"][0]["message"]["content"]
             _cache_set(model_id, prompt, result)
@@ -237,7 +236,7 @@ def call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
             logger.warning(f"Connection error (attempt {attempt}/{MAX_RETRIES}) — waiting {backoff:.0f}s...")
             time.sleep(backoff)
             continue
-    raise Exception(f"Failed after {MAX_RETRIES} attempts. Key: {masked_key}")
+    raise Exception(f"Failed after {MAX_RETRIES} attempts. API key is invalid or rate-limited.")
 
 
 def call_model_with_fallback(prompt: str, timeout: int = 0, model_chain: Optional[List[str]] = None) -> str:
@@ -310,7 +309,6 @@ async def async_call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
     timeout = timeout or TIMEOUT
     info = FREE_MODELS.get(model_id, {})
     current_key = get_api_key()
-    masked_key = (current_key[:4] + "..." + current_key[-4:]) if current_key and len(current_key) > 8 else "***"
     last_err = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -334,7 +332,7 @@ async def async_call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
                         await asyncio.sleep(backoff)
                         continue
                     elif resp.status == 402:
-                        raise aiohttp.ClientResponseError(resp.request_info, resp.history, status=402, message=f"402 Payment Required (key: {masked_key})")
+                        raise aiohttp.ClientResponseError(resp.request_info, resp.history, status=402, message="402 Payment Required — API key is invalid or has insufficient credits")
                     resp.raise_for_status()
                     data = await resp.json()
                     result = data["choices"][0]["message"]["content"]
@@ -345,7 +343,7 @@ async def async_call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
             logger.warning(f"Async connection error (attempt {attempt}/{MAX_RETRIES}) — waiting {backoff:.0f}s...")
             await asyncio.sleep(backoff)
             last_err = str(e)
-    raise Exception(f"Async call failed after {MAX_RETRIES} attempts. Key: {masked_key}. Last: {last_err}")
+    raise Exception(f"Async call failed after {MAX_RETRIES} attempts. API key is invalid or rate-limited. Last: {last_err}")
 
 
 def _call_groq(prompt: str) -> str:
