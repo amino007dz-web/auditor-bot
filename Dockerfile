@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN python -c "import solcx; solcx.install_solc('0.8.25', silent=True)" && \
+RUN python -c "import solcx; solcx.install_solc('0.8.25')" && \
     mkdir -p /data && \
     useradd -m -u 1000 auditoruser && \
     chown -R auditoruser:auditoruser /app /data
