@@ -310,7 +310,7 @@ footer { text-align: center; padding: 2rem; color: var(--text2); font-size: 0.8r
   Developed by AI &bull; DefiAudit0x &bull; Powered by GPT-OSS:120b &bull; Multi-Pass AI Validation &bull; CFG/DFG Level 3 Analysis &bull; OSV Integrated
 </footer>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function showModal(type) {
   document.getElementById(type + 'Modal').classList.add('show');
   if (type === 'access') {

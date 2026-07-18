@@ -24,9 +24,9 @@ if OPENROUTER_API_KEY and OPENROUTER_API_KEY not in OPENROUTER_API_KEYS:
     OPENROUTER_API_KEYS.insert(0, OPENROUTER_API_KEY)
 
 if not OPENROUTER_API_KEYS:
-    print("WARNING: OPENROUTER_API_KEY not set in environment or .env")
-    print("   Set it via Render Environment Variables or create .env file")
-    print("   OPENROUTER_API_KEY=sk-...")
+    logger.warning("OPENROUTER_API_KEY not set in environment or .env")
+    logger.warning("   Set it via Render Environment Variables or create .env file")
+    logger.warning("   OPENROUTER_API_KEY=sk-...")
 
 def get_api_key() -> str:
     """Return a random API key from the rotation pool."""
@@ -130,5 +130,5 @@ KB_MAX_CONTEXT: int = _config.get("kb_max_context", 2000)
 KB_AUTO_LEARN: bool = _config.get("kb_auto_learn", True)
 
 if API_PROVIDER == "openrouter" and not OPENROUTER_API_KEY:
-    print("WARNING: OPENROUTER_API_KEY is missing — AI analysis will fail.\n"
-           "   Local analysis (Opcodes, Storage) works without API.")
+    logger.warning("OPENROUTER_API_KEY is missing — AI analysis will fail.\n"
+                   "   Local analysis (Opcodes, Storage) works without API.")

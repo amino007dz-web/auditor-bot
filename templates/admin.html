@@ -72,7 +72,7 @@ th { color: var(--text2); font-weight: 500; }
   </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 var adminAuthed = false;
 
 function esc(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }

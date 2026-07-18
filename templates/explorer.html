@@ -103,7 +103,7 @@ footer { text-align: center; padding: 2rem; color: #8b949e; border-top: 1px soli
 <footer>Smart Contract Auditor &mdash; Chain Explorer</footer>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 var CONTRACT_ADDRESS = {% if result and not result.error %}{{ result.address|tojson }}{% else %}''{% endif %};
 async function analyzeChain(type) {
   document.getElementById('loading').classList.remove('hidden');

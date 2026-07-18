@@ -221,7 +221,7 @@ footer { text-align: center; padding: 1.5rem; color: var(--text-secondary); bord
   <footer>Smart Contract Auditor &mdash; Secure Analysis Engine</footer>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
   var ctx = document.getElementById('severityChart');
   if (!ctx || typeof Chart === 'undefined') return;

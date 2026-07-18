@@ -88,7 +88,7 @@ footer { text-align:center; padding:1.5rem; color:var(--text-secondary); border-
 
 <footer>VulnAudit — Smart Contract Security Analysis Engine</footer>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 let uploadedFile = null;
 function switchTab(name, el) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));

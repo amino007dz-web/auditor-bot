@@ -11,7 +11,7 @@ exec gunicorn web_ui:app \
     --workers 2 \
     --worker-class gevent \
     --worker-connections 100 \
-    --timeout 120 \
+    --timeout 300 \
     --graceful-timeout 30 \
     --access-logfile - \
     --error-logfile -

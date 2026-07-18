@@ -160,7 +160,7 @@ pre { font-family: 'Cascadia Code', monospace; font-size: 0.8rem; white-space: p
 {% endif %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function switchTab(tab, btn) {
   document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });

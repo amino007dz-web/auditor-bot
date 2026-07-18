@@ -198,8 +198,8 @@ def api_analyze_diff():
         return jsonify({"error": "Fields 'old_code' and 'new_code' are required"}), 400
     try:
         from diff_auditor import analyze_diff as _diff_analyze, summarize_diff, compute_diff
-        old = data['old_code']
-        new = data['new_code']
+        old = truncate_code(data['old_code'])
+        new = truncate_code(data['new_code'])
         diff = compute_diff(old, new)
         summary = summarize_diff(diff)
         result = _diff_analyze(old, new)
@@ -371,7 +371,7 @@ def api_gas():
         return jsonify({"error": "Field 'code' is required"}), 400
     from gas_profiler import estimate_gas
     from gas_analysis import analyze_gas, estimate_gas_savings
-    code = data['code']
+    code = truncate_code(data['code'])
     gas_report = estimate_gas(code)
     static_analysis = analyze_gas(code)
     savings = estimate_gas_savings(static_analysis)

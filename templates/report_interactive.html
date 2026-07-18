@@ -43,7 +43,7 @@ h1 { color: #58a6ff; margin-bottom: 0.5rem; }
 </div>
 <div class="summary-bar" id="summaryBar"></div>
 <div id="findingsContainer">{{ findings_html | safe }}</div>
-<script>
+<script nonce="{{ csp_nonce }}">
 function toggleFinding(el) {
   const header = el.classList.contains('finding-header') ? el : el.closest('.finding-header');
   header.classList.toggle('open');

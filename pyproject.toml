@@ -56,7 +56,7 @@ unified-audit = "unified_audit:main"
 verify-findings = "verify_findings:main"
 
 [tool.setuptools.packages.find]
-include = ["smart_contract_auditor*", "analyzers*", "static_analysis*", "agents*"]
+include = ["*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.md", "*.toml", "*.json", "templates/*"]
