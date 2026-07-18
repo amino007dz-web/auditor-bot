@@ -3,7 +3,7 @@
 import sqlite3
 import logging
 import os
-import random
+import secrets
 import string
 import threading
 import time
@@ -55,9 +55,10 @@ def init_auth_db():
     conn.commit()
 
 def generate_code(prefix="SCA"):
-    code = prefix + "-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=4)) \
-           + "-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-    return code
+    alphabet = string.ascii_uppercase + string.digits
+    part1 = ''.join(secrets.choice(alphabet) for _ in range(4))
+    part2 = ''.join(secrets.choice(alphabet) for _ in range(4))
+    return f"{prefix}-{part1}-{part2}"
 
 def create_access_code(created_by="", max_uses=-1):
     code = generate_code()

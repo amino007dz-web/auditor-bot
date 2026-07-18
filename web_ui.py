@@ -3,6 +3,7 @@ import sys
 import json
 import time
 import logging
+import hmac
 from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect
 from flask_wtf.csrf import CSRFProtect
 
@@ -598,7 +599,7 @@ def api_admin_login():
     if not ADMIN_PASSWORD:
         return jsonify({"success": False, "error": "Admin not configured"}), 403
     data = request.get_json()
-    if data and data.get('password') == ADMIN_PASSWORD:
+    if data and hmac.compare_digest(data.get('password', ''), ADMIN_PASSWORD):
         session['admin_authenticated'] = True
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Wrong password"}), 403
