@@ -16,7 +16,8 @@ COPY . .
 RUN python -c "import solcx; solcx.install_solc('0.8.25')" && \
     mkdir -p /data && \
     useradd -m -u 1000 auditoruser && \
-    chown -R auditoruser:auditoruser /app /data
+    chown -R auditoruser:auditoruser /app /data && \
+    chmod +x start.sh
 
 ENV PYTHONUNBUFFERED=1
 ENV PORT=5000
@@ -24,6 +25,4 @@ ENV PORT=5000
 USER auditoruser
 EXPOSE 5000
 
-CMD ["gunicorn", "web_ui:app", "--bind", "0.0.0.0:5000", \
-     "--workers", "2", "--worker-class", "gevent", \
-     "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]
+CMD ["./start.sh"]

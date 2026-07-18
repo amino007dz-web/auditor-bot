@@ -23,6 +23,8 @@ services:
         value: "0"
       - key: API_PROVIDER
         value: openrouter
+      - key: OPENROUTER_API_KEY
+        sync: false
       - key: OLLAMA_API_KEY
         sync: false
       - key: AUDITOR_API_KEY

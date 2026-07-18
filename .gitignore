@@ -1,4 +1,5 @@
 .env
+.secret_key
 *.bak
 flood*
 grep_arsenal.py
