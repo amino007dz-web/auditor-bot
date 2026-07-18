@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function () {
     'githubUrl','githubFileInfo','editorBody','diffOriginal','diffModified',
     'downloadMd','downloadSarif','downloadPdf','toggleChart','exportGithub',
     'projectInput','browseProjectBtn','projectFileInfo','dropZone','quotaDisplay',
-    'featuresShowcase',
+    'featuresShowcase', 'stopBtn',
   ];
   ids.forEach(function (id) { el[id] = $(id); });
 
@@ -117,6 +117,14 @@ document.addEventListener('DOMContentLoaded', function () {
   el.hackeroneBtn.addEventListener('click', exportHackerone);
   el.toggleChart.addEventListener('click', showChart);
   el.exportGithub.addEventListener('click', exportToGithub);
+  el.stopBtn.addEventListener('click', function () {
+    if (abortController) {
+      abortController.abort();
+      abortController = null;
+    }
+    el.resultsBody.innerHTML = '<p style="color:var(--text-muted);">Analysis cancelled by user.</p>';
+    finalizeAnalysis();
+  });
 
   // Drag and drop
   el.editorBody.addEventListener('dragover', function (e) { e.preventDefault(); el.editorBody.classList.add('dragover'); });
@@ -167,15 +175,17 @@ function renderSkeleton() {
 function updateStep(step) { el.resultsTitle.textContent = step; }
 
 function renderStreamingReport(text) {
-  if (typewriterTimer) clearTimeout(typewriterTimer);
-  typewriterTimer = setTimeout(function () {
+  if (typewriterTimer) return;
+  typewriterTimer = true;
+  requestAnimationFrame(function () {
     if (typeof DOMPurify !== 'undefined' && typeof marked !== 'undefined') {
       el.resultsBody.innerHTML = DOMPurify.sanitize(marked.parse(text));
     } else {
       el.resultsBody.textContent = text;
     }
     el.resultsBody.scrollTop = el.resultsBody.scrollHeight;
-  }, 50);
+    typewriterTimer = false;
+  });
 }
 
 function renderFinalReport(report) {
@@ -253,6 +263,7 @@ function toggleFinding(header) {
 function finalizeAnalysis() {
   el.analyzeBtn.disabled = false;
   el.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Analyze';
+  el.stopBtn.style.display = 'none';
   abortController = null;
 }
 

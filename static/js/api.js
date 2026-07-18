@@ -146,6 +146,7 @@ function startAnalysis() {
   el.resultsBody.innerHTML = renderSkeleton();
   el.analyzeBtn.disabled = true;
   el.analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+  el.stopBtn.style.display = 'inline-block';
   currentReportText = '';
 
   if (tab === 'diff') {
@@ -173,6 +174,7 @@ function doProjectAnalysis(endpoint, formData) {
   el.resultsBody.innerHTML = renderSkeleton();
   el.analyzeBtn.disabled = true;
   el.analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+  el.stopBtn.style.display = 'inline-block';
   currentReportText = '';
   fetch(endpoint, {
     method: 'POST',

@@ -54,6 +54,7 @@
           <option value="deep">Deep Analysis</option>
         </select>
         <button class="btn btn-primary" id="analyzeBtn"><i class="fas fa-play"></i> Analyze</button>
+        <button class="btn btn-danger" id="stopBtn" style="display:none;"><i class="fas fa-stop"></i> Stop</button>
       </div>
     </div>
 
@@ -187,16 +188,16 @@
   </div>
 </div>
 
-<script src="{{ url_for('static', filename='vendor/codemirror.min.js') }}"></script>
-<script src="{{ url_for('static', filename='vendor/javascript.min.js') }}"></script>
-<script src="{{ url_for('static', filename='vendor/matchbrackets.min.js') }}"></script>
-<script src="{{ url_for('static', filename='vendor/active-line.min.js') }}"></script>
-<script src="{{ url_for('static', filename='vendor/purify.min.js') }}"></script>
-<script src="{{ url_for('static', filename='vendor/marked.min.js') }}"></script>
-<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
-<script src="{{ url_for('static', filename='vendor/html2pdf.bundle.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/main.js') }}"></script>
-<script src="{{ url_for('static', filename='js/chart.js') }}"></script>
-<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/codemirror.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='vendor/javascript.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='vendor/matchbrackets.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='vendor/active-line.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='vendor/purify.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='vendor/marked.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='vendor/html2pdf.bundle.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/chart.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/api.js') }}" defer></script>
 </body>
 </html>
