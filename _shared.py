@@ -263,7 +263,7 @@ def _handle_zip_upload(file_storage):
         return {"error": "Invalid or corrupted zip file"}
     except Exception as e:
         logger.exception("Zip upload analysis failed")
-        return {"error": str(e)}
+        return {"error": "Analysis failed"}
     finally:
         try:
             shutil.rmtree(tmpdir)

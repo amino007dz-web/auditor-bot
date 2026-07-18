@@ -6,6 +6,7 @@ import time
 
 import logging
 from flask import Flask, request, jsonify
+from werkzeug.utils import secure_filename
 
 sys.path.insert(0, os.path.dirname(__file__))
 from agents import analyze_code, chunked_audit
@@ -73,7 +74,7 @@ def api_audit():
         result = dispatch_analysis(code, analysis_type)
     except Exception as e:
         logger.exception("Audit failed")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An internal error occurred"}), 500
 
     return jsonify({"result": result, "type": analysis_type})
 
@@ -85,7 +86,8 @@ def api_file():
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
     f = request.files["file"]
-    path = os.path.join(UPLOAD_DIR, f.filename)
+    safe = secure_filename(f.filename) or "upload.sol"
+    path = os.path.join(UPLOAD_DIR, safe)
     f.save(path)
     code = load_local_contract(path)
     if not code:

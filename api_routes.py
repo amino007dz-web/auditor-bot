@@ -206,7 +206,8 @@ def api_analyze_diff():
     except ImportError:
         return jsonify({"error": "Diff auditor not available"}), 500
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Internal error")
+return jsonify({"error": "An internal error occurred"}), 500
 
 
 @api_bp.route('/analyze_chain', methods=['POST'])
@@ -257,7 +258,8 @@ def api_analyze_github():
         return jsonify({"error": "PyGithub not installed. Run: pip install PyGithub"}), 500
     except Exception as e:
         logger.exception("GitHub analysis failed")
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Internal error")
+return jsonify({"error": "An internal error occurred"}), 500
 
 
 @api_bp.route('/analyze/github', methods=['POST'])
@@ -315,7 +317,8 @@ def api_github_stream():
     except ImportError:
         return jsonify({"error": "PyGithub not installed"}), 500
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Internal error")
+return jsonify({"error": "An internal error occurred"}), 500
 
 
 @api_bp.route('/history', methods=['GET'])
@@ -417,7 +420,8 @@ def api_knowledge_ingest():
     except ImportError:
         return jsonify({"error": "pypdf not installed. Run: pip install pypdf"}), 500
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Internal error")
+return jsonify({"error": "An internal error occurred"}), 500
 
 
 @api_bp.route('/analyze/project', methods=['POST'])
@@ -494,7 +498,8 @@ def api_analyze_project():
         return jsonify({"error": "Invalid ZIP file"}), 400
     except Exception as e:
         logger.exception("Project analysis failed")
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Internal error")
+return jsonify({"error": "An internal error occurred"}), 500
     finally:
         try: os.unlink(tmp.name)
         except: pass
@@ -527,7 +532,8 @@ def api_fuzz():
         fuzz = call_model(OLLAMA_MODEL, prompt)
         return jsonify({"fuzz_test": fuzz})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Internal error")
+return jsonify({"error": "An internal error occurred"}), 500
 
 
 @api_bp.route('/plugins', methods=['GET'])
@@ -566,7 +572,8 @@ def api_fix():
         fix = call_model(OLLAMA_MODEL, prompt)
         return jsonify({"fix": fix})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Internal error")
+return jsonify({"error": "An internal error occurred"}), 500
 
 
 @api_bp.route('/hackerone', methods=['GET', 'POST'])
@@ -674,4 +681,5 @@ def api_sarif():
         return Response(sarif, mimetype='application/json',
                         headers={'Content-Disposition': 'attachment; filename=audit.sarif'})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Internal error")
+return jsonify({"error": "An internal error occurred"}), 500

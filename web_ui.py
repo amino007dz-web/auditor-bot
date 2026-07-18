@@ -49,8 +49,8 @@ app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 app.static_folder = 'static'
 app.register_blueprint(api_bp)
 
-# CORS — allow n8n and other external tools
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+# CORS — allow n8n, Render, and local dev
+CORS(app, resources={r"/api/*": {"origins": ["https://auditor-bot.onrender.com", "http://localhost:5000"]}})
 
 # CSRF protection: exempt API blueprint (uses Bearer token)
 csrf = CSRFProtect(app)
@@ -109,7 +109,12 @@ csrf.exempt(api_auth_verify)
 
 @app.route('/report/interactive/<filename>')
 def report_interactive(filename):
-    fpath = os.path.join(REPORT_DIR, filename)
+    safe = secure_filename(filename)
+    if not safe:
+        return "Invalid filename", 400
+    fpath = os.path.realpath(os.path.join(REPORT_DIR, safe))
+    if not fpath.startswith(os.path.realpath(REPORT_DIR)):
+        return "Access denied", 403
     if not os.path.isfile(fpath):
         return "Report not found", 404
     with open(fpath, "r", encoding="utf-8") as f:
@@ -384,7 +389,12 @@ def rules_page():
 
 @app.route('/report/view/<filename>')
 def report_view(filename):
-    fpath = os.path.join(REPORT_DIR, filename)
+    safe = secure_filename(filename)
+    if not safe:
+        return "Invalid filename", 400
+    fpath = os.path.realpath(os.path.join(REPORT_DIR, safe))
+    if not fpath.startswith(os.path.realpath(REPORT_DIR)):
+        return "Access denied", 403
     if not os.path.isfile(fpath):
         return "Report not found", 404
     with open(fpath, "r", encoding="utf-8") as f:
@@ -394,7 +404,12 @@ def report_view(filename):
 
 @app.route('/report/hackerone/<filename>')
 def report_hackerone(filename):
-    fpath = os.path.join(REPORT_DIR, filename)
+    safe = secure_filename(filename)
+    if not safe:
+        return "Invalid filename", 400
+    fpath = os.path.realpath(os.path.join(REPORT_DIR, safe))
+    if not fpath.startswith(os.path.realpath(REPORT_DIR)):
+        return "Access denied", 403
     if not os.path.isfile(fpath):
         return "Report not found", 404
     with open(fpath, "r", encoding="utf-8") as f:
