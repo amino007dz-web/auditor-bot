@@ -6,8 +6,8 @@ if [ -d "/data" ] && [ ! -f "/data/knowledge.db" ] && [ -f "/app/knowledge.db" ]
     cp /app/knowledge.db /data/knowledge.db
 fi
 
-# Pre-install solc for gas profiling (background, non-blocking)
+# Pre-install solc for gas profiling
 echo "Pre-installing solc 0.8.25 for gas profiler..."
-python -c "import solcx; solcx.install_solc('0.8.25', silent=True)" 2>&1 | tail -1 &
+python -c "import solcx; solcx.install_solc('0.8.25', silent=True)" 2>&1 | tail -1
 
 exec python web_ui.py

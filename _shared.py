@@ -250,7 +250,11 @@ def _handle_zip_upload(file_storage):
             try:
                 zf.extractall(tmpdir, filter='data')
             except TypeError:
-                zf.extractall(tmpdir)
+                for member in zf.infolist():
+                    target = os.path.realpath(os.path.join(tmpdir, member.filename))
+                    if not target.startswith(os.path.realpath(tmpdir)):
+                        continue
+                    zf.extract(member, tmpdir)
         items = os.listdir(tmpdir)
         root = tmpdir
         for item in items:

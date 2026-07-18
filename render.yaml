@@ -22,11 +22,7 @@ services:
       - key: KB_USE_ST
         value: "0"
       - key: API_PROVIDER
-        value: ollama
-      - key: OLLAMA_BASE_URL
-        value: https://ollama.com
-      - key: OLLAMA_MODEL
-        value: gpt-oss:120b
+        value: openrouter
       - key: OLLAMA_API_KEY
         sync: false
       - key: AUDITOR_API_KEY

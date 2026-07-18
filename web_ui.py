@@ -657,7 +657,9 @@ try:
     if _tg_bot.token:
         logger.info("Telegram bot polling thread started")
 except Exception as e:
-    logger.warning(f"Telegram bot not started: {e}")
+    logger.error(f"Telegram bot failed to start: {e} — continuing without Telegram")
+    if os.environ.get("TELEGRAM_BOT_TOKEN"):
+        logger.warning("TELEGRAM_BOT_TOKEN is set but bot failed to start — check token validity")
 
 if __name__ == '__main__':
     ensure_report_dir()

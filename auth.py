@@ -23,6 +23,7 @@ def _get_conn():
     if not hasattr(_local, 'conn') or _local.conn is None:
         _local.conn = sqlite3.connect(AUTH_DB_PATH, timeout=10)
         _local.conn.row_factory = sqlite3.Row
+        _local.conn.execute("PRAGMA journal_mode=WAL")
     return _local.conn
 
 def init_auth_db():
