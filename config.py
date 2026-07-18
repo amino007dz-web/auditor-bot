@@ -46,11 +46,15 @@ OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", "90"))
 GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
 _secret_key = os.getenv("SECRET_KEY")
 if not _secret_key:
-    import warnings
+    import secrets
     if os.path.isdir("/data"):
         raise RuntimeError("SECRET_KEY must be set in production environment variables")
-    warnings.warn("SECRET_KEY not set — using insecure dev fallback. Set SECRET_KEY in .env for production.")
-    _secret_key = "dev-insecure-fallback-change-in-production"
+    _key_file = Path(__file__).parent / ".secret_key"
+    if _key_file.exists():
+        _secret_key = _key_file.read_text().strip()
+    else:
+        _secret_key = secrets.token_hex(32)
+        _key_file.write_text(_secret_key)
 SECRET_KEY: str = _secret_key
 
 CONFIG_FILE = Path(__file__).parent / 'config.json'

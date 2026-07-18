@@ -80,7 +80,7 @@ def require_api_key(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         if not _EXPECTED_API_KEY:
-            return f(*args, **kwargs)
+            return jsonify({"error": "Server misconfigured: AUDITOR_API_KEY not set"}), 503
         if session.get('authenticated'):
             return f(*args, **kwargs)
         auth = request.headers.get("Authorization", "")
