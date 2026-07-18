@@ -45,17 +45,53 @@ class MoveModule:
     code: str
 
 
+def _skip_string_comment(line: str, start: int) -> int:
+    in_string = False
+    in_line_comment = False
+    i = start
+    while i < len(line):
+        ch = line[i]
+        next_ch = line[i + 1] if i + 1 < len(line) else ""
+        if not in_string and not in_line_comment and ch == '/' and next_ch == '/':
+            in_line_comment = True
+            i += 1
+            continue
+        if not in_string and not in_line_comment and ch == '/' and next_ch == '*':
+            return i + 2
+        if not in_string and not in_line_comment and ch == '*' and next_ch == '/':
+            return i + 2
+        if ch == '"' and not in_line_comment and (i == 0 or line[i - 1] != '\\'):
+            in_string = not in_string
+        i += 1
+        if in_line_comment:
+            break
+    return i
+
 def _find_block_end(lines: List[str], start_line: int, open_ch: str = "{", close_ch: str = "}") -> int:
-    """Find matching closing brace starting from start_line."""
+    """Find matching closing brace starting from start_line, ignoring strings/comments."""
     depth = 0
     started = False
     for i in range(start_line, len(lines)):
-        for ch in lines[i]:
+        line = lines[i]
+        j = 0
+        while j < len(line):
+            ch = line[j]
+            next_ch = line[j + 1] if j + 1 < len(line) else ""
+            if ch == '/' and next_ch == '/':
+                break
+            if ch == '/' and next_ch == '*':
+                end = line.find('*/', j + 2)
+                j = end + 2 if end != -1 else len(line)
+                continue
+            if ch == '"' and (j == 0 or line[j - 1] != '\\'):
+                j = _skip_string_comment(line, j + 1)
+                continue
             if ch == open_ch:
                 depth += 1
                 started = True
             elif ch == close_ch:
                 depth -= 1
+            j += 1
         if started and depth <= 0:
             return i
     return len(lines) - 1
@@ -107,14 +143,23 @@ def parse_move_code(code: str) -> List[MoveModule]:
             obrace = mod_code_block.find("{", st_match.end())
             if obrace == -1:
                 continue
-            # Match closing brace
             depth = 1
             pos = obrace + 1
+            in_string = False
             while pos < len(mod_code_block) and depth > 0:
-                if mod_code_block[pos] == '{':
-                    depth += 1
-                elif mod_code_block[pos] == '}':
-                    depth -= 1
+                ch = mod_code_block[pos]
+                next_ch = mod_code_block[pos + 1] if pos + 1 < len(mod_code_block) else ""
+                if ch == '"' and (pos == 0 or mod_code_block[pos - 1] != '\\'):
+                    in_string = not in_string
+                if not in_string:
+                    if ch == '/' and next_ch == '/':
+                        nxt = mod_code_block.find("\n", pos)
+                        pos = nxt if nxt != -1 else len(mod_code_block)
+                        continue
+                    if ch == '{':
+                        depth += 1
+                    elif ch == '}':
+                        depth -= 1
                 pos += 1
             st_code = mod_code_block[st_match.start():pos]
 

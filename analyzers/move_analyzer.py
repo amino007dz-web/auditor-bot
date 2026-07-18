@@ -142,7 +142,7 @@ class MoveAnalyzer(LanguageAnalyzer):
     def _check_phantom_object(self, fname, code):
         for mod in self._move_ast:
             for st in mod.structs:
-                if "phantom" in str(st).lower() and "drop" not in st.abilities:
+                if "phantom" in st.abilities and "drop" not in st.abilities:
                     return [self._make(fname, code, "Coin Theft via Phantom Object", "Critical", "Access Control",
                                        "Phantom type parameter without drop — may be locked", "", fix="Add has drop")]
         if has_pattern(code, r'phantom') and has_pattern(code, r'struct\s+\w+') and \
@@ -375,7 +375,7 @@ class MoveAnalyzer(LanguageAnalyzer):
         for fn_name, fn in self._move_funcs.items():
             if fn_name.startswith('_') or fn_name == 'init':
                 continue
-            count = code.count(fn_name)
+            count = len(re.findall(rf'\b{re.escape(fn_name)}\b', code))
             if count <= 1:
                 findings.append(self._make(fname, code, "Unused Function", "Low", "Style",
                                f"function '{fn_name}' is defined but unused", f"fun {fn_name}"))

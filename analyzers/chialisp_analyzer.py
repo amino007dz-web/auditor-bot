@@ -754,10 +754,12 @@ class ChialispAnalyzer(LanguageAnalyzer):
                                        _check_code(rf'not\s+\(l\s+{re.escape(var)}', f.code)
                             sev = "Medium" if not has_type else "Info"
                             if not has_type:
-                                results.append(Finding(f"Arith-{op}:{f.name}", sev, "Type Safety",
-                                                        fname, f.name,
-                                                        f"'{var}' in {op} operation without type check", f.code[:100]))
+                    results.append(Finding(f"Arith-{op}:{f.name}", sev, "Type Safety",
+                                                         fname, f.name,
+                                                         f"'{var}' in {op} operation without type check", f.code[:100]))
 
+            if len(funcs) > 50:
+                funcs = funcs[:50]
             pairs_checked = 0
             for f1 in funcs:
                 for f2 in funcs:
