@@ -59,6 +59,11 @@ csrf.exempt(api_bp)
 from werkzeug.middleware.proxy_fix import ProxyFix
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 
+# Cookie security
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = True
+
 # Rate limiter
 limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per hour"])
 
@@ -575,6 +580,8 @@ def admin_login_page():
 @app.route('/api/admin/login', methods=['POST'])
 @limiter.limit("5 per minute")
 def api_admin_login():
+    if not ADMIN_PASSWORD:
+        return jsonify({"success": False, "error": "Admin not configured"}), 403
     data = request.get_json()
     if data and data.get('password') == ADMIN_PASSWORD:
         session['admin_authenticated'] = True
