@@ -41,14 +41,14 @@ class AgenticAuditor:
                         rel = os.path.relpath(path, directory)
                         self.files[rel] = content
                         entries.append((rel, content))
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning("Could not read %s: %s", path, e)
         self._load_remappings()
         for rel, content in entries:
             try:
                 self._index_file(rel, content)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Could not index %s: %s", rel, e)
 
     def _index_file(self, path: str, content: str):
         for m in IMPORT_RE.finditer(content):
