@@ -212,6 +212,8 @@ def api_analyze_diff():
 
 
 @api_bp.route('/analyze_chain', methods=['POST'])
+@rate_limit(3)
+@require_api_key
 def api_analyze_chain():
     from chain_loader import load_from_explorer
     data = request.get_json()

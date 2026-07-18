@@ -1,3 +1,6 @@
+import gevent.monkey
+gevent.monkey.patch_all()
+
 import os
 import sys
 import json
@@ -6,6 +9,7 @@ import logging
 import hmac
 from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect
 from flask_wtf.csrf import CSRFProtect
+from werkzeug.utils import secure_filename
 
 sys.path.insert(0, os.path.dirname(__file__))
 

@@ -113,11 +113,11 @@ TIMEOUT: int = _config["timeout"]
 MAX_RETRIES: int = _config["max_retries"]
 INITIAL_BACKOFF: float = _config["initial_backoff"]
 CACHE_ENABLED: bool = _config["cache_enabled"]
-CACHE_DB_PATH: str = os.path.join(os.path.dirname(__file__), "instance", _config["cache_db"])
+CACHE_DB_PATH: str = f"/data/{_config['cache_db']}" if os.path.isdir("/data") else os.path.join(os.path.dirname(__file__), "instance", _config["cache_db"])
 os.makedirs(os.path.dirname(CACHE_DB_PATH), exist_ok=True)
 PARALLEL: bool = _config["parallel"]
 PARALLEL_MAX_WORKERS: int = _config["parallel_max_workers"]
-REPORT_DIR: str = os.path.join(os.path.dirname(__file__), "reports")
+REPORT_DIR: str = "/data/reports" if os.path.isdir("/data") else os.path.join(os.path.dirname(__file__), "reports")
 PROGRESS_FILE: str = os.path.join(REPORT_DIR, "_progress.json")
 
 KB_ENABLED: bool = _config.get("kb_enabled", True)
