@@ -1,6 +1,7 @@
 """
 Solidity AST parser — using solcx + solcast instead of Regex
 """
+import os
 import re
 import logging
 from typing import List, Dict, Optional, Any, Callable
@@ -70,6 +71,9 @@ def resolve_imports(code: str, file_path: str = "", search_paths: list = None) -
     imported_code = ""
 
     def _resolve_one(path: str) -> str:
+        if os.path.isabs(path) or ".." in path:
+            logger.warning(f"Blocked suspicious import path: {path}")
+            return ""
         candidates = []
         if file_path:
             candidates.append(os.path.join(os.path.dirname(os.path.abspath(file_path)), path))
@@ -101,7 +105,8 @@ def compile_to_ast(code: str, file_path: str = "", search_paths: list = None) ->
     """Compile Solidity code to AST using solcx + solcast, with import resolution"""
     try:
         resolved = resolve_imports(code, file_path, search_paths) if file_path else code
-        solcx.install_solc(SOLC_VERSION, show_progress=False)
+        if SOLC_VERSION not in solcx.get_installed_solc_versions():
+            solcx.install_solc(SOLC_VERSION, show_progress=False)
         result = solcx.compile_source(resolved, output_values=['ast'], solc_version=SOLC_VERSION)
         if not result:
             return None
@@ -273,17 +278,6 @@ def _extract_function(func_node) -> ASTFunction:
             for decl in getattr(n, 'declarations', []):
                 fn.variables.append(_get_name(decl))
 
-    # Text fallback to detect patterns AST might miss
-    code_str = str(vars(func_node))
-    if 'tx.origin' in code_str and not fn.uses_tx_origin:
-        fn.uses_tx_origin = True
-    if 'block.timestamp' in code_str and not fn.uses_block_timestamp:
-        fn.uses_block_timestamp = True
-    if 'selfdestruct' in code_str and not fn.uses_selfdestruct:
-        fn.uses_selfdestruct = True
-    if '.delegatecall' in code_str.lower() and not fn.uses_delegatecall:
-        fn.uses_delegatecall = True
-
     return fn
 
 
@@ -301,4 +295,5 @@ def has_reentrancy_pattern(func: ASTFunction, contract_modifiers: list = None) -
 
 def has_unchecked_loop(func: ASTFunction) -> bool:
     """Detect loop without maximum bound"""
-    return func.has_loop and 'MAX' not in str(vars(func)) and 'max' not in str(vars(func))
+    names = ' '.join([func.name] + func.modifiers + func.variables + func.external_calls + func.parameters)
+    return func.has_loop and 'MAX' not in names and 'max' not in names

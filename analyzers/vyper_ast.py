@@ -106,15 +106,17 @@ def _is_vyper_decorator(line: str) -> bool:
 
 
 def _find_fn_end(lines: List[str], start: int) -> int:
-    depth = 0
-    for i in range(start, len(lines)):
-        for ch in lines[i]:
-            if ch == "{":
-                depth += 1
-            elif ch == "}":
-                depth -= 1
-        if depth <= 0 and i > start:
-            return i + 1
+    if start >= len(lines):
+        return start
+    first_line = lines[start]
+    indent_len = len(first_line) - len(first_line.lstrip())
+    for i in range(start + 1, len(lines)):
+        line = lines[i]
+        if not line.strip():
+            continue
+        current_indent = len(line) - len(line.lstrip())
+        if current_indent <= indent_len:
+            return i
     return len(lines)
 
 

@@ -227,7 +227,7 @@ class SolidityAnalyzer(LanguageAnalyzer):
 
     def _check_arbitrary_call(self, fname, code):
         findings = []
-        for m in re.finditer(r"\.call\s*\{[^}]*value\s*:\s*(\w+)\}\s*\(", code, re.IGNORECASE):
+        for m in re.finditer(r"\.call\s*\{[^}]{0,200}?value\s*:\s*(\w+)\}\s*\(", code, re.IGNORECASE):
             val = m.group(1)
             if val.isalpha() and val not in ("0", "msg.value"):
                 findings.append(Finding("Arbitrary External Call", "Critical", "Reentrancy",

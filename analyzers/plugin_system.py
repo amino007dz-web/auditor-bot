@@ -10,6 +10,7 @@ from typing import Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+ALLOW_DYNAMIC_PLUGINS = os.environ.get("ALLOW_DYNAMIC_PLUGINS", "false").lower() == "true"
 PLUGIN_DIR = os.environ.get("PLUGIN_DIR", os.path.join(os.path.dirname(__file__), "..", "plugins"))
 
 if not os.path.isdir(PLUGIN_DIR):
@@ -51,6 +52,9 @@ class PluginManager:
         if self._loaded:
             return
         self._loaded = True
+        if not ALLOW_DYNAMIC_PLUGINS:
+            logger.info("Dynamic plugins are disabled in production. Set ALLOW_DYNAMIC_PLUGINS=true to enable.")
+            return
         if not os.path.isdir(PLUGIN_DIR):
             return
         for fname in os.listdir(PLUGIN_DIR):
