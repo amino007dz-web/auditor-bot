@@ -94,6 +94,7 @@ class TelegramBot:
 
         self._processing: set = set()
         self._processing_lock = threading.Lock()
+        self._rate_limiter = RateLimiter(max_requests=5, window=60)
 
     # ── Typing indicator ────────────────────────────────────────
     def _send_action(self, chat_id: int, action: str = "typing"):
@@ -130,13 +131,14 @@ class TelegramBot:
         }
 
     # ── Sending ─────────────────────────────────────────────────
-    def _send(self, chat_id: int, text: str, keyboard: dict = None):
+    def _send(self, chat_id: int, text: str, keyboard: dict = None, parse_mode: str = ""):
         if not HAS_REQUESTS:
             return
         payload = {
             "chat_id": chat_id, "text": text[:4000],
-            "parse_mode": "Markdown",
         }
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
         if keyboard:
             payload["reply_markup"] = json.dumps(keyboard)
         try:
@@ -155,11 +157,13 @@ class TelegramBot:
         except Exception as e:
             logger.warning(f"sendDocument failed: {e}")
 
-    def _edit_message(self, chat_id: int, msg_id: int, text: str, keyboard: dict = None):
+    def _edit_message(self, chat_id: int, msg_id: int, text: str, keyboard: dict = None, parse_mode: str = ""):
         payload = {
             "chat_id": chat_id, "message_id": msg_id,
-            "text": text[:4000], "parse_mode": "Markdown",
+            "text": text[:4000],
         }
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
         if keyboard:
             payload["reply_markup"] = json.dumps(keyboard)
         try:
@@ -256,6 +260,8 @@ class TelegramBot:
         return ""
 
     # ── Zip extractor ───────────────────────────────────────────
+    MAX_ZIP_FILE_SIZE = 2 * 1024 * 1024
+
     def _extract_zip(self, file_path: str) -> str:
         combined = []
         try:
@@ -263,6 +269,10 @@ class TelegramBot:
                 for name in z.namelist():
                     ext = os.path.splitext(name)[1].lower()
                     if ext in SOURCE_EXTS:
+                        info = z.getinfo(name)
+                        if info.file_size > self.MAX_ZIP_FILE_SIZE:
+                            logger.warning(f"Skipping {name} — {info.file_size} bytes exceeds limit")
+                            continue
                         try:
                             content = z.read(name).decode("utf-8", errors="replace")[:2000]
                             combined.append(f"// === {name} ===\n{content}")
@@ -274,6 +284,9 @@ class TelegramBot:
 
     # ── Message handler ─────────────────────────────────────────
     def _handle_message(self, text: str, chat_id: int, msg_id: int = None):
+        if not self._rate_limiter.allow(chat_id):
+            self._send(chat_id, "⏳ Please wait a moment before sending another request.")
+            return
         text_stripped = text.strip().lower()
         cmd = text_stripped.split()[0] if text_stripped else ""
 
@@ -288,7 +301,7 @@ class TelegramBot:
                 "`/pdf <code>` — PDF Report\n"
                 "`/lang` — Change report language\n"
                 "`/status` — System Status",
-                keyboard=self._main_keyboard())
+                keyboard=self._main_keyboard(), parse_mode="Markdown")
             return
 
         if cmd == "/status":
@@ -363,13 +376,13 @@ class TelegramBot:
         if data == "audit_help":
             self._answer_callback(cb_id, "Send the contract code")
             self._edit_message(chat_id, msg_id,
-                "🔍 Send the code directly, or upload a `.sol`/`.vy`/`.move`/`.clsp` file\nOr use `/audit <code>`")
+                "🔍 Send the code directly, or upload a .sol/.vy/.move/.clsp file\nOr use /audit <code>")
         elif data == "gas_help":
             self._answer_callback(cb_id, "Gas Analysis")
-            self._edit_message(chat_id, msg_id, "⛽ Send the code or use `/gas <code>`")
+            self._edit_message(chat_id, msg_id, "⛽ Send the code or use /gas <code>")
         elif data == "pdf_help":
             self._answer_callback(cb_id, "PDF Report")
-            self._edit_message(chat_id, msg_id, "📄 Send the code or use `/pdf <code>`")
+            self._edit_message(chat_id, msg_id, "📄 Send the code or use /pdf <code>")
         elif data == "status":
             self._answer_callback(cb_id, "Checking status")
             self._cmd_status(chat_id, msg_id)
@@ -387,26 +400,29 @@ class TelegramBot:
             self._send(chat_id,
                 "🔬 *Auto-PoC Audit:*\n\n"
                 "Analyzes code + validates Critical findings with Foundry test generation.\n\n"
-                "Send code directly, or use:\n`/poc <code>`\n\n"
-                "📎 Or upload a `.sol` file",
+                "Send code directly, or use:\n/poc <code>\n\n"
+                "📎 Or upload a .sol file",
                 keyboard=self._main_keyboard())
         elif data == "help":
             self._answer_callback(cb_id, "Help menu")
-            self._send(chat_id,
-                "🤖 *Commands:*\n\n"
-                "`/audit <code>` — Code Audit\n"
-                "`/poc <code>` — Auto-PoC Audit\n"
-                "`/gas <code>` — Gas Analysis\n"
-                "`/pdf <code>` — PDF Report\n"
-                "`/lang` — Change Language\n"
-                "`/status` — System Status\n\n"
-                "📎 Send a GitHub link\n"
-                "📎 Upload a smart contract file",
-                keyboard=self._main_keyboard())
+                self._send(chat_id,
+                    "🤖 *Commands:*\n\n"
+                    "`/audit <code>` — Code Audit\n"
+                    "`/poc <code>` — Auto-PoC Audit\n"
+                    "`/gas <code>` — Gas Analysis\n"
+                    "`/pdf <code>` — PDF Report\n"
+                    "`/lang` — Change Language\n"
+                    "`/status` — System Status\n\n"
+                    "📎 Send a GitHub link\n"
+                    "📎 Upload a smart contract file",
+                    keyboard=self._main_keyboard(), parse_mode="Markdown")
         else:
             self._answer_callback(cb_id)
 
     def _handle_document(self, doc, chat_id: int):
+        if not self._rate_limiter.allow(chat_id):
+            self._send(chat_id, "⏳ Please wait a moment before sending another request.")
+            return
         file_id = doc.get("file_id", "")
         file_name = doc.get("file_name", "contract.sol")
         ext = os.path.splitext(file_name)[1].lower()
@@ -473,9 +489,9 @@ class TelegramBot:
             f"🌐 [Web UI]({WEB_UI_URL})"
         )
         if msg_id:
-            self._edit_message(chat_id, msg_id, status, keyboard=self._main_keyboard())
+            self._edit_message(chat_id, msg_id, status, keyboard=self._main_keyboard(), parse_mode="Markdown")
         else:
-            self._send(chat_id, status, keyboard=self._main_keyboard())
+            self._send(chat_id, status, keyboard=self._main_keyboard(), parse_mode="Markdown")
 
     def _cmd_stats(self, chat_id: int, msg_id: int = None):
         self._send_action(chat_id)
@@ -492,9 +508,9 @@ class TelegramBot:
             f"*Top Findings:*\n{top_str}"
         )
         if msg_id:
-            self._edit_message(chat_id, msg_id, text, keyboard=self._main_keyboard())
+            self._edit_message(chat_id, msg_id, text, keyboard=self._main_keyboard(), parse_mode="Markdown")
         else:
-            self._send(chat_id, text, keyboard=self._main_keyboard())
+            self._send(chat_id, text, keyboard=self._main_keyboard(), parse_mode="Markdown")
 
     def _cmd_diff(self, chat_id: int, code1: str, code2: str):
         self._send(chat_id, "🔄 Comparing...")
@@ -506,7 +522,7 @@ class TelegramBot:
             self._send(chat_id, "✅ Both contracts are identical")
             return
         diff_text = "".join(diff)[:3500]
-        self._send(chat_id, f"*📋 Diff Result:*\n```diff\n{diff_text}\n```")
+        self._send(chat_id, f"*📋 Diff Result:*\n```diff\n{diff_text}\n```", parse_mode="Markdown")
 
     def _handle_address(self, chat_id: int, address: str):
         self._send(chat_id, f"🔄 Fetching code from `{address}`...")

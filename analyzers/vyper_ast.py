@@ -110,13 +110,28 @@ def _find_fn_end(lines: List[str], start: int) -> int:
         return start
     first_line = lines[start]
     indent_len = len(first_line) - len(first_line.lstrip())
+    paren_depth = first_line.count("(") - first_line.count(")")
+    triple_quotes = False
     for i in range(start + 1, len(lines)):
         line = lines[i]
-        if not line.strip():
+        stripped = line.strip()
+        if triple_quotes:
+            if stripped.count('"""') % 2 == 1 or stripped.count("'''") % 2 == 1:
+                triple_quotes = False
             continue
-        current_indent = len(line) - len(line.lstrip())
-        if current_indent <= indent_len:
-            return i
+        if stripped.startswith('"""') or stripped.startswith("'''"):
+            if stripped.count('"""') % 2 == 1 or stripped.count("'''") % 2 == 1:
+                triple_quotes = True
+            continue
+        if stripped.startswith("#"):
+            continue
+        paren_depth += line.count("(") - line.count(")")
+        if paren_depth > 0:
+            continue
+        if stripped and not stripped.startswith(("@", "#", '"""', "'''")):
+            current_indent = len(line) - len(line.lstrip())
+            if current_indent <= indent_len:
+                return i
     return len(lines)
 
 

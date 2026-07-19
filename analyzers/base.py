@@ -1,3 +1,4 @@
+import html
 import os
 import re
 import time
@@ -384,9 +385,7 @@ def _escape(text: str) -> str:
     """Escape text for HTML"""
     if not text:
         return ""
-    text = str(text)
-    return (text.replace("&", "&amp;").replace("<", "&lt;")
-            .replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;"))
+    return html.escape(str(text))
 
 
 def has_pattern(code: str, pattern: str) -> bool:

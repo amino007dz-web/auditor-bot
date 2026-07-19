@@ -33,6 +33,9 @@ def _validate_text_input(prompt: str) -> str:
     return prompt
 
 
+def _truncate_key(key: str) -> str:
+    return f"...{key[-4:]}" if len(key) > 8 else "***"
+
 def _call_ollama(model_name: str, prompt: str, timeout: int = 0) -> str:
     """Call Ollama model API (local or cloud via OpenAI-compatible endpoint)."""
     prompt = _validate_text_input(prompt)
@@ -44,6 +47,7 @@ def _call_ollama(model_name: str, prompt: str, timeout: int = 0) -> str:
     timeout = timeout or OLLAMA_TIMEOUT
     if OLLAMA_API_KEY:
         url = f"{OLLAMA_BASE_URL.rstrip('/')}/api/chat"
+        key_suffix = _truncate_key(OLLAMA_API_KEY)
         headers = {
             "Authorization": f"Bearer {OLLAMA_API_KEY}",
             "Content-Type": "application/json",
@@ -54,7 +58,7 @@ def _call_ollama(model_name: str, prompt: str, timeout: int = 0) -> str:
             "stream": False,
             "temperature": TEMPERATURE,
         }
-        console.log(f"[bold magenta]Ollama Cloud: {model_name}[/]")
+        console.log(f"[bold magenta]Ollama Cloud: {model_name} (key: {key_suffix})[/]")
     else:
         url = f"{OLLAMA_BASE_URL.rstrip('/')}/api/generate"
         headers = {}
@@ -195,8 +199,9 @@ def call_model(model_id: str, prompt: str, timeout: int = 0) -> str:
     timeout = timeout or TIMEOUT
     info = FREE_MODELS.get(model_id, {})
     ctx = info.get("context", 0)
-    console.log(f"[bold cyan]{model_id}[/]  [dim]context: {ctx:,}[/]")
+    console.log(f"[bold cyan]{model_id}[/]  [dim]context: {ctx:,}  key: {key_suffix}[/]")
     current_key = get_api_key()
+    key_suffix = _truncate_key(current_key) if current_key else "none"
     last_err = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:

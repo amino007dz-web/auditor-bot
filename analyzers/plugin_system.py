@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 ALLOW_DYNAMIC_PLUGINS = os.environ.get("ALLOW_DYNAMIC_PLUGINS", "false").lower() == "true"
 PLUGIN_DIR = os.environ.get("PLUGIN_DIR", os.path.join(os.path.dirname(__file__), "..", "plugins"))
+PLUGIN_ALLOWLIST = [".py"]
 
 if not os.path.isdir(PLUGIN_DIR):
     os.makedirs(PLUGIN_DIR, exist_ok=True)
@@ -57,11 +58,15 @@ class PluginManager:
             return
         if not os.path.isdir(PLUGIN_DIR):
             return
-        for fname in os.listdir(PLUGIN_DIR):
-            if fname.endswith(".py") and not fname.startswith("_"):
-                mod_name = fname[:-3]
-                try:
-                    mod = importlib.import_module(mod_name)
+        for fname in sorted(os.listdir(PLUGIN_DIR)):
+            fpath = os.path.join(PLUGIN_DIR, fname)
+            if not os.path.isfile(fpath):
+                continue
+            if not any(fname.endswith(e) for e in PLUGIN_ALLOWLIST) or fname.startswith("_"):
+                continue
+            mod_name = fname[:-3]
+            try:
+                mod = importlib.import_module(mod_name)
                     for name, obj in inspect.getmembers(mod, inspect.isclass):
                         if issubclass(obj, BaseDetector) and obj is not BaseDetector:
                             instance = obj()

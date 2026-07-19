@@ -17,18 +17,25 @@ def extract_repo_info(repo_url: str) -> Tuple[Optional[str], Optional[str]]:
 
 
 SUPPORTED_EXTS: tuple = (".sol", ".vy", ".move", ".clsp", ".clib", ".rs", ".py")
+MAX_FILES_LIMIT = 200
+MAX_DEPTH = 20
 
-def get_all_sol_files(repo, path: str = "") -> List[Dict[str, str]]:
-    contracts: List[Dict[str, str]] = []
+def get_all_sol_files(repo, path: str = "", depth: int = 0, collected: list = None) -> List[Dict[str, str]]:
+    if collected is None:
+        collected = []
+    if depth > MAX_DEPTH or len(collected) >= MAX_FILES_LIMIT:
+        return collected
     try:
         contents = repo.get_contents(path)
         for content in contents:
+            if len(collected) >= MAX_FILES_LIMIT:
+                break
             if content.type == "dir":
-                contracts.extend(get_all_sol_files(repo, content.path))
+                get_all_sol_files(repo, content.path, depth + 1, collected)
             elif any(content.path.endswith(ext) for ext in SUPPORTED_EXTS):
                 try:
                     file_content = content.decoded_content.decode('utf-8')
-                    contracts.append({
+                    collected.append({
                         "name": content.path,
                         "code": file_content
                     })
@@ -40,7 +47,7 @@ def get_all_sol_files(repo, path: str = "") -> List[Dict[str, str]]:
             logger.warning(f"⚠️ GitHub rate limit exceeded for {path}. Use a token to increase from 60 to 5000 req/hr.")
         else:
             logger.warning(f"⚠️ GitHub error accessing {path}: {e}")
-    return contracts
+    return collected
 
 
 def download_contracts(repo_url: str, github_token: Optional[str] = None) -> List[Dict[str, str]]:

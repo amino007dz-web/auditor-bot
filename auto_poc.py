@@ -9,12 +9,6 @@ from proof_generator import generate_poc, run_foundry_test, PROOFS_DIR
 
 logger = logging.getLogger(__name__)
 
-SEVERITY_LINE = re.compile(r"^\s*\[?(Critical|High|Medium|Low|Info)\b", re.IGNORECASE)
-CRITICAL_FINDING_RE = re.compile(
-    r"\[Critical[^\]]*\]\s*(.*?)(?=\n\[|\Z)", re.DOTALL
-)
-
-
 @dataclass
 class ParsedCritical:
     agent_name: str
@@ -106,13 +100,17 @@ def validate_with_poc(report: str, code: str) -> str:
             logger.warning(f"auto_poc: PoC generation failed for '{p.agent_name}' — keeping as Critical")
             continue
 
-        result = run_foundry_test(poc_path)
-        if result["passed"]:
-            logger.info(f"auto_poc: ✅ PoC PASSED for '{p.agent_name}' — vulnerability confirmed")
-            proved.append(p.agent_name)
-        else:
-            logger.info(f"auto_poc: ❌ PoC FAILED for '{p.agent_name}' — likely false positive, downgrading to Info")
-            disproved.append(p.agent_name)
+        try:
+            result = run_foundry_test(poc_path, use_docker=True)
+            if result["passed"]:
+                logger.info(f"auto_poc: ✅ PoC PASSED for '{p.agent_name}' — vulnerability confirmed")
+                proved.append(p.agent_name)
+            else:
+                logger.info(f"auto_poc: ❌ PoC FAILED for '{p.agent_name}' — likely false positive, downgrading to Info")
+                disproved.append(p.agent_name)
+        finally:
+            if os.path.exists(poc_path):
+                os.unlink(poc_path)
 
     if disproved or proved:
         report = _adjust_report(report, proved, disproved)

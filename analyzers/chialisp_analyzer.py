@@ -740,6 +740,7 @@ class ChialispAnalyzer(LanguageAnalyzer):
             funcs_by_file[f.file].append(f)
 
         max_pairs = 500
+        total_pairs_checked = 0
 
         for fname, code in self._files.items():
             funcs = funcs_by_file.get(fname, [])
@@ -755,17 +756,18 @@ class ChialispAnalyzer(LanguageAnalyzer):
                             sev = "Medium" if not has_type else "Info"
                             if not has_type:
                     results.append(Finding(f"Arith-{op}:{f.name}", sev, "Type Safety",
-                                                         fname, f.name,
-                                                         f"'{var}' in {op} operation without type check", f.code[:100]))
+                                                          fname, f.name,
+                                                          f"'{var}' in {op} operation without type check", f.code[:100]))
 
             if len(funcs) > 50:
                 funcs = funcs[:50]
-            pairs_checked = 0
             for f1 in funcs:
                 for f2 in funcs:
-                    if f1.name >= f2.name or pairs_checked >= max_pairs:
+                    if total_pairs_checked >= max_pairs:
+                        break
+                    if f1.name >= f2.name:
                         continue
-                    pairs_checked += 1
+                    total_pairs_checked += 1
                     shared_vars = [p for p in f1.params if p in f2.params and p[0].islower()]
                     for var in shared_vars:
                         has_type1 = _check_code(f'is-uint64 {re.escape(var)}', f1.code)
@@ -775,19 +777,24 @@ class ChialispAnalyzer(LanguageAnalyzer):
                                                     fname, f1.name,
                                                     f"'{var}' in '{f1.name}' {'with' if has_type1 else 'without'} uint64 but '{f2.name}' {'with' if has_type2 else 'without'}",
                                                     f1.code[:100]))
+                if total_pairs_checked >= max_pairs:
+                    break
 
-            pairs_checked = 0
             for f1 in funcs:
                 for f2 in funcs:
-                    if f1.name >= f2.name or pairs_checked >= max_pairs:
+                    if total_pairs_checked >= max_pairs:
+                        break
+                    if f1.name >= f2.name:
                         continue
-                    pairs_checked += 1
+                    total_pairs_checked += 1
                     if f1.params and f2.params and set(f1.params) == set(f2.params):
                         if f1.code != f2.code:
                             results.append(Finding(f"CopyPaste:{f1.name}~{f2.name}", "Low", "Best Practice",
                                                     fname, f1.name,
                                                     f"'{f1.name}' and '{f2.name}' have the same parameters but different code",
                                                     ""))
+                if total_pairs_checked >= max_pairs:
+                    break
         return results
 
     def run_complete_audit(self, path: str = "") -> str:

@@ -74,14 +74,25 @@ def resolve_imports(code: str, file_path: str = "", search_paths: list = None) -
         if os.path.isabs(path) or ".." in path:
             logger.warning(f"Blocked suspicious import path: {path}")
             return ""
+        allowed_exts = {".sol", ".vy", ".move"}
+        ext = os.path.splitext(path)[1].lower()
+        if ext and ext not in allowed_exts:
+            logger.warning(f"Blocked import with disallowed extension: {path}")
+            return ""
         candidates = []
         if file_path:
             candidates.append(os.path.join(os.path.dirname(os.path.abspath(file_path)), path))
         if search_paths:
             for sp in search_paths:
                 candidates.append(os.path.join(sp, path))
+        if not candidates:
+            return ""
+        base_dir = os.path.commonpath(candidates)
         for cp in candidates:
             norm = os.path.normpath(cp)
+            if not norm.startswith(base_dir):
+                logger.warning(f"Blocked path traversal outside search paths: {norm}")
+                return ""
             if os.path.exists(norm):
                 try:
                     with open(norm, "r", encoding="utf-8") as fh:

@@ -174,20 +174,20 @@ class CFG:
         self.entry = entry if entry >= 0 else self._new_block().id
         return self.entry
 
-    def reachable(self, src: int, dst: int, visited=None) -> bool:
-        if visited is None:
-            visited = set()
-        if src == dst:
-            return True
-        if src in visited:
-            return False
-        visited.add(src)
-        b = self.blocks.get(src)
-        if not b:
-            return False
-        for s in b.succ:
-            if self.reachable(s, dst, visited):
+    def reachable(self, src: int, dst: int) -> bool:
+        visited = set()
+        stack = [src]
+        while stack:
+            cur = stack.pop()
+            if cur == dst:
                 return True
+            if cur in visited:
+                continue
+            visited.add(cur)
+            b = self.blocks.get(cur)
+            if not b:
+                continue
+            stack.extend(b.succ)
         return False
 
     def find_reentrancy_paths(self) -> List[dict]:

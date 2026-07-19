@@ -56,6 +56,28 @@ DANGEROUS_CHEATCODES = [
     r"vm\.broadcast\s*\(",
     r"vm\.startBroadcast\s*\(",
     r"vm\.stopBroadcast\s*\(",
+    r"vm\.writeFile\s*\(",
+    r"vm\.readFile\s*\(",
+    r"vm\.removeFile\s*\(",
+    r"vm\.createDir\s*\(",
+    r"vm\.writeJson\s*\(",
+    r"vm\.setEnv\s*\(",
+    r"vm\.getEnv\s*\(",
+    r"vm\.projectRoot\s*\(",
+    r"vm\.envOr\s*\(",
+    r"vm\.envBool\s*\(",
+    r"vm\.envUint\s*\(",
+    r"vm\.envInt\s*\(",
+    r"vm\.envAddress\s*\(",
+    r"vm\.envBytes32\s*\(",
+    r"vm\.envString\s*\(",
+    r"vm\.envBytes\s*\(",
+    r"vm\.keyExists\s*\(",
+    r"vm\.keyExistsJson\s*\(",
+    r"vm\.serializeJson\s*\(",
+    r"vm\.parseJson\s*\(",
+    r"vm\.parseThomas\s*\(",
+    r"vm\.linkSymbol\s*\(",
 ]
 
 def _has_dangerous_cheatcodes(code: str) -> bool:
@@ -104,7 +126,7 @@ def generate_poc(finding: Finding, full_code: str) -> Optional[str]:
         return None
 
 
-def run_foundry_test(poc_path: str, project_dir: str = ".", use_docker: bool = False) -> dict:
+def run_foundry_test(poc_path: str, project_dir: str = ".", use_docker: bool = True) -> dict:
     result = {"passed": False, "output": "", "error": ""}
     try:
         if use_docker:

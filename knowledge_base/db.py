@@ -428,8 +428,8 @@ class KnowledgeBase:
             with _lock:
                 conn = self._connect()
                 row = conn.execute(
-                    "SELECT id, name, hit_count, confirmed_count FROM vulnerability_patterns WHERE name LIKE ?",
-                    (f"%{name[:50]}%",)
+                    "SELECT id, name, hit_count, confirmed_count FROM vulnerability_patterns WHERE name = ?",
+                    (name[:100],)
                 ).fetchone()
                 if row:
                     pid = row[0]

@@ -72,6 +72,9 @@ def load_from_explorer(address: str, chain: str = "ethereum",
         return None
 
     source_code = result.get("SourceCode", "")
+    if not source_code or not source_code.strip():
+        logger.warning(f"Contract {address} is not verified on {cfg['explorer']}")
+        return None
     # Etherscan sometimes wraps code in {{...}} for multi-file contracts
     if source_code.startswith("{{") and source_code.endswith("}}"):
         try:
