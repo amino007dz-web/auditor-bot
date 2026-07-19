@@ -13,6 +13,5 @@ exec gunicorn web_ui:app \
     --worker-connections 50 \
     --timeout 300 \
     --graceful-timeout 30 \
-    --preload \
     --access-logfile - \
     --error-logfile -
