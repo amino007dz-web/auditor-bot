@@ -754,8 +754,7 @@ class ChialispAnalyzer(LanguageAnalyzer):
                                        _check_code(rf'is-size-b32\s+{re.escape(var)}', f.code) or \
                                        _check_code(rf'not\s+\(l\s+{re.escape(var)}', f.code)
                             sev = "Medium" if not has_type else "Info"
-                            if not has_type:
-                    results.append(Finding(f"Arith-{op}:{f.name}", sev, "Type Safety",
+                            results.append(Finding(f"Arith-{op}:{f.name}", sev, "Type Safety",
                                                           fname, f.name,
                                                           f"'{var}' in {op} operation without type check", f.code[:100]))
 
