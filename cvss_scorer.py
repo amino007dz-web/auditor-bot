@@ -23,19 +23,19 @@ _DEFAULT_VECTORS = {
     "Info": "CVSS:4.0/AV:N/AC:H/AT:N/PR:H/UI:N/VC:N/VI:N/VA:N/SC:N/SI:N/SA:N",
 }
 
-# CVSS 4.0 metric weights (simplified for smart contracts)
+# CVSS 4.0 metric numerical values (per CVSS 4.0 spec)
 _METRIC_VALUES = {
-    "AV": {"N": 0.0, "A": 0.1, "L": 0.2, "P": 0.5},
-    "AC": {"L": 0.0, "H": 0.1},
-    "AT": {"N": 0.0, "P": 0.1},
-    "PR": {"N": 0.0, "L": 0.1, "H": 0.3},
-    "UI": {"N": 0.0, "P": 0.1, "A": 0.2},
-    "VC": {"H": 0.3, "L": 0.2, "N": 0.0},
-    "VI": {"H": 0.3, "L": 0.2, "N": 0.0},
-    "VA": {"H": 0.3, "L": 0.2, "N": 0.0},
-    "SC": {"H": 0.2, "L": 0.1, "N": 0.0},
-    "SI": {"H": 0.2, "L": 0.1, "N": 0.0},
-    "SA": {"H": 0.2, "L": 0.1, "N": 0.0},
+    "AV": {"N": 0.85, "A": 0.62, "L": 0.55, "P": 0.20},
+    "AC": {"L": 0.85, "H": 0.44},
+    "AT": {"N": 0.85, "P": 0.44},
+    "PR": {"N": 0.85, "L": 0.62, "H": 0.27},
+    "UI": {"N": 0.85, "P": 0.62, "A": 0.44},
+    "VC": {"H": 0.50, "L": 0.25, "N": 0.00},
+    "VI": {"H": 0.50, "L": 0.25, "N": 0.00},
+    "VA": {"H": 0.50, "L": 0.25, "N": 0.00},
+    "SC": {"H": 0.20, "L": 0.10, "N": 0.00},
+    "SI": {"H": 0.20, "L": 0.10, "N": 0.00},
+    "SA": {"H": 0.20, "L": 0.10, "N": 0.00},
 }
 
 _VULN_CATEGORY_MAP = {
@@ -68,29 +68,27 @@ def parse_vector(vector: str) -> Dict[str, str]:
     return result
 
 
-def compute_base_score(metrics: Dict[str, str]) -> float:
-    """Compute approximate CVSS 4.0 base score from metric values."""
-    eq1 = 0.0
-    eq2 = 0.0
-    for eq_group, keys, weights in [
-        ("eq1", ["AV", "AC", "AT", "PR", "UI"], [1.0, 1.0, 1.0, 1.0, 1.0]),
-        ("eq2", ["VC", "VI", "VA"], [1.0, 1.0, 1.0]),
-        ("eq3", ["SC", "SI", "SA"], [0.5, 0.5, 0.5]),
-    ]:
-        total = 0.0
-        for key, weight in zip(keys, weights):
-            val = metrics.get(key, "N")
-            metric_vals = _METRIC_VALUES.get(key, {})
-            total += metric_vals.get(val, 0.0) * weight
-        if eq_group == "eq1":
-            eq1 = total
-        elif eq_group == "eq2":
-            eq2 = total
-        else:
-            pass
+def _sub_score(metrics: Dict[str, str], keys) -> float:
+    """Compute sub-score = 1 - prod(1 - val) for the given metric keys."""
+    prod = 1.0
+    for key in keys:
+        val = metrics.get(key, "N")
+        metric_vals = _METRIC_VALUES.get(key, {})
+        prod *= (1.0 - metric_vals.get(val, 0.0))
+    return 1.0 - prod
 
-    score = min(10.0, max(0.0, (eq1 * 10.0) + (eq2 * 5.0) - 2.0))
-    return round(score, 1)
+
+def compute_base_score(metrics: Dict[str, str]) -> float:
+    """Compute CVSS 4.0 base score using the standard formula."""
+    eq1 = _sub_score(metrics, ["AV", "AC", "AT", "PR", "UI"])
+    eq2 = _sub_score(metrics, ["VC", "VI", "VA"])
+    eq3 = _sub_score(metrics, ["SC", "SI", "SA"])
+
+    if eq2 <= 0.0 and eq3 <= 0.0:
+        return 0.0
+
+    score = 10.0 * eq1 * (1.0 - 0.5 * (1.0 - eq2) * (1.0 - eq3))
+    return round(min(10.0, max(0.0, score)), 1)
 
 
 def severity_from_score(score: float) -> str:
