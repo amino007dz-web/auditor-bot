@@ -396,8 +396,8 @@ function downloadReport(format) {
     URL.revokeObjectURL(url);
     return;
   }
-  const blob = new Blob([currentReportText], { type: 'text/markdown' });
-  const url = URL.createObjectURL(blob);
+  const mdBlob = new Blob([currentReportText], { type: 'text/markdown' });
+  const url = URL.createObjectURL(mdBlob);
   const a = document.createElement('a');
   a.href = url;
   a.download = 'audit-report.' + format;
