@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import html
 import logging
 from flask import Blueprint, request, jsonify, Response, stream_with_context, session
 
@@ -350,8 +351,9 @@ def api_history_save():
         return jsonify({"error": "Field 'report' is required"}), 400
     code = session.get('access_code', '')
     title = data.get('title', 'Audit ' + time.strftime('%Y-%m-%d %H:%M'))
-    snippet = data['report'][:500]
-    save_history(code, title, snippet, data['report'], data.get('severity_counts', ''))
+    report = data['report']
+    snippet = html.escape(report[:500])
+    save_history(code, title, snippet, html.escape(report), data.get('severity_counts', ''))
     return jsonify({"success": True})
 
 
