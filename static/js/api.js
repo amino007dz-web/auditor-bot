@@ -397,12 +397,12 @@ function downloadReport(format) {
     return;
   }
   const mdBlob = new Blob([currentReportText], { type: 'text/markdown' });
-  const url = URL.createObjectURL(mdBlob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'audit-report.' + format;
-  a.click();
-  URL.revokeObjectURL(url);
+  const dlUrl = URL.createObjectURL(mdBlob);
+  const dlLink = document.createElement('a');
+  dlLink.href = dlUrl;
+  dlLink.download = 'audit-report.' + format;
+  dlLink.click();
+  URL.revokeObjectURL(dlUrl);
 }
 
 function exportToGithub() {
