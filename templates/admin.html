@@ -35,9 +35,9 @@ th { color: var(--text2); font-weight: 500; }
     <h2>Login</h2>
     <div class="form-group" style="margin-bottom:0.75rem;">
       <label>Password</label>
-      <input type="password" id="adminPass" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')adminLogin()">
+      <input type="password" id="adminPass" placeholder="Enter admin password">
     </div>
-    <button class="btn btn-primary" onclick="adminLogin()" id="adminLoginBtn">Login</button>
+    <button class="btn btn-primary" id="adminLoginBtn">Login</button>
     <div id="loginError" style="color:var(--red);font-size:0.8rem;margin-top:0.5rem;display:none;"></div>
   </div>
 </div>
@@ -45,7 +45,7 @@ th { color: var(--text2); font-weight: 500; }
 <div id="adminPanel">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
     <h1 style="margin-bottom:0;"><span>🛡️</span> Admin Panel &mdash; Access Codes</h1>
-    <button class="btn btn-danger" onclick="adminLogout()" style="font-size:0.8rem;"><i class="fas fa-sign-out-alt"></i> Logout</button>
+    <button class="btn btn-danger" id="adminLogoutBtn" style="font-size:0.8rem;"><i class="fas fa-sign-out-alt"></i> Logout</button>
   </div>
   <div class="card">
     <h2>Generate New Access Code</h2>
@@ -58,7 +58,7 @@ th { color: var(--text2); font-weight: 500; }
         <label>Max Uses</label>
         <input type="number" id="maxUses" value="-1" style="width:100px;">
       </div>
-      <button class="btn btn-primary" onclick="generateCode()"><i class="fas fa-plus"></i> Generate</button>
+      <button class="btn btn-primary" id="generateCodeBtn"><i class="fas fa-plus"></i> Generate</button>
     </div>
     <div id="newCodeDisplay"></div>
   </div>
@@ -76,6 +76,14 @@ th { color: var(--text2); font-weight: 500; }
 var adminAuthed = false;
 
 function esc(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+
+document.getElementById('adminLoginBtn').addEventListener('click', adminLogin);
+document.getElementById('adminPass').addEventListener('keydown', function(e) { if (e.key === 'Enter') adminLogin(); });
+document.getElementById('adminLogoutBtn').addEventListener('click', adminLogout);
+document.getElementById('generateCodeBtn').addEventListener('click', generateCode);
+document.getElementById('codesTable').addEventListener('click', function(e) {
+  if (e.target.classList.contains('deactivate-btn')) deactivateCode(e.target.dataset.code);
+});
 
 function adminLogin() {
   var pass = document.getElementById('adminPass').value;
