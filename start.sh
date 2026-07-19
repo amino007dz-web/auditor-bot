@@ -8,7 +8,7 @@ fi
 
 exec gunicorn web_ui:app \
     --bind 0.0.0.0:${PORT:-5000} \
-    --workers 2 \
+    --workers ${WEB_CONCURRENCY:-2} \
     --worker-class gevent \
     --worker-connections 100 \
     --timeout 300 \
