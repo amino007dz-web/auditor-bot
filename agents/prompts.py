@@ -93,7 +93,7 @@ Rule: When borderline, round DOWN. Over-classification destroys credibility.
 
 ### Vulnerability List (omit if none found)
 - **Name**: [short name]
-- **Severity**: [Critical / High / Medium / Low]
+- **Severity**: [Critical / High / Medium / Low]  (plain text, NO markdown formatting or asterisks)
 - **Category**: [bug class from above list]
 - **Impact**: [quantified in USD or % — e.g., "$69,300 TVL frozen"]
 - **Description**: [concise explanation WITH EXPLOIT PATH — show concrete numbered steps]

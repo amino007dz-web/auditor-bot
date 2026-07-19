@@ -106,7 +106,12 @@ def vector_from_severity(severity: str, category_hint: str = "") -> str:
         if key in hint:
             full_vec = f"CVSS:4.0/{vec_part}/SC:N/SI:N/SA:N"
             return full_vec
-    return _DEFAULT_VECTORS.get(severity, _DEFAULT_VECTORS["Medium"])
+
+    clean_sev = severity.replace("*", "").replace("`", "").strip()
+    for key in _DEFAULT_VECTORS:
+        if key.lower() == clean_sev.lower():
+            return _DEFAULT_VECTORS[key]
+    return _DEFAULT_VECTORS["Medium"]
 
 
 def score_report(report: str) -> Dict:
@@ -122,7 +127,8 @@ def score_report(report: str) -> Dict:
                 findings.append(current)
             current = {"name": s.split(":", 1)[1].strip() if ":" in s else ""}
         elif s.startswith("- **Severity**") and current:
-            current["severity"] = s.split(":", 1)[1].strip().rstrip("*") if ":" in s else "Medium"
+            raw = s.split(":", 1)[1].strip() if ":" in s else "Medium"
+            current["severity"] = raw.replace("*", "").replace("`", "").strip()
         elif s.startswith("- **Description**") and current:
             current["description"] = s.split(":", 1)[1].strip() if ":" in s else ""
 
