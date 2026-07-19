@@ -26,3 +26,5 @@ report_*.md
 dist/
 *.egg-info/
 instance/
+cache.db
+usage.db
