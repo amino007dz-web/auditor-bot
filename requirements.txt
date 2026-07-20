@@ -35,5 +35,9 @@ gevent>=23.9.0
 # Dashboard (optional)
 # streamlit>=1.30.0
 
+# User auth
+Flask-Login>=0.6.0
+Flask-Dance>=7.0.0
+
 # NOTE: To generate pinned versions for reproducible builds, run:
 #   pip install -r requirements.txt && pip freeze > requirements.lock

@@ -76,20 +76,60 @@ def rate_limit(max_per_minute: int = 10):
 
 _EXPECTED_API_KEY = os.environ.get("AUDITOR_API_KEY", "")
 
+def _check_user_api_key(provided_key):
+    """Check if the provided API key belongs to an active user. Returns user or None."""
+    try:
+        from auth import find_user_by_api_key
+        user = find_user_by_api_key(provided_key)
+        if user:
+            # Update last_used_at
+            import sqlite3
+            db_path = os.environ.get("AUTH_DB_PATH",
+                os.path.join(os.path.dirname(__file__), "instance", "auth.db"))
+            conn = sqlite3.connect(db_path)
+            conn.execute("UPDATE api_keys SET last_used_at = (strftime('%s','now')) WHERE key = ?",
+                        (provided_key,))
+            conn.commit()
+            conn.close()
+            return user
+    except Exception:
+        pass
+    return None
+
 def require_api_key(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if not _EXPECTED_API_KEY:
-            return jsonify({"error": "Server misconfigured: AUDITOR_API_KEY not set"}), 503
+        from flask_login import current_user
+        if current_user.is_authenticated:
+            return f(*args, **kwargs)
         if session.get('authenticated'):
             return f(*args, **kwargs)
-        auth = request.headers.get("Authorization", "")
-        if not auth.startswith("Bearer "):
-            return jsonify({"error": "Missing or invalid API key. Set AUDITOR_API_KEY in the server or pass Authorization: Bearer <key>"}), 401
-        provided = auth[len("Bearer "):]
-        if not hmac.compare_digest(provided, _EXPECTED_API_KEY):
-            return jsonify({"error": "Invalid API key"}), 401
-        return f(*args, **kwargs)
+        if _EXPECTED_API_KEY:
+            auth = request.headers.get("Authorization", "")
+            if auth.startswith("Bearer "):
+                provided = auth[len("Bearer "):]
+                if hmac.compare_digest(provided, _EXPECTED_API_KEY):
+                    return f(*args, **kwargs)
+        # Check user API keys table
+        auth = request.headers.get("Authorization", "") or request.headers.get("X-API-Key", "")
+        if auth.startswith("Bearer "):
+            provided = auth[len("Bearer "):]
+        else:
+            provided = auth
+        if provided:
+            user = _check_user_api_key(provided)
+            if user:
+                # Deduct credit for API usage
+                try:
+                    from auth import deduct_credit
+                    if not deduct_credit(user):
+                        return jsonify({"error": "No credits remaining. Upgrade your plan or wait for monthly reset."}), 402
+                except Exception:
+                    pass
+                return f(*args, **kwargs)
+        if not _EXPECTED_API_KEY:
+            return jsonify({"error": "Server misconfigured: AUDITOR_API_KEY not set"}), 503
+        return jsonify({"error": "Missing or invalid API key. Pass Authorization: Bearer <key>"}), 401
     return wrapper
 
 UPLOAD_DIR = os.path.join(REPORT_DIR, "uploads")

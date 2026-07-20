@@ -8,9 +8,11 @@ import time
 import logging
 import hmac
 import secrets
-from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, g
+from urllib.parse import urlencode
+from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, g, url_for
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.utils import secure_filename
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -37,7 +39,12 @@ from chain_loader import load_from_explorer, list_supported_chains
 from external_analyzers import TOOL_AVAILABLE
 from _shared import _has_gas_profiler as _has_gas_profiler_local
 from _shared import compile_estimate_gas
-from auth import verify_code, requires_auth, create_access_code, list_codes, deactivate_code, ADMIN_PASSWORD
+from auth import (
+    verify_code, requires_auth, create_access_code, list_codes, deactivate_code,
+    ADMIN_PASSWORD, find_user_by_github_id, create_user, get_user_by_id,
+    create_api_key, list_api_keys, revoke_api_key, deduct_credit, reset_credits_if_needed,
+    get_user_history_count, MONTHLY_FREE_CREDITS,
+)
 from flask_cors import CORS
 
 try:
@@ -54,6 +61,18 @@ app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 app.static_folder = 'static'
 app.register_blueprint(api_bp)
+
+# Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'landing'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return get_user_by_id(int(user_id))
+
+GITHUB_CLIENT_ID = os.environ.get("GITHUB_OAUTH_CLIENT_ID", "")
+GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_OAUTH_CLIENT_SECRET", "")
 
 # CORS — allow n8n, Render, and local dev
 CORS(app, resources={r"/api/*": {"origins": ["https://auditor-bot.onrender.com", "http://localhost:5000"]}})
@@ -96,9 +115,12 @@ def add_security_headers(resp):
 
 @app.route('/')
 def landing():
+    if current_user.is_authenticated:
+        return redirect('/app')
     if 'authenticated' in session:
         return redirect('/app')
-    return render_template('landing.html')
+    has_github_oauth = bool(GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET)
+    return render_template('landing.html', has_github_oauth=has_github_oauth)
 
 
 @app.route('/app')
@@ -120,6 +142,131 @@ def api_auth_verify():
     return jsonify({"success": False, "error": "Invalid or expired access code"}), 403
 
 csrf.exempt(api_auth_verify)
+
+
+# --- GitHub OAuth ---
+
+@app.route('/login/github')
+def login_github():
+    if not GITHUB_CLIENT_ID or not GITHUB_CLIENT_SECRET:
+        return jsonify({"error": "GitHub OAuth not configured"}), 503
+    params = urlencode({
+        'client_id': GITHUB_CLIENT_ID,
+        'redirect_uri': url_for('github_callback', _external=True),
+        'scope': 'user:email',
+    })
+    return redirect(f"https://github.com/login/oauth/authorize?{params}")
+
+@app.route('/login/github/callback')
+def github_callback():
+    import requests as http_requests
+    code = request.args.get('code')
+    if not code:
+        return redirect('/?error=no_code')
+    # Exchange code for access token
+    token_resp = http_requests.post('https://github.com/login/oauth/access_token', json={
+        'client_id': GITHUB_CLIENT_ID,
+        'client_secret': GITHUB_CLIENT_SECRET,
+        'code': code,
+    }, headers={'Accept': 'application/json'}, timeout=10)
+    token_data = token_resp.json()
+    access_token = token_data.get('access_token')
+    if not access_token:
+        return redirect('/?error=token_failed')
+    # Fetch GitHub user info
+    user_resp = http_requests.get('https://api.github.com/user', headers={
+        'Authorization': f'Bearer {access_token}',
+        'Accept': 'application/json',
+    }, timeout=10)
+    gh_user = user_resp.json()
+    gh_id = str(gh_user.get('id', ''))
+    if not gh_id:
+        return redirect('/?error=user_fetch_failed')
+    # Try to get email
+    email_resp = http_requests.get('https://api.github.com/user/emails', headers={
+        'Authorization': f'Bearer {access_token}',
+        'Accept': 'application/json',
+    }, timeout=10)
+    emails = email_resp.json() if email_resp.ok else []
+    primary_email = ''
+    for e in emails:
+        if e.get('primary') and e.get('verified'):
+            primary_email = e.get('email', '')
+            break
+    if not primary_email and emails:
+        primary_email = emails[0].get('email', '')
+    # Find or create user
+    user = find_user_by_github_id(gh_id)
+    if user:
+        # Update info
+        conn = _get_conn_simple()
+        conn.execute("UPDATE users SET github_username=?, email=?, avatar_url=? WHERE id=?",
+                     (gh_user.get('login', ''), primary_email,
+                      gh_user.get('avatar_url', ''), user.id))
+        conn.commit()
+    else:
+        user = create_user(gh_id, gh_user.get('login', ''),
+                          primary_email, gh_user.get('avatar_url', ''))
+    if not user:
+        return redirect('/?error=user_creation_failed')
+    login_user(user, remember=True)
+    next_page = request.args.get('next') or '/app'
+    return redirect(next_page)
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    session.pop('authenticated', None)
+    session.pop('access_code', None)
+    return redirect('/')
+
+def _get_conn_simple():
+    """Get a raw sqlite3 connection for simple queries (not thread-local)."""
+    import sqlite3
+    conn = sqlite3.connect(os.environ.get("AUTH_DB_PATH",
+        os.path.join(os.path.dirname(__file__), "instance", "auth.db")))
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+@app.route('/account')
+@login_required
+def account_page():
+    reset_credits_if_needed(current_user)
+    keys = list_api_keys(current_user.id)
+    history_count = get_user_history_count(current_user.id)
+    credit_reset = ''
+    if current_user.credit_reset_at:
+        from datetime import datetime
+        credit_reset = datetime.utcfromtimestamp(current_user.credit_reset_at).strftime('%Y-%m-%d')
+    return render_template('account.html',
+                          user=current_user,
+                          keys=keys,
+                          history_count=history_count,
+                          credit_reset=credit_reset,
+                          free_credits=MONTHLY_FREE_CREDITS)
+
+
+@app.route('/api/account/keys', methods=['GET'])
+@login_required
+def api_list_keys():
+    keys = list_api_keys(current_user.id)
+    return jsonify({"keys": keys})
+
+@app.route('/api/account/keys', methods=['POST'])
+@login_required
+def api_create_key():
+    data = request.get_json() or {}
+    key = create_api_key(current_user.id, data.get('name', ''))
+    if key:
+        return jsonify({"key": key}), 201
+    return jsonify({"error": "Failed to create key"}), 500
+
+@app.route('/api/account/keys/<int:key_id>', methods=['DELETE'])
+@login_required
+def api_revoke_key(key_id):
+    revoke_api_key(key_id, current_user.id)
+    return jsonify({"success": True})
 
 
 @app.route('/report/interactive/<filename>')

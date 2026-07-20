@@ -140,7 +140,11 @@ footer { text-align: center; padding: 2rem; color: var(--text2); font-size: 0.8r
     <a href="#features">Features</a>
     <a href="#pricing">Pricing</a>
     <a href="/docs">Docs</a>
+    {% if has_github_oauth %}
+    <a class="btn btn-primary" href="/login/github" style="padding:0.4rem 1.2rem;font-size:0.8rem;"><i class="fab fa-github"></i> Sign In</a>
+    {% else %}
     <a class="btn btn-primary" onclick="showModal('access')" style="padding:0.4rem 1.2rem;font-size:0.8rem;">Sign In</a>
+    {% endif %}
   </div>
 </nav>
 
@@ -149,7 +153,11 @@ footer { text-align: center; padding: 2rem; color: var(--text2); font-size: 0.8r
     <h1>AI-Powered <span>Smart Contract</span> Security Audits</h1>
     <p>Detect vulnerabilities before deployment with multi-pass LLM validation, CFG/DFG flow analysis, and real-time OSV database integration. Trusted by developers worldwide.</p>
     <div class="hero-actions">
+      {% if has_github_oauth %}
+      <a class="btn btn-primary" href="/login/github"><i class="fab fa-github"></i> Start Free</a>
+      {% else %}
       <button class="btn btn-primary" onclick="showModal('access')"><i class="fas fa-key"></i> Start Free</button>
+      {% endif %}
       <button class="btn btn-secondary" onclick="showModal('demo')"><i class="fas fa-play"></i> Live Demo</button>
     </div>
   </div>
@@ -245,7 +253,11 @@ footer { text-align: center; padding: 2rem; color: var(--text2); font-size: 0.8r
         <li><i class="fas fa-check"></i> Markdown & PDF reports</li>
         <li><i class="fas fa-check"></i> Community support</li>
       </ul>
+      {% if has_github_oauth %}
+      <a class="btn btn-primary" href="/login/github" style="width:100%;justify-content:center;">Get Started</a>
+      {% else %}
       <button class="btn btn-primary" onclick="showModal('access')" style="width:100%;justify-content:center;">Get Started</button>
+      {% endif %}
     </div>
     <div class="pricing-card featured">
       <h3>Pro</h3>

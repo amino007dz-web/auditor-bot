@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Account — Smart Contract Auditor</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style nonce="{{ csp_nonce }}">
+.container { max-width: 800px; margin: 2rem auto; padding: 0 1.5rem; }
+.card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1rem; }
+.card h2 { font-size: 1.1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+.profile { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.profile img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--border); }
+.profile .name { font-weight: 600; font-size: 1.05rem; }
+.profile .plan { font-size: 0.8rem; padding: 0.15rem 0.6rem; border-radius: 4px; font-weight: 600; }
+.plan-free { background: var(--bg-elevated); color: var(--text-muted); border: 1px solid var(--border); }
+.plan-pro { background: #58a6ff33; color: var(--accent); border: 1px solid var(--accent); }
+.credits-bar { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; }
+.credits-fill { height: 8px; border-radius: 4px; background: var(--bg-elevated); flex: 1; overflow: hidden; }
+.credits-fill > div { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.credits-fill > div.low { background: var(--red); }
+.credits-fill > div.medium { background: var(--orange); }
+.credits-fill > div.high { background: var(--green); }
+.credits-label { font-size: 0.85rem; color: var(--text-muted); }
+.key-row { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.key-row:last-child { border-bottom: none; }
+.key-value { font-family: monospace; font-size: 0.8rem; color: var(--text-muted); }
+.btn-sm { padding: 0.3rem 0.8rem; font-size: 0.8rem; }
+.topbar a { color: var(--text-muted); text-decoration: none; }
+.topbar a:hover { color: var(--text); }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-brand">
+    <a href="/app" style="text-decoration:none;color:inherit;">
+      <span class="shield">&#128737;</span>
+      <span>Smart Contract Auditor</span>
+    </a>
+  </div>
+  <div class="topbar-center"></div>
+  <div class="topbar-right">
+    <a href="/account" style="margin-right:1rem;"><i class="fas fa-user"></i> Account</a>
+    <a href="/app">Auditor</a>
+  </div>
+</header>
+
+<div class="container">
+  <div class="card">
+    <h2><i class="fas fa-user-circle"></i> Profile</h2>
+    <div class="profile">
+      {% if user.avatar_url %}
+      <img src="{{ user.avatar_url }}" alt="">
+      {% endif %}
+      <div>
+        <div class="name">{{ user.github_username }}</div>
+        <div style="font-size:0.85rem;color:var(--text-muted);">{{ user.email }}</div>
+      </div>
+      <span class="plan {% if user.is_pro() %}plan-pro{% else %}plan-free{% endif %}">
+        {{ user.plan|upper }}
+      </span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><i class="fas fa-gem"></i> Credits</h2>
+    {% if user.is_pro() %}
+      <p style="color:var(--green);font-size:0.9rem;"><i class="fas fa-check-circle"></i> Unlimited credits (Pro plan)</p>
+    {% else %}
+      {% set pct = (user.credits / free_credits * 100)|round|int %}
+      {% set level = 'low' if pct < 25 else ('medium' if pct < 60 else 'high') %}
+      <div class="credits-bar">
+        <span class="credits-label">{{ user.credits }} / {{ free_credits }} remaining</span>
+        <div class="credits-fill"><div class="{{ level }}" style="width:{{ pct }}%"></div></div>
+      </div>
+      <p style="font-size:0.8rem;color:var(--text-dim);">Resets {{ credit_reset }}</p>
+    {% endif %}
+    <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;">
+      <i class="fas fa-history"></i> {{ history_count }} audits performed
+    </p>
+  </div>
+
+  <div class="card">
+    <h2><i class="fas fa-key"></i> API Keys</h2>
+    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">Generate API keys for programmatic access to the auditor.</p>
+    <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+      <input type="text" id="keyName" placeholder="Key name (e.g. VS Code extension)" style="flex:1;padding:0.4rem 0.8rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-inset);color:var(--text);font-size:0.85rem;">
+      <button class="btn btn-primary btn-sm" onclick="createKey()"><i class="fas fa-plus"></i> Generate</button>
+    </div>
+    <div id="keyList">
+      {% for k in keys %}
+      <div class="key-row">
+        <div>
+          <div style="font-weight:500;">{{ k.name }}</div>
+          <div class="key-value">{{ k.key[:20] }}...{% if not k.is_active %}<span style="color:var(--red);margin-left:0.5rem;">(revoked)</span>{% endif %}</div>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+          <span style="font-size:0.75rem;color:var(--text-dim);">{{ k.created_at|string|truncate(10,True,'') }}</span>
+          {% if k.is_active %}
+          <button class="btn btn-sm" style="border-color:var(--red);color:var(--red);" onclick="revokeKey({{ k.id }})">Revoke</button>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+      {% if not keys %}
+      <p style="font-size:0.85rem;color:var(--text-dim);">No API keys yet. Generate one above.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div style="text-align:center;margin:2rem 0;">
+    <a href="/logout" style="color:var(--text-muted);font-size:0.85rem;"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+function createKey() {
+  var name = document.getElementById('keyName').value.trim();
+  fetch('/api/account/keys', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name })
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.key) {
+      location.reload();
+    } else {
+      alert('Failed to create key');
+    }
+  }).catch(function() { alert('Network error'); });
+}
+
+function revokeKey(id) {
+  if (!confirm('Revoke this API key?')) return;
+  fetch('/api/account/keys/' + id, {
+    method: 'DELETE'
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.success) location.reload();
+  }).catch(function() { alert('Network error'); });
+}
+</script>
+</body>
+</html>

@@ -24,7 +24,8 @@ from agents.prompts import SYSTEM_PROMPT
 from agents.pre_scan import run_pre_scan
 from werkzeug.utils import secure_filename
 from orchestrator import dispatch_analysis
-from auth import save_history, get_history, get_history_item, check_quota, requires_auth
+from auth import save_history, get_history, get_history_item, check_quota, requires_auth, deduct_credit, reset_credits_if_needed, MONTHLY_FREE_CREDITS
+from flask_login import current_user
 
 # Helper: choose the right streaming function based on config
 def _stream_model(prompt, timeout=300):
@@ -104,6 +105,12 @@ def api_analyze_stream():
         return jsonify({"error": "Field 'code' is required"}), 400
     code = data['code']
     code = truncate_code(code)
+    # Deduct credit for Flask-Login users (non-API-key)
+    import flask_login
+    if flask_login.current_user.is_authenticated:
+        reset_credits_if_needed(flask_login.current_user)
+        if not flask_login.current_user.is_pro() and flask_login.current_user.credits <= 0:
+            return jsonify({"error": "No credits remaining. Upgrade your plan or wait for monthly reset."}), 402
 
     def generate():
         # Step 1: Pre-scan
@@ -335,7 +342,11 @@ def api_github_stream():
 @requires_auth
 def api_history_list():
     code = session.get('access_code', '')
-    items = get_history(code)
+    uid = current_user.id if current_user.is_authenticated else None
+    if uid:
+        items = get_history(user_id=uid)
+    else:
+        items = get_history(code=code)
     return jsonify({"items": items})
 
 
@@ -343,7 +354,11 @@ def api_history_list():
 @requires_auth
 def api_history_detail(history_id):
     code = session.get('access_code', '')
-    item = get_history_item(history_id, code)
+    uid = current_user.id if current_user.is_authenticated else None
+    if uid:
+        item = get_history_item(history_id, user_id=uid)
+    else:
+        item = get_history_item(history_id, code=code)
     if not item:
         return jsonify({"error": "Not found"}), 404
     return jsonify(item)
@@ -359,7 +374,10 @@ def api_history_save():
     title = data.get('title', 'Audit ' + time.strftime('%Y-%m-%d %H:%M'))
     report = data['report']
     snippet = html.escape(report[:500])
-    save_history(code, title, snippet, html.escape(report), data.get('severity_counts', ''))
+    uid = current_user.id if current_user.is_authenticated else None
+    save_history(code, title, snippet, html.escape(report), data.get('severity_counts', ''), user_id=uid)
+    if uid:
+        deduct_credit(current_user)
     return jsonify({"success": True})
 
 
@@ -367,6 +385,11 @@ def api_history_save():
 @requires_auth
 def api_quota():
     code = session.get('access_code', '')
+    if current_user.is_authenticated:
+        reset_credits_if_needed(current_user)
+        return jsonify({"allowed": "monthly", "remaining": current_user.credits,
+                        "used": MONTHLY_FREE_CREDITS - current_user.credits,
+                        "plan": current_user.plan})
     return jsonify(check_quota(code))
 
 
