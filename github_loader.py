@@ -1,7 +1,7 @@
 import logging
 import re
+import requests
 from typing import List, Dict, Optional, Tuple
-from github import Github, GithubException
 
 if not logging.getLogger().hasHandlers():
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -18,36 +18,50 @@ def extract_repo_info(repo_url: str) -> Tuple[Optional[str], Optional[str]]:
 
 SUPPORTED_EXTS: tuple = (".sol", ".vy", ".move", ".clsp", ".clib", ".rs", ".py")
 MAX_FILES_LIMIT = 20
-MAX_DEPTH = 20
 
-def get_all_sol_files(repo, path: str = "", depth: int = 0, collected: list = None) -> List[Dict[str, str]]:
-    if collected is None:
-        collected = []
-    if depth > MAX_DEPTH or len(collected) >= MAX_FILES_LIMIT:
-        return collected
+
+def get_all_sol_files(username: str, repo_name: str, github_token: Optional[str] = None) -> List[Dict[str, str]]:
+    api_base = f"https://api.github.com/repos/{username}/{repo_name}"
+    headers = {"Accept": "application/vnd.github+json"}
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
     try:
-        contents = repo.get_contents(path)
-        for content in contents:
-            if len(collected) >= MAX_FILES_LIMIT:
-                break
-            if content.type == "dir":
-                get_all_sol_files(repo, content.path, depth + 1, collected)
-            elif any(content.path.endswith(ext) for ext in SUPPORTED_EXTS):
-                try:
-                    file_content = content.decoded_content.decode('utf-8')
-                    collected.append({
-                        "name": content.path,
-                        "code": file_content
-                    })
-                    logger.info(f"✅ Found: {content.path}")
-                except Exception as e:
-                    logger.warning(f"⚠️ Error reading {content.path}: {e}")
-    except GithubException as e:
-        if e.status == 403:
-            logger.warning(f"⚠️ GitHub rate limit exceeded for {path}. Use a token to increase from 60 to 5000 req/hr.")
-        else:
-            logger.warning(f"⚠️ GitHub error accessing {path}: {e}")
-    return collected
+        r = requests.get(api_base, headers=headers, timeout=15)
+        r.raise_for_status()
+        default_branch = r.json().get("default_branch", "main")
+        logger.info(f"✅ Repository accessed. Branch: {default_branch}")
+
+        tree_url = f"{api_base}/git/trees/{default_branch}?recursive=1"
+        r = requests.get(tree_url, headers=headers, timeout=30)
+        r.raise_for_status()
+        tree_data = r.json()
+
+        sol_paths = []
+        for item in tree_data.get("tree", []):
+            if item["type"] == "blob" and any(item["path"].endswith(ext) for ext in SUPPORTED_EXTS):
+                sol_paths.append(item["path"])
+                if len(sol_paths) >= MAX_FILES_LIMIT:
+                    break
+
+        contracts = []
+        for path in sol_paths:
+            raw_url = f"https://raw.githubusercontent.com/{username}/{repo_name}/{default_branch}/{path}"
+            try:
+                r = requests.get(raw_url, timeout=15)
+                if r.status_code == 200:
+                    contracts.append({"name": path, "code": r.text})
+                    logger.info(f"✅ Found: {path}")
+                else:
+                    logger.warning(f"⚠️ Failed to download {path}: HTTP {r.status_code}")
+            except Exception as e:
+                logger.warning(f"⚠️ Error downloading {path}: {e}")
+
+        logger.info(f"📊 Found {len(contracts)} contract(s).")
+        return contracts
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"❌ GitHub API request failed: {e}")
+        return []
 
 
 def download_contracts(repo_url: str, github_token: Optional[str] = None) -> List[Dict[str, str]]:
@@ -57,20 +71,4 @@ def download_contracts(repo_url: str, github_token: Optional[str] = None) -> Lis
         return []
 
     logger.info(f"🔍 Connecting to: {username}/{repo_name} ...")
-    g: Github = Github(github_token) if github_token else Github()
-
-    try:
-        repo = g.get_repo(f"{username}/{repo_name}")
-        logger.info("✅ Repository accessed.")
-        logger.info("📂 Searching for all .sol files...")
-        contracts: List[Dict[str, str]] = get_all_sol_files(repo)
-
-        if not contracts:
-            logger.warning("❌ No Solidity (.sol) files found in this repository.")
-        else:
-            logger.info(f"📊 Found {len(contracts)} contract(s).")
-        return contracts
-
-    except GithubException as e:
-        logger.error(f"❌ Failed to access repository: {e}")
-        return []
+    return get_all_sol_files(username, repo_name, github_token)

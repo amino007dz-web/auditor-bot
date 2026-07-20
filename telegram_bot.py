@@ -460,17 +460,15 @@ class TelegramBot:
         self._send(chat_id, f"🔄 Downloading `{url}`...")
         try:
             from github_loader import extract_repo_info, get_all_sol_files
-            from github import Github
             owner, repo = extract_repo_info(url)
             if not owner or not repo:
                 self._send(chat_id, "❌ Invalid link")
                 return
-            gh_repo = Github().get_repo(f"{owner}/{repo}")
-            files = get_all_sol_files(gh_repo)
+            files = get_all_sol_files(owner, repo)
             if not files:
                 self._send(chat_id, "❌ No Solidity files found")
                 return
-            all_code = "\n\n".join(f["content"][:2000] for f in files[:5])[:3000]
+            all_code = "\n\n".join(f["code"][:2000] for f in files[:5])[:3000]
             self._send(chat_id, f"📦 {len(files)} files\n🔄 Analyzing...")
             self._dispatch(self._run_audit, chat_id, all_code)
         except Exception as e:

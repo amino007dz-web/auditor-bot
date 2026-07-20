@@ -277,21 +277,13 @@ def api_github_stream():
 
     def gen():
         from github_loader import get_all_sol_files
-        from github import Github, GithubException
         username, repo_name = extract_repo_info(url)
         if not username or not repo_name:
             yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': 'Invalid GitHub URL'}))
             return
 
-        try:
-            g = Github(GITHUB_TOKEN) if GITHUB_TOKEN else Github()
-            repo = g.get_repo(f"{username}/{repo_name}")
-        except Exception as e:
-            yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': f'GitHub access failed: {e}'}))
-            return
-
-        yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'github', 'text': f'Connected to {username}/{repo_name}, scanning files...'}))
-        contracts = get_all_sol_files(repo)
+        yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'github', 'text': f'Connecting to {username}/{repo_name}, scanning files...'}))
+        contracts = get_all_sol_files(username, repo_name, GITHUB_TOKEN)
         if not contracts:
             yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': 'No Solidity files found in the repository'}))
             return
