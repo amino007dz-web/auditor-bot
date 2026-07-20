@@ -131,7 +131,7 @@ function startAnalysis() {
       return;
     }
   } else {
-    code = window.editor.getValue();
+    code = getCode();
     body = JSON.stringify({ code: code, type: el.analysisType.value });
   }
 
@@ -186,7 +186,7 @@ function doProjectAnalysis(endpoint, formData) {
 
 function fetchGasReport() {
   if (!currentReportText) return;
-  const code = window.editor.getValue();
+  var code = getCode();
   if (!code) { el.resultsBody.innerHTML = '<p style="color:var(--red);">No code to analyze for gas.</p>'; return; }
   el.resultsBody.innerHTML = renderSkeleton();
   el.resultsTitle.textContent = 'Gas Report...';
@@ -212,7 +212,7 @@ function fetchGasReport() {
 
 function suggestFix() {
   if (!currentReportText) return;
-  var code = window.editor.getValue();
+  var code = getCode();
   if (!code) { el.resultsBody.innerHTML = '<p style="color:var(--red);">No code to fix.</p>'; return; }
   el.resultsTitle.textContent = 'Generating fix...';
   el.resultsBody.innerHTML = renderSkeleton();
@@ -229,7 +229,7 @@ function suggestFix() {
 }
 
 function scanMalware() {
-  var code = window.editor.getValue();
+  var code = getCode();
   if (!code) { el.resultsBody.innerHTML = '<p style="color:var(--red);">No code to scan.</p>'; return; }
   el.resultsTitle.textContent = 'Scanning for malware...';
   el.resultsBody.innerHTML = '<div class="skeleton w-75 h-24"></div>';
@@ -253,7 +253,7 @@ function scanMalware() {
 }
 
 function generateFuzzTest() {
-  var code = window.editor.getValue();
+  var code = getCode();
   if (!code) { el.resultsBody.innerHTML = '<p style="color:var(--red);">No code to fuzz.</p>'; return; }
   el.resultsTitle.textContent = 'Generating fuzz test...';
   el.resultsBody.innerHTML = '<div class="skeleton w-75 h-24"></div>';
@@ -268,7 +268,7 @@ function generateFuzzTest() {
 
 function generatePoc() {
   if (!currentReportText) return;
-  var code = window.editor.getValue();
+  var code = getCode();
   el.resultsTitle.textContent = 'Generating PoC exploit...';
   el.resultsBody.innerHTML = '<div class="skeleton w-75 h-24"></div>';
   fetch('/api/analyze/poc', {
@@ -283,7 +283,7 @@ function generatePoc() {
 
 function exportHackerone() {
   if (!currentReportText) return;
-  var code = window.editor.getValue();
+  var code = getCode();
   fetch('/api/hackerone', {
     method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ report: currentReportText, code: code, label: 'Smart Contract' })

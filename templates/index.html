@@ -60,14 +60,18 @@
 
     <div class="editor-body" id="editorBody">
       <div class="tab-content active" id="tab-paste">
+        <div class="multi-file-bar">
+          <input type="text" id="fileName" class="file-name-input" placeholder="filename.sol" value="contract.sol">
+          <button class="btn btn-sm" id="addFileBtn"><i class="fas fa-plus"></i> Add</button>
+        </div>
         <textarea id="codeEditor" placeholder="Paste your Solidity / Vyper / Move code here..."></textarea>
+        <div id="pasteFileList" class="multi-file-list"></div>
       </div>
       <div class="tab-content" id="tab-upload">
         <div class="tab-content-center">
           <i class="fas fa-cloud-upload-alt"></i>
-          <p>Drop a .sol / .vy / .move file here or click to browse</p>
-          <span class="hint">File content will be loaded into the Paste tab</span>
-          <input type="file" id="fileInput" accept=".sol,.vy,.move,.clsp,.clib">
+          <p>Drop .sol / .vy / .move files here or click to browse</p>
+          <input type="file" id="fileInput" accept=".sol,.vy,.move,.clsp,.clib" multiple>
           <button class="btn" id="browseBtn"><i class="fas fa-folder-open"></i> Browse Files</button>
         </div>
       </div>

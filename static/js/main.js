@@ -2,6 +2,8 @@ let abortController = null;
 let currentReportText = '';
 let chartInstance = null;
 let typewriterTimer = null;
+let multiFiles = [];
+let activeFileIndex = -1;
 
 const $ = (id) => document.getElementById(id);
 const qs = (sel) => document.querySelector(sel);
@@ -26,6 +28,7 @@ document.addEventListener('DOMContentLoaded', function () {
     'downloadMd','downloadSarif','downloadPdf','toggleChart','exportGithub',
     'projectInput','browseProjectBtn','projectFileInfo','dropZone','quotaDisplay',
     'featuresShowcase', 'stopBtn',
+    'fileName','addFileBtn','pasteFileList',
   ];
   ids.forEach(function (id) { el[id] = $(id); });
 
@@ -118,6 +121,21 @@ document.addEventListener('DOMContentLoaded', function () {
   el.hackeroneBtn.addEventListener('click', exportHackerone);
   el.toggleChart.addEventListener('click', showChart);
   el.exportGithub.addEventListener('click', exportToGithub);
+  el.addFileBtn.addEventListener('click', addCurrentFile);
+  el.fileName.addEventListener('keydown', function (e) { if (e.key === 'Enter') addCurrentFile(); });
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      if (activeFileIndex >= 0 && activeFileIndex < multiFiles.length) {
+        multiFiles[activeFileIndex].code = window.editor.getValue();
+        multiFiles[activeFileIndex].name = el.fileName.value.trim() || 'contract.sol';
+        renderFileList();
+      } else {
+        addCurrentFile();
+      }
+    }
+  });
+
   el.stopBtn.addEventListener('click', function () {
     if (abortController) {
       abortController.abort();
@@ -133,11 +151,26 @@ document.addEventListener('DOMContentLoaded', function () {
   el.editorBody.addEventListener('drop', function (e) {
     e.preventDefault();
     el.editorBody.classList.remove('dragover');
-    if (e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      const reader = new FileReader();
-      reader.onload = function (ev) { window.editor.setValue(ev.target.result); switchTab('paste'); };
-      reader.readAsText(file);
+    var files = e.dataTransfer.files;
+    if (files.length > 0) {
+      var processed = 0;
+      for (var fi = 0; fi < files.length; fi++) {
+        (function (file) {
+          var reader = new FileReader();
+          reader.onload = function (ev) {
+            multiFiles.push({ name: file.name, code: ev.target.result });
+            processed++;
+            if (processed === files.length) {
+              activeFileIndex = multiFiles.length - 1;
+              window.editor.setValue(multiFiles[activeFileIndex].code);
+              el.fileName.value = multiFiles[activeFileIndex].name;
+              renderFileList();
+              switchTab('paste');
+            }
+          };
+          reader.readAsText(file);
+        })(files[fi]);
+      }
     }
   });
 
@@ -154,11 +187,26 @@ function switchTab(tab) {
 }
 
 function handleFileUpload() {
-  const file = el.fileInput.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function (e) { window.editor.setValue(e.target.result); switchTab('paste'); };
-  reader.readAsText(file);
+  var files = el.fileInput.files;
+  if (!files || files.length === 0) return;
+  var processed = 0;
+  for (var fi = 0; fi < files.length; fi++) {
+    (function (file) {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        multiFiles.push({ name: file.name, code: e.target.result });
+        processed++;
+        if (processed === files.length) {
+          activeFileIndex = multiFiles.length - 1;
+          window.editor.setValue(multiFiles[activeFileIndex].code);
+          el.fileName.value = multiFiles[activeFileIndex].name;
+          renderFileList();
+          switchTab('paste');
+        }
+      };
+      reader.readAsText(file);
+    })(files[fi]);
+  }
 }
 
 function handleProjectUpload() {
@@ -167,7 +215,10 @@ function handleProjectUpload() {
   el.projectFileInfo.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
 }
 
-function getCode() { return window.editor.getValue(); }
+function getCode() {
+  if (multiFiles.length === 0) return window.editor.getValue();
+  return multiFiles.map(function (f) { return '// File: ' + f.name + '\n' + f.code; }).join('\n\n');
+}
 
 function renderSkeleton() {
   return '<div class="skeleton w-75 h-24"></div><div class="skeleton w-50"></div><div class="skeleton w-90"></div><div class="skeleton w-75"></div><div class="skeleton w-50"></div>';
@@ -270,4 +321,60 @@ function finalizeAnalysis() {
 
 function closeChart() {
   el.chartModal.classList.remove('open');
+}
+
+function renderFileList() {
+  var container = el.pasteFileList;
+  if (!container) return;
+  if (multiFiles.length === 0) { container.innerHTML = ''; return; }
+  var html = '';
+  for (var i = 0; i < multiFiles.length; i++) {
+    var cls = i === activeFileIndex ? 'multi-file-tag active' : 'multi-file-tag';
+    html += '<div class="' + cls + '" data-idx="' + i + '">'
+      + '<span class="remove" data-idx="' + i + '">&times;</span> '
+      + '<span class="name" data-idx="' + i + '">' + escapeHtml(multiFiles[i].name) + '</span>'
+      + '</div>';
+  }
+  container.innerHTML = html;
+  container.querySelectorAll('.name').forEach(function (span) {
+    span.addEventListener('click', function () { selectFile(parseInt(span.dataset.idx)); });
+  });
+  container.querySelectorAll('.remove').forEach(function (span) {
+    span.addEventListener('click', function (e) { e.stopPropagation(); removeFile(parseInt(span.dataset.idx)); });
+  });
+}
+
+function addCurrentFile() {
+  var code = window.editor.getValue();
+  if (!code.trim()) return;
+  var name = el.fileName.value.trim() || 'contract.sol';
+  multiFiles.push({ name: name, code: code });
+  activeFileIndex = multiFiles.length - 1;
+  renderFileList();
+}
+
+function removeFile(idx) {
+  if (idx < 0 || idx >= multiFiles.length) return;
+  multiFiles.splice(idx, 1);
+  if (multiFiles.length === 0) {
+    activeFileIndex = -1;
+    el.fileName.value = 'contract.sol';
+    window.editor.setValue('');
+  } else {
+    activeFileIndex = Math.min(idx, multiFiles.length - 1);
+    window.editor.setValue(multiFiles[activeFileIndex].code);
+    el.fileName.value = multiFiles[activeFileIndex].name;
+  }
+  renderFileList();
+}
+
+function selectFile(idx) {
+  if (idx < 0 || idx >= multiFiles.length) return;
+  if (activeFileIndex >= 0 && activeFileIndex < multiFiles.length) {
+    multiFiles[activeFileIndex].code = window.editor.getValue();
+  }
+  activeFileIndex = idx;
+  window.editor.setValue(multiFiles[idx].code);
+  el.fileName.value = multiFiles[idx].name;
+  renderFileList();
 }

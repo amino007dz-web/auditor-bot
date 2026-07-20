@@ -640,3 +640,14 @@ select {
   .diff-panels { flex-direction: column; }
   .diff-panel + .diff-panel { border-left: none; border-top: 1px solid var(--border); }
 }
+
+/* ─── Multi-File ─── */
+.multi-file-bar { display: flex; gap: 6px; padding: 6px 8px; background: var(--bg-surface); border-bottom: 1px solid var(--border); align-items: center; flex-shrink: 0; }
+.file-name-input { flex: 1; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px; font-size: 12px; font-family: monospace; background: var(--bg-inset); color: var(--text); }
+.file-name-input:focus { outline: none; border-color: var(--accent); }
+.multi-file-list { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 8px; background: var(--bg-surface); border-top: 1px solid var(--border); min-height: 28px; flex-shrink: 0; }
+.multi-file-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 11px; cursor: pointer; color: var(--text-muted); }
+.multi-file-tag.active { border-color: var(--accent); color: var(--accent); background: var(--bg-inset); }
+.multi-file-tag .remove { cursor: pointer; color: var(--text-dim); font-size: 12px; }
+.multi-file-tag .remove:hover { color: var(--red); }
+.multi-file-tag:hover { border-color: var(--text-dim); }
