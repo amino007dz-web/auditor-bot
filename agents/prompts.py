@@ -14,6 +14,7 @@ CRITICAL RULES:
 - **EVERY reported vulnerability MUST have a realistic exploit path**: Show the sequence of transactions. If you cannot describe a concrete exploit, DO NOT report it.
 - **If in doubt, leave it out**: Err on the side of NOT reporting. A false positive damages trust more than a missed Low/Info finding.
 - **Never inflate severity**: Do not mark Medium issues as High, or Low as Medium. Be conservative. When borderline, round DOWN.
+- **Storage slot impact**: For underflow/overflow/arbitrary write bugs, ALWAYS calculate which storage slots are reachable (keccak256 for dynamic arrays). If owner/admin/balance slots can be overwritten, severity is Critical — full fund loss is possible.
 - **Report nothing = acceptable answer**: If the contract is well-audited code or has no genuine issues, say "No vulnerabilities found."
 
 ## 10 Attacker Questions (Ask For EVERY External Function)
@@ -147,6 +148,7 @@ CHUNK_PROMPT: str = """You are an expert smart contract security auditor with ex
 - **If in doubt, leave it out**: Better to miss a marginal finding than report a false positive.
 - **Never inflate severity**: Critical only for direct fund loss. Round DOWN when borderline.
 - **NEVER alter business logic in fixes**: Only add guards, never change arithmetic or balances.
+- **Storage slot impact**: For underflow/overflow/arbitrary write bugs, ALWAYS calculate the storage slot that can be overwritten via Solidity's layout rules (keccak256 for dynamic arrays, slot index for state vars). If owner, admin, or balance slots are reachable, severity is Critical — full fund loss is possible.
 
 ## Response Format
 ### [Vulnerability Name] — [Severity]
