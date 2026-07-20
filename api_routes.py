@@ -678,6 +678,59 @@ def api_poc():
         return jsonify({"error": "PoC generator not available"}), 500
 
 
+@api_bp.route('/analyze/poc', methods=['POST'])
+@rate_limit(5)
+@require_api_key
+def api_generate_poc():
+    data = request.get_json()
+    if not data or 'report' not in data:
+        return jsonify({"error": "Field 'report' is required"}), 400
+    report = data['report']
+    code = data.get('code', '')
+    try:
+        from hackerone_report import _extract_findings
+        from analyzers.base import Finding
+        from proof_generator import generate_poc
+        findings = _extract_findings(report)
+        target = None
+        for f in findings:
+            if f.get('severity', '').replace('*', '').strip() in ('Critical', 'High'):
+                target = f
+                break
+        if not target:
+            return jsonify({"error": "No Critical or High findings found to generate PoC"}), 400
+
+        finding = Finding(
+            agent_name=target.get('name', 'Vulnerability'),
+            severity=target.get('severity', 'Critical').replace('*', '').strip(),
+            category=target.get('category', 'Unknown'),
+            file='source.sol',
+            function_name='',
+            description=(target.get('description', '') or '')[:500],
+            code_snippet=code[:200],
+        )
+        poc_path = generate_poc(finding, code)
+        if poc_path:
+            with open(poc_path, 'r') as f:
+                poc_code = f.read()
+            try:
+                os.unlink(poc_path)
+            except OSError:
+                pass
+            return jsonify({"poc": poc_code, "filename": os.path.basename(poc_path)})
+
+        from hackerone_report import _get_poc_template
+        cat = (target.get('category', '') or '') or (target.get('name', '') or '')
+        poc = _get_poc_template(cat)
+        return jsonify({"poc": poc, "filename": f"PoC_{target.get('name', 'vuln').replace(' ', '_')}.t.sol"})
+
+    except ImportError as e:
+        return jsonify({"error": f"PoC generator not available: {e}"}), 500
+    except Exception as e:
+        logger.exception("PoC generation failed")
+        return jsonify({"error": f"PoC generation failed: {e}"}), 500
+
+
 @api_bp.route('/sarif', methods=['POST'])
 @rate_limit(10)
 @require_api_key

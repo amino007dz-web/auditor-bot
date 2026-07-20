@@ -266,6 +266,21 @@ function generateFuzzTest() {
   }).catch(function (err) { el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + escapeHtml(err.message) + '</p>'; });
 }
 
+function generatePoc() {
+  if (!currentReportText) return;
+  var code = window.editor.getValue();
+  el.resultsTitle.textContent = 'Generating PoC exploit...';
+  el.resultsBody.innerHTML = '<div class="skeleton w-75 h-24"></div>';
+  fetch('/api/analyze/poc', {
+    method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ report: currentReportText, code: code })
+  }).then(function (r) { if (!r.ok) throw new Error('Server error: ' + r.status); return r.json(); }).then(function (data) {
+    var md = '# Generated Proof of Concept\n\n```solidity\n' + (data.poc || 'Error generating PoC') + '\n```';
+    if (data.filename) md += '\n\n**File**: `' + data.filename + '`';
+    currentReportText = md; renderFinalReport(md);
+  }).catch(function (err) { el.resultsBody.innerHTML = '<p style="color:var(--red);">Error: ' + escapeHtml(err.message) + '</p>'; });
+}
+
 function exportHackerone() {
   if (!currentReportText) return;
   var code = window.editor.getValue();

@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function () {
     'analysisType','themeToggle','historyBtn','historyPanel','historyClose','historyList',
     'chartModal','chartClose','severityChart','knowledgeBtn','knowledgeModal','knowledgeClose',
     'knowledgeInput','browseKnowledgeBtn','knowledgeFileInfo','knowledgeResult','uploadKnowledgeBtn',
-    'gasBtn','fixBtn','malwareBtn','fuzzBtn','hackeroneBtn','entryContract',
+    'gasBtn','fixBtn','malwareBtn','fuzzBtn','pocBtn','hackeroneBtn','entryContract',
     'githubUrl','githubFileInfo','editorBody','diffOriginal','diffModified',
     'downloadMd','downloadSarif','downloadPdf','toggleChart','exportGithub',
     'projectInput','browseProjectBtn','projectFileInfo','dropZone','quotaDisplay',
@@ -114,6 +114,7 @@ document.addEventListener('DOMContentLoaded', function () {
   el.fixBtn.addEventListener('click', suggestFix);
   el.malwareBtn.addEventListener('click', scanMalware);
   el.fuzzBtn.addEventListener('click', generateFuzzTest);
+  el.pocBtn.addEventListener('click', generatePoc);
   el.hackeroneBtn.addEventListener('click', exportHackerone);
   el.toggleChart.addEventListener('click', showChart);
   el.exportGithub.addEventListener('click', exportToGithub);
