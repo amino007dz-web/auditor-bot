@@ -135,7 +135,7 @@ function startAnalysis() {
     body = JSON.stringify({ code: code, type: el.analysisType.value });
   }
 
-  if (tab !== 'diff' && !code.trim()) {
+  if (tab !== 'diff' && tab !== 'github' && !code.trim()) {
     el.resultsBody.innerHTML = '<p style="color:var(--red);">Please enter or upload code first.</p>';
     return;
   }
