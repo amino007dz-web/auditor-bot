@@ -307,7 +307,9 @@ select {
 
 /* ─── Tab Content ─── */
 .tab-content { display: none; flex: 1; flex-direction: column; }
-.tab-content.active { display: flex; }
+.tab-content.active { display: flex; flex-direction: column; }
+.tab-content.active > textarea,
+.tab-content.active > .CodeMirror { flex: 1; min-height: 0; }
 
 .tab-content-center {
   flex: 1;
