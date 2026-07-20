@@ -812,6 +812,11 @@ def api_admin_deactivate():
 csrf.exempt(api_admin_deactivate)
 
 
+@app.route('/cicd')
+def cicd_page():
+    return render_template('cicd.html')
+
+
 @app.route('/health')
 def health():
     return jsonify({"ok": True}), 200

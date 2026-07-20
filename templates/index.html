@@ -120,17 +120,13 @@
     <div class="results-header">
       <span class="results-title" id="resultsTitle">Results</span>
       <div class="results-actions" id="resultsActions" style="display:none">
-        <button class="btn-icon" id="downloadMd" title="Download Markdown"><i class="fas fa-download"></i></button>
-        <button class="btn-icon" id="downloadSarif" title="Download SARIF"><i class="fas fa-code"></i></button>
-        <button class="btn-icon" id="downloadPdf" title="Download PDF"><i class="fas fa-file-pdf"></i></button>
+        <button class="btn-icon" id="exportHubBtn" title="Export"><i class="fas fa-file-export"></i></button>
         <button class="btn-icon" id="gasBtn" title="Gas Report"><i class="fas fa-gas-pump"></i></button>
         <button class="btn-icon" id="fixBtn" title="Suggest Fix"><i class="fas fa-wrench"></i></button>
         <button class="btn-icon" id="malwareBtn" title="Malware Scan"><i class="fas fa-bug"></i></button>
         <button class="btn-icon" id="fuzzBtn" title="Generate Fuzz Test"><i class="fas fa-flask"></i></button>
         <button class="btn-icon" id="pocBtn" title="Generate PoC Exploit"><i class="fas fa-bolt"></i></button>
-        <button class="btn-icon" id="hackeroneBtn" title="Export to HackerOne"><i class="fas fa-paper-plane"></i></button>
         <button class="btn-icon" id="toggleChart" title="Toggle Chart"><i class="fas fa-chart-bar"></i></button>
-        <button class="btn-icon" id="exportGithub" title="Export to GitHub"><i class="fas fa-share-alt"></i></button>
       </div>
     </div>
     <div class="results-body" id="resultsBody">
@@ -191,6 +187,48 @@
     <div id="knowledgeFileInfo" class="hint" style="margin-bottom:8px;"></div>
     <div id="knowledgeResult" style="font-size:13px;margin-bottom:8px;"></div>
     <button class="btn btn-primary" id="uploadKnowledgeBtn"><i class="fas fa-upload"></i> Ingest to Knowledge Base</button>
+  </div>
+</div>
+
+<!-- ─── Export Hub Modal ─── -->
+<div class="modal-overlay" id="exportHubModal">
+  <div class="modal-box" style="max-width:520px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;">Export Report</h3>
+      <button class="btn-icon" id="exportHubClose"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="export-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <button class="export-option" onclick="downloadReport('md')">
+        <i class="fas fa-file-alt" style="color:var(--accent);"></i>
+        <span>Markdown</span>
+        <small>Download .md file</small>
+      </button>
+      <button class="export-option" onclick="downloadReport('sarif')">
+        <i class="fas fa-code" style="color:var(--green);"></i>
+        <span>SARIF</span>
+        <small>IDE-compatible format</small>
+      </button>
+      <button class="export-option" onclick="downloadReport('pdf')">
+        <i class="fas fa-file-pdf" style="color:var(--red);"></i>
+        <span>PDF</span>
+        <small>Printable report</small>
+      </button>
+      <button class="export-option" onclick="exportToGithub()">
+        <i class="fab fa-github" style="color:var(--text);"></i>
+        <span>GitHub Issue</span>
+        <small>Copy to clipboard</small>
+      </button>
+      <button class="export-option" onclick="exportHackerone()">
+        <i class="fas fa-paper-plane" style="color:var(--orange);"></i>
+        <span>HackerOne</span>
+        <small>Bug bounty format</small>
+      </button>
+      <a class="export-option" href="/cicd" style="text-decoration:none;">
+        <i class="fas fa-rocket" style="color:var(--purple);"></i>
+        <span>CI/CD Config</span>
+        <small>GitHub Actions YAML</small>
+      </a>
+    </div>
   </div>
 </div>
 

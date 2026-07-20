@@ -23,9 +23,9 @@ document.addEventListener('DOMContentLoaded', function () {
     'analysisType','themeToggle','historyBtn','historyPanel','historyClose','historyList',
     'chartModal','chartClose','severityChart','knowledgeBtn','knowledgeModal','knowledgeClose',
     'knowledgeInput','browseKnowledgeBtn','knowledgeFileInfo','knowledgeResult','uploadKnowledgeBtn',
-    'gasBtn','fixBtn','malwareBtn','fuzzBtn','pocBtn','hackeroneBtn','entryContract',
+    'gasBtn','fixBtn','malwareBtn','fuzzBtn','pocBtn','entryContract',
     'githubUrl','githubFileInfo','editorBody','diffOriginal','diffModified',
-    'downloadMd','downloadSarif','downloadPdf','toggleChart','exportGithub',
+    'toggleChart','exportHubBtn','exportHubModal','exportHubClose',
     'projectInput','browseProjectBtn','projectFileInfo','dropZone','quotaDisplay',
     'featuresShowcase', 'stopBtn',
     'fileName','addFileBtn','pasteFileList',
@@ -110,17 +110,15 @@ document.addEventListener('DOMContentLoaded', function () {
   el.uploadKnowledgeBtn.addEventListener('click', uploadKnowledge);
 
   // Results actions
-  el.downloadMd.addEventListener('click', function () { downloadReport('md'); });
-  el.downloadSarif.addEventListener('click', function () { downloadReport('sarif'); });
-  el.downloadPdf.addEventListener('click', function () { downloadReport('pdf'); });
   el.gasBtn.addEventListener('click', fetchGasReport);
   el.fixBtn.addEventListener('click', suggestFix);
   el.malwareBtn.addEventListener('click', scanMalware);
   el.fuzzBtn.addEventListener('click', generateFuzzTest);
   el.pocBtn.addEventListener('click', generatePoc);
-  el.hackeroneBtn.addEventListener('click', exportHackerone);
   el.toggleChart.addEventListener('click', showChart);
-  el.exportGithub.addEventListener('click', exportToGithub);
+  el.exportHubBtn.addEventListener('click', function () { el.exportHubModal.classList.add('open'); });
+  el.exportHubClose.addEventListener('click', function () { el.exportHubModal.classList.remove('open'); });
+  el.exportHubModal.addEventListener('click', function (e) { if (e.target === el.exportHubModal) el.exportHubModal.classList.remove('open'); });
   el.addFileBtn.addEventListener('click', addCurrentFile);
   el.fileName.addEventListener('keydown', function (e) { if (e.key === 'Enter') addCurrentFile(); });
   document.addEventListener('keydown', function (e) {

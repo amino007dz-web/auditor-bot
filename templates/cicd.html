@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CI/CD Integration — Smart Contract Auditor</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style nonce="{{ csp_nonce }}">
+.container { max-width: 800px; margin: 2rem auto; padding: 0 1.5rem; }
+.card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1rem; }
+.card h2 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+.card p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; }
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.3rem; }
+.form-group input, .form-group select { width:100%; padding: 0.5rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-inset); color: var(--text); font-size: 0.85rem; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent); }
+.form-row { display:flex; gap:1rem; }
+.form-row .form-group { flex:1; }
+pre.code-block { background: var(--bg-inset); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; font-family: monospace; font-size: 0.8rem; line-height: 1.5; overflow-x: auto; white-space: pre; color: var(--text); min-height: 200px; }
+.copy-btn { margin-top: 0.5rem; }
+.option-tag { display:inline-block; padding: 1px 6px; border-radius: 3px; font-size:0.7rem; font-weight:600; margin-right:4px; }
+.option-free { background:var(--bg-elevated); color:var(--text-muted); border:1px solid var(--border); }
+.option-pro { background:#58a6ff33; color:var(--accent); border:1px solid var(--accent); }
+.step-list { list-style: none; padding: 0; }
+.step-list li { display:flex; gap:0.75rem; padding:0.6rem 0; border-bottom:1px solid var(--border); font-size:0.85rem; align-items:flex-start; }
+.step-list li:last-child { border-bottom: none; }
+.step-num { width:24px; height:24px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:700; flex-shrink:0; }
+.topbar a { color:var(--text-muted); text-decoration:none; }
+.topbar a:hover { color:var(--text); }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-brand">
+    <a href="/app" style="text-decoration:none;color:inherit;">
+      <span class="shield">&#128737;</span>
+      <span>Smart Contract Auditor</span>
+    </a>
+  </div>
+  <div class="topbar-center"></div>
+  <div class="topbar-right">
+    <a href="/app" style="margin-right:1rem;"><i class="fas fa-shield-alt"></i> Auditor</a>
+    <a href="/account"><i class="fas fa-user"></i> Account</a>
+  </div>
+</header>
+
+<div class="container">
+  <div class="card">
+    <h2><i class="fas fa-rocket"></i> CI/CD Integration</h2>
+    <p>Run automated smart contract audits in your GitHub Actions pipeline. Every PR and push gets scanned for vulnerabilities before deployment.</p>
+  </div>
+
+  <div class="card">
+    <h2><i class="fas fa-list-ol"></i> Setup Guide</h2>
+    <ol class="step-list">
+      <li><span class="step-num">1</span><div><strong>Get your API key</strong><br><span style="color:var(--text-dim);">Go to <a href="/account" style="color:var(--accent);">Account</a> and generate an API key.</span></div></li>
+      <li><span class="step-num">2</span><div><strong>Add repo secret</strong><br><span style="color:var(--text-dim);">In your GitHub repo: Settings → Secrets → Actions → Add <code>AUDITOR_API_KEY</code>.</span></div></li>
+      <li><span class="step-num">3</span><div><strong>Configure below</strong><br><span style="color:var(--text-dim);">Fill in the form and copy the generated workflow file.</span></div></li>
+      <li><span class="step-num">4</span><div><strong>Add to repo</strong><br><span style="color:var(--text-dim);">Create <code>.github/workflows/audit.yml</code> in your repo and paste the workflow.</span></div></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2><i class="fas fa-sliders-h"></i> Configuration</h2>
+    <form id="cicdForm" onsubmit="return generateYaml()">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Analysis Type</label>
+          <select id="analysisType">
+            <option value="full">Full Audit (AI + Pre-scan)</option>
+            <option value="quick">Quick Scan</option>
+            <option value="deep">Deep Analysis (with Slither/Mythril)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Trigger</label>
+          <select id="triggerEvent">
+            <option value="pull_request">On PR only</option>
+            <option value="push">On push to main</option>
+            <option value="both">Both PR and push</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Fail on Severity</label>
+          <select id="failSeverity">
+            <option value="critical">Critical only</option>
+            <option value="high">High and above</option>
+            <option value="medium">Medium and above</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Max Files to Scan</label>
+          <input type="number" id="maxFiles" value="10" min="1" max="50">
+        </div>
+      </div>
+      <div class="form-row" style="align-items:end;">
+        <div class="form-group" style="flex:2;">
+          <label>Contract Path (glob)</label>
+          <input type="text" id="contractPath" value="src/**/*.sol" placeholder="src/**/*.sol">
+        </div>
+        <button class="btn btn-primary" type="submit" style="height:fit-content;"><i class="fas fa-sync"></i> Generate</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card" id="yamlCard" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <h2><i class="fas fa-file-code"></i> Generated Workflow</h2>
+      <button class="btn btn-sm btn-primary copy-btn" onclick="copyYaml()"><i class="fas fa-copy"></i> Copy YAML</button>
+    </div>
+    <pre class="code-block" id="yamlOutput"></pre>
+  </div>
+
+  <div class="card">
+    <h2><i class="fas fa-shield-alt"></i> Pro Features <span class="option-tag option-pro">PRO</span></h2>
+    <p>Upgrade to Pro for advanced CI/CD capabilities:</p>
+    <ul style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;">
+      <li><i class="fas fa-check" style="color:var(--green);margin-right:0.5rem;"></i>Slither + Mythril deep analysis in pipeline</li>
+      <li><i class="fas fa-check" style="color:var(--green);margin-right:0.5rem;"></i>PR comments with findings (auto-review)</li>
+      <li><i class="fas fa-check" style="color:var(--green);margin-right:0.5rem;"></i>SARIF upload to GitHub Code Scanning</li>
+      <li><i class="fas fa-check" style="color:var(--green);margin-right:0.5rem;"></i>Unlimited audits per month</li>
+      <li><i class="fas fa-check" style="color:var(--green);margin-right:0.5rem;"></i>Slack/Telegram notifications on vuln detection</li>
+    </ul>
+    <p style="margin-top:0.5rem;font-size:0.85rem;"><a href="/account" style="color:var(--accent);">Upgrade to Pro →</a></p>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+function generateYaml() {
+  var analysisType = document.getElementById('analysisType').value;
+  var triggerEvent = document.getElementById('triggerEvent').value;
+  var failSeverity = document.getElementById('failSeverity').value;
+  var maxFiles = document.getElementById('maxFiles').value || 10;
+  var contractPath = document.getElementById('contractPath').value || 'src/**/*.sol';
+
+  var triggerYaml = '';
+  if (triggerEvent === 'pull_request') {
+    triggerYaml = 'pull_request:\n    branches: [ main ]';
+  } else if (triggerEvent === 'push') {
+    triggerYaml = 'push:\n    branches: [ main ]';
+  } else {
+    triggerYaml = 'push:\n    branches: [ main ]\n  pull_request:\n    branches: [ main ]';
+  }
+
+  var deepSteps = '';
+  if (analysisType === 'deep') {
+    deepSteps = `      - name: Run Slither\n        run: slither . --sarif sarif-output.json || true\n      - name: Run Mythril\n        run: mythril analyze src/ || true\n`;
+  }
+
+  var yaml = `name: Smart Contract Audit
+
+on:
+  ${triggerYaml}
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install requests
+${analysisType === 'deep' ? `          pip install slither-analyzer mythril\n` : ''}
+      - name: Run Smart Contract Auditor
+        env:
+          AUDITOR_API_KEY: \${{ secrets.AUDITOR_API_KEY }}
+          AUDITOR_API_URL: https://auditor-bot.onrender.com
+        run: |
+          python -c "
+import requests, glob, os, json
+
+api_key = os.environ['AUDITOR_API_KEY']
+api_url = os.environ['AUDITOR_API_URL']
+contracts = glob.glob('${contractPath}', recursive=True)
+contracts = [f for f in contracts if f.endswith(('.sol','.vy','.move'))][:${maxFiles}]
+
+if not contracts:
+    print('No contracts found at ${contractPath}')
+    exit(0)
+
+all_ok = True
+for path in contracts:
+    print(f'Scanning {path}...')
+    with open(path) as f:
+        code = f.read()
+    resp = requests.post(f'{api_url}/api/analyze/json', json={
+        'code': code,
+        'type': '${analysisType === 'deep' ? 'full' : analysisType}'
+    }, headers={'Authorization': f'Bearer {api_key}'}, timeout=300)
+    data = resp.json()
+    if resp.status_code != 200:
+        print(f'  ERROR: {data.get(\"error\", \"Unknown\")}')
+        all_ok = False
+        continue
+    report = data.get('report', '')
+    findings = [l for l in report.split('\\n') if any(s in l.lower() for s in ['critical','high','medium'])]
+    for f in findings:
+        print(f'  {f}')
+    # Check for high/critical findings
+    if '${failSeverity}' in report.lower():
+        print(f'  FAIL: ${failSeverity} severity findings detected')
+        all_ok = False
+
+if not all_ok:
+    exit(1)
+"
+${deepSteps}
+      - name: Comment PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request' && failure()
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ **Smart Contract Auditor** found vulnerabilities in this PR.\\n\\nCheck the Actions log for details.'
+            })
+`;
+  document.getElementById('yamlOutput').textContent = yaml;
+  document.getElementById('yamlCard').style.display = 'block';
+  return false;
+}
+
+function copyYaml() {
+  var yaml = document.getElementById('yamlOutput').textContent;
+  navigator.clipboard.writeText(yaml).then(function () {
+    alert('Workflow YAML copied to clipboard!');
+  }).catch(function () {
+    alert('Failed to copy. Please select and copy manually.');
+  });
+}
+</script>
+</body>
+</html>
