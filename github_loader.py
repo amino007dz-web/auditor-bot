@@ -17,7 +17,7 @@ def extract_repo_info(repo_url: str) -> Tuple[Optional[str], Optional[str]]:
 
 
 SUPPORTED_EXTS: tuple = (".sol", ".vy", ".move", ".clsp", ".clib", ".rs", ".py")
-MAX_FILES_LIMIT = 200
+MAX_FILES_LIMIT = 20
 MAX_DEPTH = 20
 
 def get_all_sol_files(repo, path: str = "", depth: int = 0, collected: list = None) -> List[Dict[str, str]]:

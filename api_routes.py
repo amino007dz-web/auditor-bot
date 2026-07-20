@@ -269,60 +269,73 @@ def api_analyze_github():
 @rate_limit(5)
 @require_api_key
 def api_github_stream():
-    from github_loader import download_contracts
+    from github_loader import extract_repo_info
     data = request.get_json()
     if not data or 'url' not in data:
         return jsonify({"error": "GitHub URL is required"}), 400
     url = data['url'].strip()
-    try:
-        contracts = download_contracts(url, GITHUB_TOKEN if GITHUB_TOKEN else None)
+
+    def gen():
+        from github_loader import get_all_sol_files
+        from github import Github, GithubException
+        username, repo_name = extract_repo_info(url)
+        if not username or not repo_name:
+            yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': 'Invalid GitHub URL'}))
+            return
+
+        try:
+            g = Github(GITHUB_TOKEN) if GITHUB_TOKEN else Github()
+            repo = g.get_repo(f"{username}/{repo_name}")
+        except Exception as e:
+            yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': f'GitHub access failed: {e}'}))
+            return
+
+        yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'github', 'text': f'Connected to {username}/{repo_name}, scanning files...'}))
+        contracts = get_all_sol_files(repo)
         if not contracts:
-            return jsonify({"error": "No Solidity files found in the repository"}), 404
+            yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': 'No Solidity files found in the repository'}))
+            return
+
+        yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'github', 'text': f'Found {len(contracts)} file(s), preparing analysis...'}))
         combined = "\n\n// ====== " + "=" * 40 + "\n\n".join(
-            f"// File: {c['name']}\n{c['code'][:2000]}" for c in contracts[:10]
+            f"// File: {c['name']}\n{c['code'][:2000]}" for c in contracts
         )[:5000]
 
-        def gen():
-            from agents.llm_client import _stream_ollama, _stream_openrouter
-            from agents.prompts import SYSTEM_PROMPT
-            from config import API_PROVIDER, ACTIVE_MODEL, FREE_MODELS, OLLAMA_MODEL
-            pre = run_pre_scan(combined)
-            msg = 'GitHub repo: {} files found, pre-scan complete'.format(len(contracts))
-            yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'pre-scan', 'text': msg}))
-            prompt = "{}\n\nPre-scan findings:\n{}\n\nGitHub repo ({}) code:\n{}\n\nProvide a comprehensive security audit.".format(
-                SYSTEM_PROMPT, pre, url.rsplit('/', 1)[-1], combined)
-            yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'ai', 'text': 'Running AI analysis on repository...'}))
-            full = ""
-            _stream_fn = _stream_openrouter if API_PROVIDER == "openrouter" else _stream_ollama
-            model_name = FREE_MODELS.get(ACTIVE_MODEL, {}).get("id", "openrouter/free") if API_PROVIDER == "openrouter" else OLLAMA_MODEL
-            for event in _stream_fn(model_name, prompt):
-                if event.startswith("data: "):
-                    try:
-                        edata = json.loads(event[6:])
-                        if 'token' in edata:
-                            full += edata['token']
-                            yield 'data: {}\n\n'.format(json.dumps({'type': 'token', 'text': edata['token']}))
-                            continue
-                        elif 'error' in edata:
-                            yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': edata['error']}))
-                            return
-                    except json.JSONDecodeError:
-                        logger.warning(f"SSE stream: JSON decode error in event: {event[:200]}")
+        from agents.llm_client import _stream_ollama, _stream_openrouter
+        from agents.prompts import SYSTEM_PROMPT
+        from config import API_PROVIDER, ACTIVE_MODEL, FREE_MODELS, OLLAMA_MODEL
+        pre = run_pre_scan(combined)
+        msg = 'GitHub repo: {} files found, pre-scan complete'.format(len(contracts))
+        yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'pre-scan', 'text': msg}))
+        prompt = "{}\n\nPre-scan findings:\n{}\n\nGitHub repo ({}) code:\n{}\n\nProvide a comprehensive security audit.".format(
+            SYSTEM_PROMPT, pre, url.rsplit('/', 1)[-1], combined)
+        yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'ai', 'text': 'Running AI analysis on repository...'}))
+        full = ""
+        _stream_fn = _stream_openrouter if API_PROVIDER == "openrouter" else _stream_ollama
+        model_name = FREE_MODELS.get(ACTIVE_MODEL, {}).get("id", "openrouter/free") if API_PROVIDER == "openrouter" else OLLAMA_MODEL
+        for event in _stream_fn(model_name, prompt):
+            if event.startswith("data: "):
+                try:
+                    edata = json.loads(event[6:])
+                    if 'token' in edata:
+                        full += edata['token']
+                        yield 'data: {}\n\n'.format(json.dumps({'type': 'token', 'text': edata['token']}))
                         continue
-                yield event
-            if not full or len(full.strip()) < 20:
-                yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': 'The AI model returned an empty response. Please try again.'}))
-                return
-            yield 'data: {}\n\n'.format(json.dumps({'type': 'final', 'report': full}))
+                    elif 'error' in edata:
+                        yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': edata['error']}))
+                        return
+                except json.JSONDecodeError:
+                    logger.warning(f"SSE stream: JSON decode error in event: {event[:200]}")
+                    continue
+            yield event
+        if not full or len(full.strip()) < 20:
+            yield 'data: {}\n\n'.format(json.dumps({'type': 'error', 'message': 'The AI model returned an empty response. Please try again.'}))
+            return
+        yield 'data: {}\n\n'.format(json.dumps({'type': 'final', 'report': full}))
 
-        return Response(stream_with_context(gen()), mimetype='text/event-stream', headers={
-            'X-Accel-Buffering': 'no', 'Cache-Control': 'no-cache',
-        })
-    except ImportError:
-        return jsonify({"error": "PyGithub not installed"}), 500
-    except Exception as e:
-        logger.exception("Internal error")
-        return jsonify({"error": "An internal error occurred"}), 500
+    return Response(stream_with_context(gen()), mimetype='text/event-stream', headers={
+        'X-Accel-Buffering': 'no', 'Cache-Control': 'no-cache',
+    })
 
 
 @api_bp.route('/history', methods=['GET'])
