@@ -296,6 +296,7 @@ def api_github_stream():
         from agents.llm_client import _stream_ollama, _stream_openrouter
         from agents.prompts import SYSTEM_PROMPT
         from config import API_PROVIDER, ACTIVE_MODEL, FREE_MODELS, OLLAMA_MODEL
+        yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'pre-scan', 'text': 'Running static analysis (grep, MCP, AST)...'}))
         pre = run_pre_scan(combined)
         msg = 'GitHub repo: {} files found, pre-scan complete'.format(len(contracts))
         yield 'data: {}\n\n'.format(json.dumps({'type': 'progress', 'step': 'pre-scan', 'text': msg}))
