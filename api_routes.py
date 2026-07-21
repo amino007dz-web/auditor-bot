@@ -105,12 +105,10 @@ def api_analyze_stream():
         return jsonify({"error": "Field 'code' is required"}), 400
     code = data['code']
     code = truncate_code(code)
-    # Deduct credit for Flask-Login users (non-API-key)
+    # Credit check — actual deduction happens in @require_api_key decorator
     import flask_login
     if flask_login.current_user.is_authenticated:
         reset_credits_if_needed(flask_login.current_user)
-        if not flask_login.current_user.is_pro() and flask_login.current_user.credits <= 0:
-            return jsonify({"error": "No credits remaining. Upgrade your plan or wait for monthly reset."}), 402
 
     def generate():
         # Step 1: Pre-scan
@@ -373,11 +371,9 @@ def api_history_save():
     code = session.get('access_code', '')
     title = data.get('title', 'Audit ' + time.strftime('%Y-%m-%d %H:%M'))
     report = data['report']
-    snippet = html.escape(report[:500])
+    snippet = report[:500]
     uid = current_user.id if current_user.is_authenticated else None
-    save_history(code, title, snippet, html.escape(report), data.get('severity_counts', ''), user_id=uid)
-    if uid:
-        deduct_credit(current_user)
+    save_history(code, title, snippet, report, data.get('severity_counts', ''), user_id=uid)
     return jsonify({"success": True})
 
 

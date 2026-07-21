@@ -512,6 +512,8 @@ select {
   font-size: 13px;
   line-height: 1.6;
   color: var(--text-muted);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .finding-card.open .finding-body { display: block; }
@@ -659,3 +661,20 @@ select {
 .export-option:hover { border-color:var(--accent); background:var(--bg-inset); }
 .export-option i { font-size:20px; }
 .export-option small { font-size:10px; color:var(--text-dim); font-weight:400; }
+
+/* ─── Animated Skeleton ─── */
+.skeleton-box {
+  background: linear-gradient(100deg, var(--bg-elevated) 30%, var(--bg-inset) 50%, var(--bg-elevated) 70%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton-text { height:14px; width:100%; margin-bottom:8px; }
+.skeleton-text-sm { height:10px; width:60%; margin-bottom:6px; }
+.skeleton-block { height:60px; width:100%; margin-bottom:8px; }
+.skeleton-pill { height:22px; width:80px; border-radius:11px; display:inline-block; }
+.skeleton-analysis { padding:16px; background:var(--bg); border-radius:var(--radius); margin-top:12px; }

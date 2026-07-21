@@ -93,7 +93,13 @@
       <div class="key-row">
         <div>
           <div style="font-weight:500;">{{ k.name }}</div>
-          <div class="key-value">{{ k.key[:20] }}...{% if not k.is_active %}<span style="color:var(--red);margin-left:0.5rem;">(revoked)</span>{% endif %}</div>
+          <div class="key-value" style="display:flex;align-items:center;gap:6px;">
+            <code style="font-size:0.75rem;background:var(--bg-inset);padding:1px 4px;border-radius:3px;">{{ k.key[:16] }}...{{ k.key[-8:] }}</code>
+            {% if k.is_active %}
+            <button class="btn-sm" style="padding:1px 6px;font-size:0.7rem;cursor:pointer;background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-muted);" onclick="copyKey('{{ k.key }}')" title="Copy full key"><i class="fas fa-copy"></i></button>
+            {% endif %}
+            {% if not k.is_active %}<span style="color:var(--red);margin-left:0.5rem;font-size:0.75rem;">(revoked)</span>{% endif %}
+          </div>
         </div>
         <div style="display:flex;gap:0.5rem;align-items:center;">
           <span style="font-size:0.75rem;color:var(--text-dim);">{{ k.created_at|string|truncate(10,True,'') }}</span>
@@ -115,6 +121,15 @@
 </div>
 
 <script nonce="{{ csp_nonce }}">
+function copyKey(key) {
+  navigator.clipboard.writeText(key).then(function () {
+    var btn = event.target;
+    if (btn.tagName !== 'BUTTON') btn = btn.closest('button');
+    var orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i>';
+    setTimeout(function () { btn.innerHTML = orig; }, 1500);
+  }).catch(function () { alert('Failed to copy'); });
+}
 function createKey() {
   var name = document.getElementById('keyName').value.trim();
   fetch('/api/account/keys', {

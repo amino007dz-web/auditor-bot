@@ -211,12 +211,18 @@ def _compile_via_solcx(code: str) -> Optional[dict]:
     except ImportError:
         return None
     try:
+        # Detect pragma version from source code
+        m = re.search(r"pragma solidity\s+([^;]+)", code)
+        target = str(m.group(1)).replace("^", "").replace("~", "").split()[0].split("<")[0].split(">")[0].strip() if m else ""
+        if not target:
+            target = "0.8.25"
         ver = solcx.get_installed_solc_versions()
         if not ver:
-            solcx.install_solc("0.8.25")
+            solcx.install_solc(target)
             ver = solcx.get_installed_solc_versions()
-        if ver:
-            solcx.set_solc_version(str(ver[0]))
+        if target not in [str(v) for v in ver]:
+            solcx.install_solc(target)
+        solcx.set_solc_version(target)
     except Exception as e:
         logger.debug(f"solcx setup: {e}")
         return None

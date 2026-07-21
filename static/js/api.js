@@ -6,7 +6,16 @@ function authHeaders(extra) {
 }
 
 function processStream(resp) {
-  if (!resp.ok) throw new Error('Analysis failed: ' + resp.status);
+  if (!resp.ok) {
+    return resp.json().then(function (errData) {
+      var msg = errData.error || ('Server error: ' + resp.status);
+      if (resp.status === 402 && typeof loadQuota === 'function') loadQuota();
+      throw new Error(msg);
+    }).catch(function (e) {
+      if (e.message.indexOf('Server error') >= 0) throw e;
+      throw new Error(e.message || ('Server error: ' + resp.status));
+    });
+  }
   if (!resp.body) throw new Error('Response has no body stream');
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
@@ -77,7 +86,11 @@ function handleFetchError(err) {
 }
 
 function handleJsonResponse(resp) {
-  if (!resp.ok) throw new Error('Analysis failed: ' + resp.status);
+  if (!resp.ok) {
+    return resp.json().then(function (errData) {
+      throw new Error(errData.error || ('Server error: ' + resp.status));
+    });
+  }
   return resp.json().then(function (data) {
     if (data.error) throw new Error(data.error);
     var md = '';
@@ -363,8 +376,16 @@ function loadHistoryItem(id) {
 function loadQuota() {
   fetch('/api/quota', { headers: authHeaders() }).then(function (r) { if (!r.ok) throw new Error('Server error: ' + r.status); return r.json(); }).then(function (data) {
     if (el.quotaDisplay && data) {
-      el.quotaDisplay.textContent = 'Quota: ' + data.used + '/' + data.allowed;
-      if (data.remaining <= 5) el.quotaDisplay.style.color = 'var(--red)';
+      if (data.plan === 'pro') {
+        el.quotaDisplay.innerHTML = '<i class="fas fa-gem" style="color:var(--accent);font-size:11px;"></i> Pro';
+      } else if (data.allowed === 'monthly') {
+        var pct = data.remaining / 5 * 100;
+        var color = pct < 25 ? 'var(--red)' : pct < 60 ? 'var(--orange)' : 'var(--green)';
+        el.quotaDisplay.innerHTML = '<i class="fas fa-gem" style="color:' + color + ';font-size:11px;"></i> ' + data.remaining + '/' + 5;
+      } else {
+        el.quotaDisplay.textContent = 'Quota: ' + data.used + '/' + data.allowed;
+      }
+      if (data.remaining <= 1) el.quotaDisplay.style.color = 'var(--red)';
     }
   });
 }

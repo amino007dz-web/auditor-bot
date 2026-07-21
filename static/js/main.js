@@ -219,7 +219,18 @@ function getCode() {
 }
 
 function renderSkeleton() {
-  return '<div class="skeleton w-75 h-24"></div><div class="skeleton w-50"></div><div class="skeleton w-90"></div><div class="skeleton w-75"></div><div class="skeleton w-50"></div>';
+  return '<div class="skeleton-analysis">'
+    + '<div class="skeleton-box skeleton-pill" style="margin-bottom:12px;"></div>'
+    + '<div class="skeleton-box skeleton-text"></div>'
+    + '<div class="skeleton-box skeleton-text-sm"></div>'
+    + '<div class="skeleton-box skeleton-block"></div>'
+    + '<div class="skeleton-box skeleton-text"></div>'
+    + '<div class="skeleton-box skeleton-text"></div>'
+    + '<div class="skeleton-box skeleton-text-sm"></div>'
+    + '<div class="skeleton-box skeleton-block"></div>'
+    + '<div class="skeleton-box skeleton-text"></div>'
+    + '<div class="skeleton-box skeleton-text-sm"></div>'
+    + '</div>';
 }
 
 function updateStep(step) { el.resultsTitle.textContent = step; }
@@ -315,6 +326,7 @@ function finalizeAnalysis() {
   el.analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Analyze';
   el.stopBtn.style.display = 'none';
   abortController = null;
+  if (typeof loadQuota === 'function') loadQuota();
 }
 
 function closeChart() {

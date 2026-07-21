@@ -61,8 +61,11 @@ def _rule_id(idx: int, finding: Dict) -> str:
     return f"SCA-{idx:03d}-{safe}" if safe else f"SCA-{idx:03d}"
 
 
+def _strip_markdown(text: str) -> str:
+    return text.replace("**", "").replace("*", "").replace("`", "")
+
 def report_to_sarif(report: str, code: str = "", label: str = "Smart Contract") -> str:
-    findings = _parse_findings(report)
+    findings = _parse_findings(_strip_markdown(report))
     sarif = {
         "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2-1/schema/sarif-schema-2.1.0.json",
         "version": "2.1.0",

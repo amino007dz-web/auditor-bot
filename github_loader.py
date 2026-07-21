@@ -40,8 +40,10 @@ def get_all_sol_files(username: str, repo_name: str, github_token: Optional[str]
         for item in tree_data.get("tree", []):
             if item["type"] == "blob" and any(item["path"].endswith(ext) for ext in SUPPORTED_EXTS):
                 sol_paths.append(item["path"])
-                if len(sol_paths) >= MAX_FILES_LIMIT:
-                    break
+        sol_paths.sort(key=lambda p: (
+            "test" in p.lower() or "mock" in p.lower() or "migration" in p.lower(),
+        ))
+        sol_paths = sol_paths[:MAX_FILES_LIMIT]
 
         contracts = []
         for path in sol_paths:

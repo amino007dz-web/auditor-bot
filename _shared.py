@@ -101,6 +101,11 @@ def require_api_key(f):
     def wrapper(*args, **kwargs):
         from flask_login import current_user
         if current_user.is_authenticated:
+            from auth import deduct_credit, reset_credits_if_needed
+            reset_credits_if_needed(current_user)
+            if not current_user.is_pro() and current_user.credits <= 0:
+                return jsonify({"error": "No credits remaining. Upgrade your plan or wait for monthly reset."}), 402
+            deduct_credit(current_user)
             return f(*args, **kwargs)
         if session.get('authenticated'):
             return f(*args, **kwargs)
